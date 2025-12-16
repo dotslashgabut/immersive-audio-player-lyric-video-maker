@@ -2,6 +2,8 @@
 
 A modern, single-page web application that transforms your music listening into a visual experience. Supports synchronized lyrics, custom visual storytelling, and high-quality video export for social media content creation.
 
+![Immersive Audio Player Main Screen](screenshot-main-screen.jpg)
+
 ## Key Features
 
 ### 🎧 Advanced Audio Player
@@ -31,6 +33,8 @@ A modern, single-page web application that transforms your music listening into 
 - **Create Stories**: Drag and drop images to create a background slideshow synchronized to specific timestamps.
 - **Timeline Interface**: Intuitive interface to move, resize, and snap slides to lyrics or audio duration.
 - **Zoom Controls**: Zoom in/out of the timeline for precise editing.
+
+![Timeline Editor](screenshot-timeline.jpg)
 
 ### 🎥 Content Creation & Export
 Turn your audio and visuals into shareable videos directly in the browser.
