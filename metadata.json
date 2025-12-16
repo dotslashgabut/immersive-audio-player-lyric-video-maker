@@ -1,0 +1,5 @@
+{
+  "name": "Immersive Audio Player",
+  "description": "A minimalist, single-page audio player supporting various formats, synchronized lyrics (.lrc/.srt), and a custom visual slideshow editor for an immersive listening experience.",
+  "requestFramePermissions": []
+}
