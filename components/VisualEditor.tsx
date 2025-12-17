@@ -334,7 +334,7 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
   return (
     <div
       ref={editorRef}
-      className="w-full max-w-[100vw] h-72 flex flex-col bg-zinc-900/95 backdrop-blur-md border-t border-white/10 z-20 shadow-xl overflow-hidden outline-none"
+      className="w-full max-w-[100vw] h-64 flex flex-col bg-zinc-900/95 backdrop-blur-md border-t border-white/10 z-20 shadow-xl overflow-hidden outline-none"
       tabIndex={0}
       onMouseDown={(e) => e.currentTarget.focus()}
       onKeyDown={handleKeyDown}
@@ -542,7 +542,7 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
           </div>
 
           {/* 4. Slides Track (Images) */}
-          <div className="absolute top-8 h-24 left-0 right-0 border-b border-white/5 bg-zinc-900/20">
+          <div className="absolute top-8 h-16 left-0 right-0 border-b border-white/5 bg-zinc-900/20">
             {slides.filter(s => s.type !== 'audio').map(slide => (
               <div
                 key={slide.id}
@@ -612,7 +612,7 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
           </div>
 
           {/* 5. Lyrics Track */}
-          <div className="absolute top-36 h-12 left-0 right-0 overflow-hidden">
+          <div className="absolute top-28 h-10 left-0 right-0 overflow-hidden">
             {lyrics.map((line, idx) => (
               <div
                 key={idx}
@@ -631,7 +631,7 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
           </div>
 
           {/* 6. Audio Track */}
-          <div className="absolute top-52 h-16 left-0 right-0 border-t border-white/5 bg-zinc-900/40">
+          <div className="absolute top-40 h-8 left-0 right-0 border-t border-white/5 bg-zinc-900/40">
             {slides.filter(s => s.type === 'audio').map(slide => (
               <div
                 key={slide.id}
@@ -639,7 +639,7 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
                   left: slide.startTime * pxPerSec,
                   width: Math.max(10, (slide.endTime - slide.startTime) * pxPerSec)
                 }}
-                className={`absolute top-2 bottom-2 rounded-md overflow-hidden group bg-emerald-900/50 border shadow-sm select-none cursor-move
+                className={`absolute top-1 bottom-1 rounded-md overflow-hidden group bg-emerald-900/50 border shadow-sm select-none cursor-move
                      ${(activeDrag?.id === slide.id || selectedSlideIds.includes(slide.id)) ? 'border-emerald-400 z-30 shadow-xl opacity-90' : 'border-emerald-700/50 hover:border-emerald-500 z-10 hover:z-20'}
                    `}
                 onMouseDown={(e) => handleMouseDown(e, slide.id, 'move')}
@@ -653,6 +653,29 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
                 <div className="absolute inset-0 p-1 pointer-events-none flex flex-col justify-center">
                   <span className="text-[9px] font-bold drop-shadow-md truncate text-emerald-100 px-1">{slide.name}</span>
                 </div>
+
+                {/* Mute/Unmute Button (Audio Only) */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSlides(prev => prev.map(s => {
+                      if (s.id === slide.id) return { ...s, isMuted: !s.isMuted };
+                      return s;
+                    }));
+                  }}
+                  className="absolute top-1 right-6 p-0.5 bg-black/60 hover:bg-emerald-600 rounded text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer z-40"
+                  title={slide.isMuted === true ? "Unmute" : "Mute"}
+                >
+                  {slide.isMuted === true ? <VolumeX size={10} /> : <Volume2 size={10} />}
+                </button>
+
+                {/* Delete Button */}
+                <button
+                  onClick={(e) => { e.stopPropagation(); removeSlide(slide.id); }}
+                  className="absolute top-1 right-1 p-0.5 bg-black/60 hover:bg-red-500 rounded text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer z-40"
+                >
+                  <X size={10} />
+                </button>
 
                 {/* Resize Handle (Left) */}
                 <div
