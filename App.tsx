@@ -14,6 +14,8 @@ function App() {
   const containerRef = useRef<HTMLDivElement>(null);
   const lyricsContainerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const abortRenderRef = useRef(false);
 
   // State: Media & Data
   const [audioSrc, setAudioSrc] = useState<string | null>(null);
@@ -169,14 +171,14 @@ function App() {
     }
   };
 
-  const stopPlayback = () => {
+  const stopPlayback = useCallback(() => {
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
       setIsPlaying(false);
       setCurrentTime(0);
     }
-  };
+  }, []);
 
   const toggleLoop = () => {
     setIsLooping(!isLooping);
@@ -714,6 +716,7 @@ function App() {
 
     setIsRendering(true);
     setRenderProgress(0);
+    abortRenderRef.current = false;
 
     // Stop and Reset
     stopPlayback();
@@ -768,6 +771,11 @@ function App() {
 
     await Promise.all(loadPromises);
 
+    if (abortRenderRef.current) {
+      setIsRendering(false);
+      return;
+    }
+
     // 3. Setup Audio Mixing & Recording
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
@@ -819,21 +827,28 @@ function App() {
     const bitrate = resolution === '1080p' ? 8000000 : 4000000;
     const mediaRecorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: bitrate });
 
+    mediaRecorderRef.current = mediaRecorder;
+
     const chunks: Blob[] = [];
     mediaRecorder.ondataavailable = (e) => {
       if (e.data.size > 0) chunks.push(e.data);
     };
 
     mediaRecorder.onstop = () => {
-      const blob = new Blob(chunks, { type: mimeType });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${metadata.title || 'video'}_${aspectRatio.replace(':', '-')}_${resolution}.${mimeType === 'video/mp4' ? 'mp4' : 'webm'}`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      // Only download if NOT aborted
+      if (!abortRenderRef.current) {
+        const blob = new Blob(chunks, { type: mimeType });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${metadata.title || 'video'}_${aspectRatio.replace(':', '-')}_${resolution}.${mimeType === 'video/mp4' ? 'mp4' : 'webm'}`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      } else {
+        console.log("Render aborted");
+      }
 
       // Cleanup
       audioContext.close();
@@ -903,6 +918,18 @@ function App() {
 
     renderLoop();
   };
+
+
+
+  const handleAbortRender = useCallback(() => {
+    abortRenderRef.current = true;
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+      mediaRecorderRef.current.stop();
+    } else {
+      setIsRendering(false);
+    }
+    stopPlayback();
+  }, [stopPlayback]);
 
   // Scroll active lyric into view
   useEffect(() => {
@@ -979,16 +1006,21 @@ function App() {
       // Ignore if typing in an input
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
 
+      if (isRendering) {
+        if (key === 'escape') {
+          handleAbortRender();
+        }
+        return; // Block other shortcuts during render
+      }
+
       switch (e.key.toLowerCase()) {
         case ' ':
         case 'k':
           e.preventDefault();
-          if (isRendering) return; // Disable play toggle during render
           togglePlay();
           break;
         case 's':
           e.preventDefault();
-          if (isRendering) return;
           stopPlayback();
           break;
         case 'l':
@@ -1013,7 +1045,7 @@ function App() {
           break;
         case 'arrowleft':
           e.preventDefault();
-          if (audioRef.current && !isRendering) {
+          if (audioRef.current) {
             const newTime = Math.max(0, audioRef.current.currentTime - 5);
             audioRef.current.currentTime = newTime;
             setCurrentTime(newTime);
@@ -1021,7 +1053,7 @@ function App() {
           break;
         case 'arrowright':
           e.preventDefault();
-          if (audioRef.current && !isRendering) {
+          if (audioRef.current) {
             const newTime = Math.min(duration, audioRef.current.currentTime + 5);
             audioRef.current.currentTime = newTime;
             setCurrentTime(newTime);
@@ -1032,7 +1064,7 @@ function App() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isPlaying, isLooping, activeTab, isRendering, resetIdleTimer]);
+  }, [isPlaying, isLooping, activeTab, isRendering, resetIdleTimer, handleAbortRender]);
 
   // --- Render Helpers ---
 
@@ -1596,6 +1628,14 @@ function App() {
               ></div>
             </div>
             <p className="text-sm font-mono text-zinc-500">{Math.round(renderProgress)}%</p>
+
+            <button
+              onClick={handleAbortRender}
+              className="mt-4 px-6 py-2 bg-red-500/20 text-red-400 hover:bg-red-500/30 hover:text-red-300 rounded-full transition-colors flex items-center gap-2 border border-red-500/50"
+            >
+              <Square size={16} fill="currentColor" />
+              Abort Rendering
+            </button>
           </div>
         )
       }

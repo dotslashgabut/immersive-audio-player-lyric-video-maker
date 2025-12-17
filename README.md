@@ -62,6 +62,7 @@ Turn your audio and visuals into shareable videos directly in the browser.
 - **Smart Overlays**: Automatically renders a professional metadata overlay (Cover Art + Text).
   - *Landscape*: Top-left alignment.
   - *Portrait (9:16/3:4/1:1)*: Top-center alignment.
+- **Audio Mixing**: Seamlessly blends the main track with audio from video slides (volume controlled via timeline).
 
 ## Keyboard Shortcuts
 
@@ -77,6 +78,7 @@ Turn your audio and visuals into shareable videos directly in the browser.
 | **T** | Open/Close Timeline Editor |
 | **I** | Toggle Info Header |
 | **P** | Toggle Player Controls |
+| **Escape** | Abort Video Rendering |
 
 ## Installation
 
@@ -104,7 +106,7 @@ This application is built with React + Vite and requires **Node.js** to run.
 4. **Export Video**:
    - Select your target resolution (e.g., 1080p) and aspect ratio (e.g., 9:16) in the bottom bar.
    - Click the **Video** icon.
-   - *Important*: The audio will play in real-time to capture the video. Keep the tab active until rendering finishes.
+   - *Important*: The audio will play in real-time to capture the video. Keep the tab active until rendering finishes. (Press **Escape** to abort).
 
 ## Browser Compatibility
 
@@ -168,4 +170,4 @@ Setelah puas dengan tampilan:
     *   **3:4**: Instagram Feed / Facebook.
     *   **1:1**: Instagram Post / Facebook.
 3.  Klik ikon **Video/Kamera** 🎥 untuk memulai export.
-4.  **PENTING**: Lagu akan berputar dari awal. **Jangan tutup atau minimalkan tab browser** selama proses ini berlangsung hingga file video otomatis terunduh.
+4.  **PENTING**: Lagu akan berputar dari awal. **Jangan tutup atau minimalkan tab browser** selama proses ini berlangsung hingga file video otomatis terunduh. (Tekan tombol **Escape** jika ingin membatalkan).
