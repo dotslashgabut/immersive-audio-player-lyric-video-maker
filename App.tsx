@@ -524,7 +524,7 @@ function App() {
 
           if (activePreset === 'slideshow') {
             // Slideshow strict single line or wrapped but simple
-            if (i !== 0) return; // Hide neighbors
+            if (i !== 0) continue; // Hide neighbors
             drawWrappedText(ctx, line.text, xPos, yPos, maxWidth, baseFontSize * 1.2);
           } else if (isBigLayout && isCurrent) {
             const textToDraw = (activePreset === 'large_upper' || activePreset === 'big_center' || activePreset === 'metal' || activePreset === 'tech' || activePreset === 'testing_up') ? line.text.toUpperCase() : line.text;
@@ -557,11 +557,12 @@ function App() {
     }
 
     // 3. Draw Metadata Overlay
-    if (activePreset !== 'slideshow') {
+    if (true) {
       // Group 2: Bottom Center Layouts
-      if (['big_center', 'metal', 'kids', 'sad', 'romantic', 'tech', 'gothic', 'testing', 'testing_up'].includes(activePreset)) {
+      if (['big_center', 'metal', 'kids', 'sad', 'romantic', 'tech', 'gothic', 'testing', 'testing_up', 'slideshow'].includes(activePreset)) {
         // Custom Metadata: Bottom of screen, centered, no art, small title
         ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
 
         let bottomMargin = 80 * scale; // Distance from bottom
         if (activePreset === 'testing' || activePreset === 'testing_up') bottomMargin = 120 * scale;
