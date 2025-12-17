@@ -4,7 +4,7 @@ import {
   Maximize, Minimize, Upload, Music, FileText, Settings, ImageIcon,
   Repeat, Square, Eye, EyeOff, Video, Download, Film
 } from './components/Icons';
-import { AudioMetadata, LyricLine, TabView, VisualSlide } from './types';
+import { AudioMetadata, LyricLine, TabView, VisualSlide, VideoPreset } from './types';
 import { formatTime, parseLRC, parseSRT } from './utils/parsers';
 import VisualEditor from './components/VisualEditor';
 
@@ -47,7 +47,7 @@ function App() {
   const [renderProgress, setRenderProgress] = useState(0);
   const [aspectRatio, setAspectRatio] = useState<'16:9' | '9:16' | '3:4' | '1:1'>('16:9');
   const [resolution, setResolution] = useState<'720p' | '1080p'>('1080p');
-  const [preset, setPreset] = useState<'default' | 'large' | 'classic' | 'large_upper' | 'monospace' | 'big_center' | 'metal' | 'kids' | 'sad' | 'romantic' | 'tech' | 'gothic' | 'testing' | 'testing_up' | 'slideshow' | 'just_video'>('default');
+  const [preset, setPreset] = useState<VideoPreset>('default');
 
   // Derived dimensions
   const getCanvasDimensions = () => {
@@ -74,7 +74,11 @@ function App() {
 
   // Derived State
   const activeSlide = visualSlides.find(
-    s => currentTime >= s.startTime && currentTime < s.endTime
+    s => s.type !== 'audio' && currentTime >= s.startTime && currentTime < s.endTime
+  );
+
+  const activeAudioSlides = visualSlides.filter(
+    s => s.type === 'audio' && currentTime >= s.startTime && currentTime < s.endTime
   );
 
   const currentLyricIndex = lyrics.findIndex((line, index) => {
@@ -236,10 +240,15 @@ function App() {
 
     images: Map<string, HTMLImageElement>,
     videos: Map<string, HTMLVideoElement>,
-    activePreset: 'default' | 'large' | 'classic' | 'large_upper' | 'monospace' | 'big_center' | 'metal' | 'kids' | 'sad' | 'romantic' | 'tech' | 'gothic' | 'testing' | 'testing_up' | 'slideshow' | 'just_video'
+    activePreset: VideoPreset
   ) => {
     // Helper for wrapping text
     const getWrappedLines = (ctx: CanvasRenderingContext2D, text: string, maxWidth: number) => {
+      // 0. Handle explicit newlines first (Recursive)
+      if (text.includes('\n')) {
+        return text.split('\n').flatMap(line => getWrappedLines(ctx, line, maxWidth));
+      }
+
       // 1. Initial split by spaces to respect word boundaries for Latin
       const words = text.split(' ');
       let preLines: string[] = [];
@@ -325,7 +334,7 @@ function App() {
     ctx.fillRect(0, 0, width, height);
 
     // 1. Draw Background
-    const currentSlide = visualSlides.find(s => time >= s.startTime && time < s.endTime);
+    const currentSlide = visualSlides.find(s => s.type !== 'audio' && time >= s.startTime && time < s.endTime);
 
     // Helper to draw scaled
     const drawScaled = (img: HTMLImageElement | HTMLVideoElement) => {
@@ -548,162 +557,164 @@ function App() {
     }
 
     // 3. Draw Metadata Overlay
-    // Group 2: Bottom Center Layouts
-    if (['big_center', 'metal', 'kids', 'sad', 'romantic', 'tech', 'gothic', 'testing', 'testing_up'].includes(activePreset)) {
-      // Custom Metadata: Bottom of screen, centered, no art, small title
-      ctx.textAlign = 'center';
-
-      let bottomMargin = 80 * scale; // Distance from bottom
-      if (activePreset === 'testing' || activePreset === 'testing_up') bottomMargin = 120 * scale;
-
-      const centerX = width / 2;
-
-      // Title
-      const titleSize = 20 * scale;
-      ctx.font = `bold ${titleSize}px ${fontFamily}`;
-      ctx.fillStyle = '#ffffff';
-      ctx.shadowColor = 'rgba(0,0,0,0.8)';
-      ctx.shadowBlur = 4 * scale;
-
-      // Draw Title at bottom
-      const titleY = height - bottomMargin - (30 * scale);
-
-      // Tech preset: Title uppercase
-      const titleText = (activePreset === 'tech') ? metadata.title.toUpperCase() : metadata.title;
-      ctx.fillText(titleText, centerX, titleY);
-
-      // Artist
-      let artistSize = 16 * scale;
-      if (activePreset === 'testing' || activePreset === 'testing_up') artistSize = 25 * scale;
-      ctx.font = `${artistSize}px ${fontFamily}`;
-      ctx.fillStyle = '#d4d4d8';
-
-      const artistY = height - bottomMargin;
-      ctx.fillText(metadata.artist, centerX, artistY);
-
-      ctx.shadowColor = 'transparent';
-
-    } else {
-      const margin = 40 * scale;
-      const isSquare = aspectRatio === '1:1';
-
-      // Adjust sizes for 1:1 ratio
-      const portraitThumbSize = isSquare ? 110 : 150;
-      const landscapeThumbSize = 100;
-      const thumbSize = (isPortrait ? portraitThumbSize : landscapeThumbSize) * scale;
-
-      const textOffset = 25 * scale;
-      const coverImg = metadata.coverUrl ? images.get('cover') : null;
-      const r = 12 * scale; // Radius
-
-      if (isPortrait) {
-        // --- PORTRAIT LAYOUT (9:16, 3:4, 1:1): Top Center, slightly down ---
-        // For 1:1, position higher (1.5x margin) vs others (3x margin)
-        const startY = margin * (isSquare ? 1.5 : 3);
-        const centerX = width / 2;
-
-        // 1. Draw Image (Centered)
-        const imgX = centerX - (thumbSize / 2);
-        const imgY = startY;
-
-        ctx.save();
-        // Rounded Clip
-        ctx.beginPath();
-        ctx.roundRect(imgX, imgY, thumbSize, thumbSize, r);
-        ctx.clip();
-
-        if (coverImg) {
-          ctx.drawImage(coverImg, imgX, imgY, thumbSize, thumbSize);
-        } else {
-          ctx.fillStyle = '#27272a';
-          ctx.fillRect(imgX, imgY, thumbSize, thumbSize);
-        }
-        ctx.restore();
-
-        // Border
-        ctx.save();
-        ctx.beginPath();
-        ctx.roundRect(imgX, imgY, thumbSize, thumbSize, r);
-        ctx.strokeStyle = 'rgba(255,255,255,0.1)';
-        ctx.lineWidth = 2 * scale;
-        ctx.stroke();
-        ctx.restore();
-
-        // 2. Draw Text (Centered Below Image)
+    if (activePreset !== 'slideshow') {
+      // Group 2: Bottom Center Layouts
+      if (['big_center', 'metal', 'kids', 'sad', 'romantic', 'tech', 'gothic', 'testing', 'testing_up'].includes(activePreset)) {
+        // Custom Metadata: Bottom of screen, centered, no art, small title
         ctx.textAlign = 'center';
 
+        let bottomMargin = 80 * scale; // Distance from bottom
+        if (activePreset === 'testing' || activePreset === 'testing_up') bottomMargin = 120 * scale;
+
+        const centerX = width / 2;
+
         // Title
-        ctx.textBaseline = 'top';
-        const titleSize = (isSquare ? 26 : 36) * scale;
+        const titleSize = 20 * scale;
         ctx.font = `bold ${titleSize}px ${fontFamily}`;
         ctx.fillStyle = '#ffffff';
         ctx.shadowColor = 'rgba(0,0,0,0.8)';
         ctx.shadowBlur = 4 * scale;
-        ctx.shadowOffsetY = 1 * scale;
-        const titleY = imgY + thumbSize + textOffset;
-        ctx.fillText(metadata.title, centerX, titleY);
+
+        // Draw Title at bottom
+        const titleY = height - bottomMargin - (30 * scale);
+
+        // Tech preset: Title uppercase
+        const titleText = (activePreset === 'tech') ? metadata.title.toUpperCase() : metadata.title;
+        ctx.fillText(titleText, centerX, titleY);
 
         // Artist
-        const artistSize = (isSquare ? 18 : 24) * scale;
+        let artistSize = 16 * scale;
+        if (activePreset === 'testing' || activePreset === 'testing_up') artistSize = 25 * scale;
         ctx.font = `${artistSize}px ${fontFamily}`;
         ctx.fillStyle = '#d4d4d8';
-        ctx.shadowBlur = 2 * scale;
-        const artistY = titleY + (isSquare ? 30 : 40) * scale;
+
+        const artistY = height - bottomMargin;
         ctx.fillText(metadata.artist, centerX, artistY);
 
         ctx.shadowColor = 'transparent';
 
       } else {
-        // --- LANDSCAPE LAYOUT (16:9): Top Left ---
-        const x = margin;
-        const y = margin;
+        const margin = 40 * scale;
+        const isSquare = width === height; // Use dimension directly
 
-        ctx.save();
-        // Rounded Clip
-        ctx.beginPath();
-        ctx.roundRect(x, y, thumbSize, thumbSize, r);
-        ctx.clip();
+        // Adjust sizes for 1:1 ratio
+        const portraitThumbSize = isSquare ? 110 : 150;
+        const landscapeThumbSize = 100;
+        const thumbSize = (isPortrait ? portraitThumbSize : landscapeThumbSize) * scale;
 
-        if (coverImg) {
-          ctx.drawImage(coverImg, x, y, thumbSize, thumbSize);
+        const textOffset = 25 * scale;
+        const coverImg = metadata.coverUrl ? images.get('cover') : null;
+        const r = 12 * scale; // Radius
+
+        if (isPortrait) {
+          // --- PORTRAIT LAYOUT (9:16, 3:4, 1:1): Top Center, slightly down ---
+          // For 1:1, position higher (1.5x margin) vs others (3x margin)
+          const startY = margin * (isSquare ? 1.5 : 3);
+          const centerX = width / 2;
+
+          // 1. Draw Image (Centered)
+          const imgX = centerX - (thumbSize / 2);
+          const imgY = startY;
+
+          ctx.save();
+          // Rounded Clip
+          ctx.beginPath();
+          ctx.roundRect(imgX, imgY, thumbSize, thumbSize, r);
+          ctx.clip();
+
+          if (coverImg) {
+            ctx.drawImage(coverImg, imgX, imgY, thumbSize, thumbSize);
+          } else {
+            ctx.fillStyle = '#27272a';
+            ctx.fillRect(imgX, imgY, thumbSize, thumbSize);
+          }
+          ctx.restore();
+
+          // Border
+          ctx.save();
+          ctx.beginPath();
+          ctx.roundRect(imgX, imgY, thumbSize, thumbSize, r);
+          ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+          ctx.lineWidth = 2 * scale;
+          ctx.stroke();
+          ctx.restore();
+
+          // 2. Draw Text (Centered Below Image)
+          ctx.textAlign = 'center';
+
+          // Title
+          ctx.textBaseline = 'top';
+          const titleSize = (isSquare ? 26 : 36) * scale;
+          ctx.font = `bold ${titleSize}px ${fontFamily}`;
+          ctx.fillStyle = '#ffffff';
+          ctx.shadowColor = 'rgba(0,0,0,0.8)';
+          ctx.shadowBlur = 4 * scale;
+          ctx.shadowOffsetY = 1 * scale;
+          const titleY = imgY + thumbSize + textOffset;
+          ctx.fillText(metadata.title, centerX, titleY);
+
+          // Artist
+          const artistSize = (isSquare ? 18 : 24) * scale;
+          ctx.font = `${artistSize}px ${fontFamily}`;
+          ctx.fillStyle = '#d4d4d8';
+          ctx.shadowBlur = 2 * scale;
+          const artistY = titleY + (isSquare ? 30 : 40) * scale;
+          ctx.fillText(metadata.artist, centerX, artistY);
+
+          ctx.shadowColor = 'transparent';
+
         } else {
-          ctx.fillStyle = '#27272a';
-          ctx.fillRect(x, y, thumbSize, thumbSize);
+          // --- LANDSCAPE LAYOUT (16:9): Top Left ---
+          const x = margin;
+          const y = margin;
+
+          ctx.save();
+          // Rounded Clip
+          ctx.beginPath();
+          ctx.roundRect(x, y, thumbSize, thumbSize, r);
+          ctx.clip();
+
+          if (coverImg) {
+            ctx.drawImage(coverImg, x, y, thumbSize, thumbSize);
+          } else {
+            ctx.fillStyle = '#27272a';
+            ctx.fillRect(x, y, thumbSize, thumbSize);
+          }
+          ctx.restore();
+
+          // Border
+          ctx.save();
+          ctx.beginPath();
+          ctx.roundRect(x, y, thumbSize, thumbSize, r);
+          ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+          ctx.lineWidth = 2 * scale;
+          ctx.stroke();
+          ctx.restore();
+
+          // Text Info (Right of Cover)
+          const textX = margin + thumbSize + textOffset;
+          const textCenterY = margin + (thumbSize / 2);
+
+          ctx.textAlign = 'left';
+
+          // Title
+          ctx.textBaseline = 'bottom';
+          ctx.font = `bold ${32 * scale}px ${fontFamily}`;
+          ctx.fillStyle = '#ffffff';
+          ctx.shadowColor = 'rgba(0,0,0,0.8)';
+          ctx.shadowBlur = 4 * scale;
+          ctx.shadowOffsetY = 1 * scale;
+          ctx.fillText(metadata.title, textX, textCenterY - (4 * scale));
+
+          // Artist
+          ctx.textBaseline = 'top';
+          ctx.font = `${20 * scale}px ${fontFamily}`;
+          ctx.fillStyle = '#d4d4d8';
+          ctx.shadowBlur = 2 * scale;
+          ctx.fillText(metadata.artist, textX, textCenterY + (4 * scale));
+
+          ctx.shadowColor = 'transparent';
         }
-        ctx.restore();
-
-        // Border
-        ctx.save();
-        ctx.beginPath();
-        ctx.roundRect(x, y, thumbSize, thumbSize, r);
-        ctx.strokeStyle = 'rgba(255,255,255,0.1)';
-        ctx.lineWidth = 2 * scale;
-        ctx.stroke();
-        ctx.restore();
-
-        // Text Info (Right of Cover)
-        const textX = margin + thumbSize + textOffset;
-        const textCenterY = margin + (thumbSize / 2);
-
-        ctx.textAlign = 'left';
-
-        // Title
-        ctx.textBaseline = 'bottom';
-        ctx.font = `bold ${32 * scale}px ${fontFamily}`;
-        ctx.fillStyle = '#ffffff';
-        ctx.shadowColor = 'rgba(0,0,0,0.8)';
-        ctx.shadowBlur = 4 * scale;
-        ctx.shadowOffsetY = 1 * scale;
-        ctx.fillText(metadata.title, textX, textCenterY - (4 * scale));
-
-        // Artist
-        ctx.textBaseline = 'top';
-        ctx.font = `${20 * scale}px ${fontFamily}`;
-        ctx.fillStyle = '#d4d4d8';
-        ctx.shadowBlur = 2 * scale;
-        ctx.fillText(metadata.artist, textX, textCenterY + (4 * scale));
-
-        ctx.shadowColor = 'transparent';
       }
     }
   };
@@ -724,9 +735,10 @@ function App() {
     // Capture current preset to use inside the loop (avoid closure staleness if any, though activePreset is const in this render)
     const currentPreset = preset;
 
-    // 1. Preload Images & Videos
+    // 1. Preload Images & Videos & Audio
     const imageMap = new Map<string, HTMLImageElement>();
     const videoMap = new Map<string, HTMLVideoElement>();
+    const audioMap = new Map<string, HTMLAudioElement>();
     const loadPromises: Promise<void>[] = [];
 
     // Helper Load Image
@@ -759,8 +771,23 @@ function App() {
       });
     };
 
+    // Helper Load Audio
+    const loadAudio = (id: string, url: string) => {
+      return new Promise<void>((resolve) => {
+        const aud = document.createElement('audio');
+        aud.crossOrigin = "anonymous";
+        aud.onloadedmetadata = () => {
+          audioMap.set(id, aud);
+          resolve();
+        };
+        aud.onerror = () => resolve();
+        aud.src = url;
+      });
+    };
+
     visualSlides.forEach(s => {
       if (s.type === 'video') loadPromises.push(loadVid(s.id, s.url));
+      else if (s.type === 'audio') loadPromises.push(loadAudio(s.id, s.url));
       else loadPromises.push(loadImg(s.id, s.url));
     });
 
@@ -812,6 +839,12 @@ function App() {
     // We connect them all; we'll control their audibility via their .muted / .volume property in the loop
     videoMap.forEach((vidElement) => {
       const source = audioContext.createMediaElementSource(vidElement);
+      source.connect(mixerDest);
+    });
+
+    // Connect All Preloaded Audios
+    audioMap.forEach((audElement) => {
+      const source = audioContext.createMediaElementSource(audElement);
       source.connect(mixerDest);
     });
 
@@ -903,6 +936,34 @@ function App() {
               // Ensure muted when not active just in case
               if (!v.muted) v.muted = true;
             }
+          }
+        }
+      });
+
+      // Sync Export Audios
+      audioMap.forEach((a, id) => {
+        const s = visualSlides.find(sl => sl.id === id);
+        if (s) {
+          if (t >= s.startTime && t < s.endTime) {
+            const rel = t - s.startTime;
+            if (Math.abs(a.currentTime - rel) > 0.1) a.currentTime = rel;
+
+            // Handle Audio Muting & Volume for Export
+            const shouldMute = s.isMuted === true; // Default false (unmuted for audio usually?) - wait, logic was: default muted for video.
+            // For audio files, default should be unmuted?
+            // In handleFileUpload I set `isMuted: type === 'video'`. So for audio, isMuted is false.
+            // So `s.isMuted === true` means user explicitly muted it (if I provide UI).
+            // But wait, my previous logic in VisualEditor was: `isMuted: type === 'video'`.
+            // So for audio, isMuted is false.
+            if (a.muted !== shouldMute) a.muted = shouldMute;
+
+            const targetVol = s.volume !== undefined ? s.volume : 1;
+            if (Math.abs(a.volume - targetVol) > 0.01) a.volume = targetVol;
+
+            if (a.paused) a.play().catch(() => { });
+          } else {
+            if (!a.paused) a.pause();
+            if (!a.muted) a.muted = true;
           }
         }
       });
@@ -1131,7 +1192,31 @@ function App() {
         vid.pause();
       }
     }
-  }, [currentTime, isPlaying, activeSlide, metadata]);
+
+
+    // 3. Audio Slides Sync (Preview)
+    // We iterate over ALL audio slides that SHOULD be playing (activeAudioSlides)
+    // But since we render them below, we need refs. 
+    // Actually, simpler: we can querySelector them or maintain a map of refs.
+    // Given the dynamic nature, querySelector by ID might be easiest for this lightweight app.
+    activeAudioSlides.forEach(s => {
+      const aud = document.getElementById(`audio-preview-${s.id}`) as HTMLAudioElement;
+      if (aud) {
+        const relTime = currentTime - s.startTime;
+        if (Math.abs(aud.currentTime - relTime) > 0.2) aud.currentTime = relTime;
+
+        const shouldMute = s.isMuted === true;
+        if (aud.muted !== shouldMute) aud.muted = shouldMute;
+
+        const targetVol = s.volume !== undefined ? s.volume : 1;
+        if (Math.abs(aud.volume - targetVol) > 0.01) aud.volume = targetVol;
+
+        if (isPlaying && aud.paused) aud.play().catch(() => { });
+        else if (!isPlaying && !aud.paused) aud.pause();
+      }
+    });
+
+  }, [currentTime, isPlaying, activeSlide, metadata, activeAudioSlides]);
 
   return (
     <div
@@ -1152,6 +1237,17 @@ function App() {
         }}
         crossOrigin="anonymous"
       />
+
+      {/* Audio Preview Elements */}
+      {activeAudioSlides.map(s => (
+        <audio
+          key={s.id}
+          id={`audio-preview-${s.id}`}
+          src={s.url}
+          className="hidden"
+          playsInline
+        />
+      ))}
 
       {/* Hidden Rendering Canvas */}
       <canvas

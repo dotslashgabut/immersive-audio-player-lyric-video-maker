@@ -60,7 +60,7 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
       Array.from(e.target.files).forEach((item, index) => {
         const file = item as File;
         const url = URL.createObjectURL(file);
-        const type = file.type.startsWith('video/') ? 'video' : 'image';
+        const type = file.type.startsWith('image/') ? 'image' : file.type.startsWith('video/') ? 'video' : 'audio';
 
         const start = startTime + (index * durationPerImage);
         const end = start + durationPerImage;
@@ -72,8 +72,8 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
           startTime: start,
           endTime: end,
           name: file.name,
-          isMuted: type === 'video', // Default muted
-          volume: type === 'video' ? 1 : undefined
+          isMuted: type === 'video', // Default muted for video, but maybe unmuted for audio? Usually audio files are meant to be heard.
+          volume: type === 'video' || type === 'audio' ? 1 : undefined
         });
       });
 
@@ -334,7 +334,7 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
   return (
     <div
       ref={editorRef}
-      className="w-full max-w-[100vw] h-64 flex flex-col bg-zinc-900/95 backdrop-blur-md border-t border-white/10 z-20 shadow-xl overflow-hidden outline-none"
+      className="w-full max-w-[100vw] h-72 flex flex-col bg-zinc-900/95 backdrop-blur-md border-t border-white/10 z-20 shadow-xl overflow-hidden outline-none"
       tabIndex={0}
       onMouseDown={(e) => e.currentTarget.focus()}
       onKeyDown={handleKeyDown}
@@ -411,7 +411,7 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
             {/* Volume Input (Single Video Selection Only) */}
             {selectedSlideIds.length === 1 && (() => {
               const s = slides.find(si => si.id === selectedSlideIds[0]);
-              if (s && s.type === 'video') {
+              if (s && (s.type === 'video' || s.type === 'audio')) {
                 return (
                   <div className="flex items-center gap-2 bg-zinc-800 rounded px-2 border border-zinc-700 h-[22px]">
                     <span className="text-[10px] text-zinc-500">Vol:</span>
@@ -457,8 +457,8 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
 
         <div className="flex gap-2 shrink-0">
           <label className="flex items-center gap-2 px-3 py-1 bg-purple-600 hover:bg-purple-500 rounded text-xs font-medium cursor-pointer transition-colors text-white whitespace-nowrap">
-            <Plus size={14} /> Import Images/Videos
-            <input type="file" className="hidden" accept="image/*,video/*" multiple onChange={handleFileUpload} />
+            <Plus size={14} /> Import Media
+            <input type="file" className="hidden" accept="image/*,video/*,audio/*" multiple onChange={handleFileUpload} />
           </label>
           <button
             onClick={handleClearAll}
@@ -543,7 +543,7 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
 
           {/* 4. Slides Track (Images) */}
           <div className="absolute top-8 h-24 left-0 right-0 border-b border-white/5 bg-zinc-900/20">
-            {slides.map(slide => (
+            {slides.filter(s => s.type !== 'audio').map(slide => (
               <div
                 key={slide.id}
                 style={{
@@ -626,6 +626,47 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
               >
                 <span className="mr-1 text-zinc-600 font-mono text-[9px]">{formatTime(line.time)}</span>
                 {line.text}
+              </div>
+            ))}
+          </div>
+
+          {/* 6. Audio Track */}
+          <div className="absolute top-52 h-16 left-0 right-0 border-t border-white/5 bg-zinc-900/40">
+            {slides.filter(s => s.type === 'audio').map(slide => (
+              <div
+                key={slide.id}
+                style={{
+                  left: slide.startTime * pxPerSec,
+                  width: Math.max(10, (slide.endTime - slide.startTime) * pxPerSec)
+                }}
+                className={`absolute top-2 bottom-2 rounded-md overflow-hidden group bg-emerald-900/50 border shadow-sm select-none cursor-move
+                     ${(activeDrag?.id === slide.id || selectedSlideIds.includes(slide.id)) ? 'border-emerald-400 z-30 shadow-xl opacity-90' : 'border-emerald-700/50 hover:border-emerald-500 z-10 hover:z-20'}
+                   `}
+                onMouseDown={(e) => handleMouseDown(e, slide.id, 'move')}
+              >
+                {/* Visual Representation (Waveform fake) */}
+                <div className="absolute inset-0 flex items-center justify-center opacity-30">
+                  <Volume2 size={16} className="text-emerald-200" />
+                </div>
+
+                {/* Info Overlay */}
+                <div className="absolute inset-0 p-1 pointer-events-none flex flex-col justify-center">
+                  <span className="text-[9px] font-bold drop-shadow-md truncate text-emerald-100 px-1">{slide.name}</span>
+                </div>
+
+                {/* Resize Handle (Left) */}
+                <div
+                  className="absolute top-0 bottom-0 left-0 w-2 cursor-w-resize flex items-center justify-center hover:bg-emerald-500/50 transition-colors z-20"
+                  onMouseDown={(e) => handleMouseDown(e, slide.id, 'resize-start')}
+                >
+                </div>
+
+                {/* Resize Handle (Right) */}
+                <div
+                  className="absolute top-0 bottom-0 right-0 w-2 cursor-e-resize flex items-center justify-center hover:bg-emerald-500/50 transition-colors z-20"
+                  onMouseDown={(e) => handleMouseDown(e, slide.id, 'resize-end')}
+                >
+                </div>
               </div>
             ))}
           </div>

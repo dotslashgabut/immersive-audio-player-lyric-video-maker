@@ -1,3 +1,4 @@
+
 export interface LyricLine {
   time: number; // in seconds
   text: string;
@@ -5,7 +6,7 @@ export interface LyricLine {
 
 export interface VisualSlide {
   id: string;
-  type: 'image' | 'video';
+  type: 'image' | 'video' | 'audio';
   url: string; // Object URL for blob
   startTime: number; // in seconds
   endTime: number; // in seconds
@@ -26,3 +27,21 @@ export enum TabView {
   PLAYER = 'PLAYER',
   EDITOR = 'EDITOR',
 }
+
+export type VideoPreset =
+  | 'default'
+  | 'large'
+  | 'classic'
+  | 'large_upper'
+  | 'monospace'
+  | 'big_center'
+  | 'metal'
+  | 'kids'
+  | 'sad'
+  | 'romantic'
+  | 'tech'
+  | 'gothic'
+  | 'testing'
+  | 'testing_up'
+  | 'slideshow'
+  | 'just_video';
