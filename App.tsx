@@ -45,7 +45,7 @@ function App() {
   const [renderProgress, setRenderProgress] = useState(0);
   const [aspectRatio, setAspectRatio] = useState<'16:9' | '9:16' | '3:4' | '1:1'>('16:9');
   const [resolution, setResolution] = useState<'720p' | '1080p'>('1080p');
-  const [preset, setPreset] = useState<'default' | 'large' | 'classic' | 'large_upper' | 'monospace' | 'big_center' | 'metal' | 'kids' | 'sad' | 'romantic' | 'tech' | 'gothic'>('default');
+  const [preset, setPreset] = useState<'default' | 'large' | 'classic' | 'large_upper' | 'monospace' | 'big_center' | 'metal' | 'kids' | 'sad' | 'romantic' | 'tech' | 'gothic' | 'testing' | 'testing_up' | 'slideshow' | 'just_video'>('default');
 
   // Derived dimensions
   const getCanvasDimensions = () => {
@@ -137,7 +137,8 @@ function App() {
     const file = e.target.files?.[0];
     if (file) {
       const url = URL.createObjectURL(file);
-      setMetadata(prev => ({ ...prev, coverUrl: url }));
+      const isVideo = file.type.startsWith('video/');
+      setMetadata(prev => ({ ...prev, coverUrl: url, backgroundType: isVideo ? 'video' : 'image' }));
     }
   };
 
@@ -232,7 +233,8 @@ function App() {
     time: number,
 
     images: Map<string, HTMLImageElement>,
-    activePreset: 'default' | 'large' | 'classic' | 'large_upper' | 'monospace' | 'big_center' | 'metal' | 'kids' | 'sad' | 'romantic' | 'tech' | 'gothic'
+    videos: Map<string, HTMLVideoElement>,
+    activePreset: 'default' | 'large' | 'classic' | 'large_upper' | 'monospace' | 'big_center' | 'metal' | 'kids' | 'sad' | 'romantic' | 'tech' | 'gothic' | 'testing' | 'testing_up' | 'slideshow' | 'just_video'
   ) => {
     // Helper for wrapping text
     const getWrappedLines = (ctx: CanvasRenderingContext2D, text: string, maxWidth: number) => {
@@ -294,6 +296,7 @@ function App() {
     const loveFont = '"Dancing Script", cursive';
     const techFont = '"Orbitron", sans-serif';
     const gothicFont = '"UnifrakturMaguntia", cursive';
+    const experimentalFont = '"Rubik Glitch", cursive';
 
     // Choose Font Family
     let fontFamily = sansFont;
@@ -305,6 +308,7 @@ function App() {
     else if (activePreset === 'romantic') fontFamily = loveFont;
     else if (activePreset === 'tech') fontFamily = techFont;
     else if (activePreset === 'gothic') fontFamily = gothicFont;
+    else if (activePreset === 'testing' || activePreset === 'testing_up') fontFamily = experimentalFont;
 
     // Treat Square (1:1) as portrait for layout purposes (centered content)
     const isPortrait = width <= height;
@@ -320,29 +324,48 @@ function App() {
 
     // 1. Draw Background
     const currentSlide = visualSlides.find(s => time >= s.startTime && time < s.endTime);
+
+    // Helper to draw scaled
+    const drawScaled = (img: HTMLImageElement | HTMLVideoElement) => {
+      const isVideo = img instanceof HTMLVideoElement;
+      const w = isVideo ? (img as HTMLVideoElement).videoWidth : (img as HTMLImageElement).width;
+      const h = isVideo ? (img as HTMLVideoElement).videoHeight : (img as HTMLImageElement).height;
+
+      if (w && h) {
+        const imgScale = Math.max(width / w, height / h);
+        const x = (width / 2) - (w / 2) * imgScale;
+        const y = (height / 2) - (h / 2) * imgScale;
+        ctx.drawImage(img, x, y, w * imgScale, h * imgScale);
+      }
+    };
+
     if (currentSlide) {
-      const img = images.get(currentSlide.id);
-      if (img) {
-        // Draw image "cover" style
-        const imgScale = Math.max(width / img.width, height / img.height);
-        const x = (width / 2) - (img.width / 2) * imgScale;
-        const y = (height / 2) - (img.height / 2) * imgScale;
-        ctx.drawImage(img, x, y, img.width * imgScale, img.height * imgScale);
+      if (currentSlide.type === 'video' && videos.has(currentSlide.id)) {
+        const vid = videos.get(currentSlide.id);
+        if (vid) drawScaled(vid);
+      } else {
+        const img = images.get(currentSlide.id);
+        if (img) drawScaled(img);
       }
     } else if (metadata.coverUrl) {
-      const img = images.get('cover');
-      if (img) {
-        const imgScale = Math.max(width / img.width, height / img.height);
-        const x = (width / 2) - (img.width / 2) * imgScale;
-        const y = (height / 2) - (img.height / 2) * imgScale;
-        ctx.drawImage(img, x, y, img.width * imgScale, img.height * imgScale);
+      if (metadata.backgroundType === 'video' && videos.has('background')) {
+        const vid = videos.get('background');
+        if (vid) drawScaled(vid);
+      } else {
+        const img = images.get('cover');
+        if (img) drawScaled(img);
       }
     }
 
     // Overlay
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)'; // Darken bg
-    if (currentSlide) ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
-    ctx.fillRect(0, 0, width, height);
+    if (activePreset !== 'just_video') {
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.5)'; // Darken bg
+      if (currentSlide) ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+      ctx.fillRect(0, 0, width, height);
+    }
+
+    // SHORTCIRCUIT FOR 'just_video'
+    if (activePreset === 'just_video') return;
 
     // 2. Draw Lyrics
     const activeIdx = lyrics.findIndex((line, index) => {
@@ -360,7 +383,7 @@ function App() {
       baseFontSize = (isPortrait ? 90 : 120) * scale;
       secondaryFontSize = (isPortrait ? 30 : 40) * scale; // Keep neighbors small or hide them
       lineSpacing = (isPortrait ? 110 : 140) * scale;
-    } else if (activePreset === 'large_upper' || activePreset === 'big_center' || activePreset === 'metal' || activePreset === 'kids' || activePreset === 'tech') {
+    } else if (activePreset === 'large_upper' || activePreset === 'big_center' || activePreset === 'metal' || activePreset === 'kids' || activePreset === 'tech' || activePreset === 'testing' || activePreset === 'testing_up') {
       baseFontSize = (isPortrait ? 80 : 110) * scale;
       secondaryFontSize = (isPortrait ? 30 : 40) * scale;
       lineSpacing = (isPortrait ? 110 : 140) * scale;
@@ -369,9 +392,12 @@ function App() {
       secondaryFontSize = (isPortrait ? 25 : 30) * scale;
       lineSpacing = (isPortrait ? 90 : 120) * scale;
     } else if (activePreset === 'classic') {
-    } else if (activePreset === 'classic') {
       baseFontSize = (isPortrait ? 55 : 65) * scale;
       secondaryFontSize = (isPortrait ? 28 : 34) * scale;
+    } else if (activePreset === 'slideshow') {
+      baseFontSize = (isPortrait ? 30 : 40) * scale;
+      secondaryFontSize = 0;
+      lineSpacing = 0;
     }
 
     if (activeIdx !== -1) {
@@ -379,15 +405,15 @@ function App() {
 
       // Calculate vertical shift if active line is wrapped (for Large presets)
       let activeLineShift = 0;
-      const isBigLayout = ['large', 'large_upper', 'big_center', 'metal', 'kids', 'sad', 'romantic', 'tech', 'gothic'].includes(activePreset);
-      if (isBigLayout) {
+      const isBigLayout = ['large', 'large_upper', 'big_center', 'metal', 'kids', 'sad', 'romantic', 'tech', 'gothic', 'testing', 'testing_up'].includes(activePreset);
+      if (isBigLayout || activePreset === 'slideshow') {
         const activeLine = lyrics[activeIdx];
         // We need to temporarily set the font to measure accurately
         const weight = '900';
         ctx.font = `${weight} ${baseFontSize}px ${fontFamily}`;
 
         const maxWidth = width * 0.9;
-        const textToCheck = (activePreset === 'large_upper' || activePreset === 'big_center' || activePreset === 'metal' || activePreset === 'tech') ? activeLine.text.toUpperCase() : activeLine.text;
+        const textToCheck = (activePreset === 'large_upper' || activePreset === 'big_center' || activePreset === 'metal' || activePreset === 'tech' || activePreset === 'testing_up') ? activeLine.text.toUpperCase() : activeLine.text;
         const lines = getWrappedLines(ctx, textToCheck, maxWidth);
 
         if (lines.length > 1) {
@@ -402,6 +428,9 @@ function App() {
       for (let i = -range; i <= range; i++) {
         const idx = activeIdx + i;
         if (idx >= 0 && idx < lyrics.length) {
+          // Testing Preset: Hide previous lyrics (i < 0)
+          if ((activePreset === 'testing' || activePreset === 'testing_up') && i < 0) continue;
+
           const line = lyrics[idx];
           const isCurrent = i === 0;
 
@@ -431,7 +460,8 @@ function App() {
 
           if (isCurrent) {
             let weight = 'bold';
-            if (activePreset === 'large' || activePreset === 'large_upper' || activePreset === 'big_center' || activePreset === 'metal' || activePreset === 'tech') weight = '900';
+            if (activePreset === 'large' || activePreset === 'large_upper' || activePreset === 'big_center' || activePreset === 'metal' || activePreset === 'tech' || activePreset === 'testing' || activePreset === 'testing_up') weight = '900';
+            if (activePreset === 'slideshow') weight = '400';
             if (activePreset === 'classic' || activePreset === 'romantic') weight = 'italic bold';
             if (activePreset === 'sad' || activePreset === 'gothic' || activePreset === 'kids') weight = '400'; // Some fonts come with specific weights
 
@@ -481,8 +511,12 @@ function App() {
           // Text measurement for basic wrapping prevention (clipping)
           const maxWidth = width * 0.9;
 
-          if (isBigLayout && isCurrent) {
-            const textToDraw = (activePreset === 'large_upper' || activePreset === 'big_center' || activePreset === 'metal' || activePreset === 'tech') ? line.text.toUpperCase() : line.text;
+          if (activePreset === 'slideshow') {
+            // Slideshow strict single line or wrapped but simple
+            if (i !== 0) return; // Hide neighbors
+            drawWrappedText(ctx, line.text, xPos, yPos, maxWidth, baseFontSize * 1.2);
+          } else if (isBigLayout && isCurrent) {
+            const textToDraw = (activePreset === 'large_upper' || activePreset === 'big_center' || activePreset === 'metal' || activePreset === 'tech' || activePreset === 'testing_up') ? line.text.toUpperCase() : line.text;
             drawWrappedText(ctx, textToDraw, xPos, yPos, maxWidth, baseFontSize * 1.2);
           } else {
             // Fallback for others or non-active lines (no wrap, just print)
@@ -513,11 +547,13 @@ function App() {
 
     // 3. Draw Metadata Overlay
     // Group 2: Bottom Center Layouts
-    if (['big_center', 'metal', 'kids', 'sad', 'romantic', 'tech', 'gothic'].includes(activePreset)) {
+    if (['big_center', 'metal', 'kids', 'sad', 'romantic', 'tech', 'gothic', 'testing', 'testing_up'].includes(activePreset)) {
       // Custom Metadata: Bottom of screen, centered, no art, small title
       ctx.textAlign = 'center';
 
-      const bottomMargin = 80 * scale; // Distance from bottom
+      let bottomMargin = 80 * scale; // Distance from bottom
+      if (activePreset === 'testing' || activePreset === 'testing_up') bottomMargin = 120 * scale;
+
       const centerX = width / 2;
 
       // Title
@@ -535,7 +571,8 @@ function App() {
       ctx.fillText(titleText, centerX, titleY);
 
       // Artist
-      const artistSize = 16 * scale;
+      let artistSize = 16 * scale;
+      if (activePreset === 'testing' || activePreset === 'testing_up') artistSize = 25 * scale;
       ctx.font = `${artistSize}px ${fontFamily}`;
       ctx.fillStyle = '#d4d4d8';
 
@@ -684,11 +721,12 @@ function App() {
     // Capture current preset to use inside the loop (avoid closure staleness if any, though activePreset is const in this render)
     const currentPreset = preset;
 
-    // 1. Preload Images
+    // 1. Preload Images & Videos
     const imageMap = new Map<string, HTMLImageElement>();
+    const videoMap = new Map<string, HTMLVideoElement>();
     const loadPromises: Promise<void>[] = [];
 
-    // Helper
+    // Helper Load Image
     const loadImg = (id: string, url: string) => {
       return new Promise<void>((resolve) => {
         const img = new Image();
@@ -702,22 +740,43 @@ function App() {
       });
     };
 
-    visualSlides.forEach(s => loadPromises.push(loadImg(s.id, s.url)));
-    if (metadata.coverUrl) loadPromises.push(loadImg('cover', metadata.coverUrl));
+    // Helper Load Video
+    const loadVid = (id: string, url: string) => {
+      return new Promise<void>((resolve) => {
+        const vid = document.createElement('video');
+        vid.crossOrigin = "anonymous";
+        vid.muted = true;
+        vid.playsInline = true;
+        vid.onloadedmetadata = () => {
+          videoMap.set(id, vid);
+          resolve();
+        };
+        vid.onerror = () => resolve();
+        vid.src = url;
+      });
+    };
+
+    visualSlides.forEach(s => {
+      if (s.type === 'video') loadPromises.push(loadVid(s.id, s.url));
+      else loadPromises.push(loadImg(s.id, s.url));
+    });
+
+    if (metadata.coverUrl) {
+      if (metadata.backgroundType === 'video') loadPromises.push(loadVid('background', metadata.coverUrl));
+      else loadPromises.push(loadImg('cover', metadata.coverUrl));
+    }
 
     await Promise.all(loadPromises);
 
-    // 2. Setup Recording
+    // 3. Setup Audio Mixing & Recording
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
-    const stream = canvas.captureStream(30); // 30 FPS
+    const stream = canvas.captureStream(30); // Video Stream (30 FPS)
 
-    // Add Audio Track
     const audioEl = audioRef.current;
-    // Note: captureStream might require vendor prefix or specific browser support
-    // Fallback: simple error if not supported
     let audioStream: MediaStream | null = null;
 
+    // Get Main Audio Stream
     try {
       // @ts-ignore
       if (audioEl.captureStream) audioStream = audioEl.captureStream();
@@ -730,12 +789,33 @@ function App() {
       return;
     }
 
-    if (audioStream) {
+    // Audio Mixer (Web Audio API)
+    // We mix the Song + Any Video Slide Audio into a single destination
+    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const mixerDest = audioContext.createMediaStreamDestination();
+
+    // Connect Main Song
+    if (audioStream && audioStream.getAudioTracks().length > 0) {
+      const source = audioContext.createMediaStreamSource(audioStream);
+      source.connect(mixerDest);
+    }
+
+    // Connect All Preloaded Videos
+    // We connect them all; we'll control their audibility via their .muted / .volume property in the loop
+    videoMap.forEach((vidElement) => {
+      const source = audioContext.createMediaElementSource(vidElement);
+      source.connect(mixerDest);
+    });
+
+    // Add Mixed Audio Track to Recorder Stream
+    if (mixerDest.stream.getAudioTracks().length > 0) {
+      stream.addTrack(mixerDest.stream.getAudioTracks()[0]);
+    } else if (audioStream) {
+      // Fallback if mixer failed for some reason
       stream.addTrack(audioStream.getAudioTracks()[0]);
     }
 
     const mimeType = MediaRecorder.isTypeSupported('video/mp4') ? 'video/mp4' : 'video/webm';
-    // Adjust bitrate based on resolution (8Mbps for 1080p, 4Mbps for 720p)
     const bitrate = resolution === '1080p' ? 8000000 : 4000000;
     const mediaRecorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: bitrate });
 
@@ -754,10 +834,13 @@ function App() {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
+
+      // Cleanup
+      audioContext.close();
       setIsRendering(false);
     };
 
-    // 3. Start Loop
+    // 4. Start Loop
     mediaRecorder.start();
     audioEl.play();
     setIsPlaying(true); // Sync UI state
@@ -772,8 +855,45 @@ function App() {
         return;
       }
 
+      const t = audioEl.currentTime;
+
+      // Sync Export Videos
+      videoMap.forEach((v, id) => {
+        if (id === 'background') {
+          // Sync background (Modulo Loop for Deterministic Render)
+          const vidDuration = v.duration || 1;
+          const targetTime = t % vidDuration;
+
+          if (Math.abs(v.currentTime - targetTime) > 0.3) v.currentTime = targetTime;
+          if (v.paused) v.play().catch(() => { });
+        } else {
+          // Sync slide
+          const s = visualSlides.find(sl => sl.id === id);
+          if (s) {
+            if (t >= s.startTime && t < s.endTime) {
+              const rel = t - s.startTime;
+              if (Math.abs(v.currentTime - rel) > 0.1) v.currentTime = rel;
+
+              // Handle Audio Muting & Volume for Export
+              // If slide is unmuted (isMuted === false), we unmute the video element so it feeds into the mixer
+              const shouldMute = s.isMuted !== false;
+              if (v.muted !== shouldMute) v.muted = shouldMute;
+
+              const targetVol = s.volume !== undefined ? s.volume : 1;
+              if (Math.abs(v.volume - targetVol) > 0.01) v.volume = targetVol;
+
+              if (v.paused) v.play().catch(() => { });
+            } else {
+              if (!v.paused) v.pause();
+              // Ensure muted when not active just in case
+              if (!v.muted) v.muted = true;
+            }
+          }
+        }
+      });
+
       if (ctx) {
-        drawCanvasFrame(ctx, canvas.width, canvas.height, audioEl.currentTime, imageMap, currentPreset);
+        drawCanvasFrame(ctx, canvas.width, canvas.height, audioEl.currentTime, imageMap, videoMap, currentPreset);
       }
 
       if (mediaRecorder.state === 'recording') {
@@ -848,8 +968,13 @@ function App() {
   // Keyboard Shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Reset idle timer on any key press
-      resetIdleTimer();
+      // Check if the key shoud trigger UI wake-up
+      const key = e.key.toLowerCase();
+      const ignoredKeysForIdle = [' ', 'k', 's', 'l', 'f', 'h', 'arrowleft', 'arrowright', 'arrowup', 'arrowdown', 'meta', 'control', 'shift', 'alt', 'printscreen', 'fn'];
+
+      if (!ignoredKeysForIdle.includes(key)) {
+        resetIdleTimer();
+      }
 
       // Ignore if typing in an input
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
@@ -922,16 +1047,72 @@ function App() {
       ? { backgroundImage: `url(${metadata.coverUrl})` }
       : undefined;
 
+  // Video Sync Logic
+  const activeVideoRef = useRef<HTMLVideoElement>(null);
+  const bgVideoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    // 1. Active Slide Video
+    if (activeSlide?.type === 'video' && activeVideoRef.current) {
+      const vid = activeVideoRef.current;
+      const relTime = currentTime - activeSlide.startTime;
+
+      // Check if we need to sync timestamps (fix drift/seeks)
+      // Threshold 0.1s: Tight enough for smooth scrubbing, loose enough for playback drift
+      if (Math.abs(vid.currentTime - relTime) > 0.1) {
+        vid.currentTime = relTime;
+      }
+
+      // Sync Muted State & Volume
+      const shouldMute = activeSlide.isMuted !== false; // Default true (muted)
+      if (vid.muted !== shouldMute) vid.muted = shouldMute;
+
+      const targetVolume = activeSlide.volume !== undefined ? activeSlide.volume : 1;
+      if (Math.abs(vid.volume - targetVolume) > 0.01) vid.volume = targetVolume;
+
+      if (isPlaying && vid.paused) {
+        vid.play().catch(() => { }); // catch interrupt errors
+      } else if (!isPlaying && !vid.paused) {
+        vid.pause();
+      }
+    }
+
+    // 2. Background Video (Metadata)
+    // Only play if no active slide covers it, OR if we want it to run behind.
+    // Let's run it always but maybe pause if not visible?
+    // For now, simple sync:
+    if (metadata.backgroundType === 'video' && bgVideoRef.current) {
+      const vid = bgVideoRef.current;
+
+      // Sync with modulo for Looping
+      const vidDuration = vid.duration || 1;
+      const targetTime = currentTime % vidDuration;
+
+      // Sync if drifted > 0.1s (Smoother scrubbing)
+      if (Math.abs(vid.currentTime - targetTime) > 0.1) {
+        vid.currentTime = targetTime;
+      }
+
+      if (isPlaying && vid.paused) {
+        vid.play().catch(() => { });
+      } else if (!isPlaying && !vid.paused) {
+        vid.pause();
+      }
+    }
+  }, [currentTime, isPlaying, activeSlide, metadata]);
+
   return (
     <div
       ref={containerRef}
       onMouseMove={handleMouseMove}
+      onTouchStart={handleMouseMove}
       className={`relative w-full h-screen bg-black overflow-hidden flex font-sans select-none ${isMouseIdle && !bypassAutoHide ? 'cursor-none' : ''}`}
     >
       <audio
         ref={audioRef}
         src={audioSrc || undefined}
         loop={isLooping}
+        muted={isMuted}
         onTimeUpdate={handleTimeUpdate}
         onLoadedMetadata={handleLoadedMetadata}
         onEnded={() => {
@@ -949,14 +1130,54 @@ function App() {
       />
 
       {/* --- Visual Layer --- */}
-      <div
-        className="absolute inset-0 bg-cover bg-center transition-all duration-700 ease-in-out"
-        style={backgroundStyle}
-      >
-        <div className={`absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-700 ${activeSlide ? 'bg-black/20 backdrop-blur-none' : ''}`}></div>
-        {!activeSlide && !metadata.coverUrl && (
+      <div className="absolute inset-0 bg-black overflow-hidden pointer-events-none">
+        {/* 1. Base Background (Metadata) */}
+        {metadata.coverUrl && (
+          metadata.backgroundType === 'video' ? (
+            <video
+              ref={bgVideoRef}
+              src={metadata.coverUrl}
+              className="absolute inset-0 w-full h-full object-cover opacity-60"
+              muted
+              loop
+              playsInline
+            />
+          ) : (
+            <div
+              className="absolute inset-0 bg-cover bg-center transition-all duration-700 ease-in-out opacity-60"
+              style={{ backgroundImage: `url(${metadata.coverUrl})` }}
+            />
+          )
+        )}
+
+        {/* Default Gradient if nothing */}
+        {!metadata.coverUrl && !activeSlide && (
           <div className="absolute inset-0 bg-gradient-to-br from-indigo-900 via-purple-900 to-black opacity-80"></div>
         )}
+
+        {/* 2. Slide Overlay */}
+        <div className={`absolute inset-0 transition-opacity duration-500 ${activeSlide ? 'opacity-100' : 'opacity-0'}`}>
+          {activeSlide && (
+            activeSlide.type === 'video' ? (
+              <video
+                key={activeSlide.id}
+                ref={activeVideoRef}
+                src={activeSlide.url}
+                className="w-full h-full object-cover"
+                muted={activeSlide.isMuted !== false}
+                playsInline
+              />
+            ) : (
+              <div
+                className="w-full h-full bg-cover bg-center"
+                style={{ backgroundImage: `url(${activeSlide.url})` }}
+              />
+            )
+          )}
+        </div>
+
+        {/* Blur / Dim Overlay */}
+        <div className={`absolute inset-0 bg-black/30 backdrop-blur-sm transition-all duration-700 ${activeSlide ? 'bg-black/10 backdrop-blur-none' : ''}`}></div>
       </div>
 
       {/* --- Main Content Area --- */}
@@ -969,7 +1190,11 @@ function App() {
               <div className="flex gap-4 items-center">
                 <div className="relative group w-16 h-16 rounded-md overflow-hidden bg-zinc-800 shadow-lg border border-white/10 shrink-0">
                   {metadata.coverUrl ? (
-                    <img src={metadata.coverUrl} alt="Cover" className="w-full h-full object-cover" />
+                    metadata.backgroundType === 'video' ? (
+                      <video src={metadata.coverUrl} className="w-full h-full object-cover" muted loop onMouseOver={e => e.currentTarget.play()} onMouseOut={e => e.currentTarget.pause()} />
+                    ) : (
+                      <img src={metadata.coverUrl} alt="Cover" className="w-full h-full object-cover" />
+                    )
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-zinc-500">
                       <Music size={24} />
@@ -977,7 +1202,7 @@ function App() {
                   )}
                   <label className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity">
                     <Upload size={20} className="text-white" />
-                    <input type="file" accept="image/*" className="hidden" onChange={handleMetadataUpload} />
+                    <input type="file" accept="image/*,video/*" className="hidden" onChange={handleMetadataUpload} />
                   </label>
                 </div>
                 <div>
@@ -1033,8 +1258,18 @@ function App() {
                 const isEditor = activeTab === TabView.EDITOR;
 
                 // Handle Big Text preset visibility (show only current, prev, and next)
-                const isBigLayout = ['large', 'large_upper', 'big_center', 'metal', 'kids', 'sad', 'romantic', 'tech', 'gothic'].includes(preset);
+                const isBigLayout = ['large', 'large_upper', 'big_center', 'metal', 'kids', 'sad', 'romantic', 'tech', 'gothic', 'testing', 'testing_up'].includes(preset);
                 if (isBigLayout && Math.abs(idx - currentLyricIndex) > 1) {
+                  return <p key={idx} className="hidden" />;
+                }
+
+                // Testing Preset: Hide previous lyrics explicitly (web view)
+                if ((preset === 'testing' || preset === 'testing_up') && idx < currentLyricIndex) {
+                  return <p key={idx} className="hidden" />;
+                }
+
+                // Slideshow / Just Video: Hide neighbours
+                if ((preset === 'slideshow' || preset === 'just_video') && idx !== currentLyricIndex) {
                   return <p key={idx} className="hidden" />;
                 }
 
@@ -1053,6 +1288,16 @@ function App() {
                   const activeSize = isEditor ? 'text-4xl md:text-6xl' : 'text-5xl md:text-8xl';
                   const inactiveSize = isEditor ? 'text-xl md:text-2xl' : 'text-2xl md:text-3xl';
                   activeClass = `${activeSize} font-black text-white uppercase tracking-tight text-center`;
+                  inactiveClass = `${inactiveSize} text-zinc-600/40 hover:text-zinc-400 text-center`;
+                } else if (preset === 'testing_up') {
+                  const activeSize = isEditor ? 'text-4xl md:text-6xl' : 'text-5xl md:text-8xl';
+                  const inactiveSize = isEditor ? 'text-xl md:text-2xl' : 'text-2xl md:text-3xl';
+                  activeClass = `${activeSize} font-black text-white uppercase tracking-tight text-center`;
+                  inactiveClass = `${inactiveSize} text-zinc-600/40 hover:text-zinc-400 text-center`;
+                } else if (preset === 'testing') {
+                  const activeSize = isEditor ? 'text-4xl md:text-6xl' : 'text-5xl md:text-8xl';
+                  const inactiveSize = isEditor ? 'text-xl md:text-2xl' : 'text-2xl md:text-3xl';
+                  activeClass = `${activeSize} font-black text-white tracking-tight text-center`;
                   inactiveClass = `${inactiveSize} text-zinc-600/40 hover:text-zinc-400 text-center`;
                 } else if (preset === 'metal') {
                   const activeSize = isEditor ? 'text-4xl md:text-6xl' : 'text-5xl md:text-8xl';
@@ -1095,6 +1340,11 @@ function App() {
                   const inactiveSize = isEditor ? 'text-lg md:text-xl' : 'text-xl md:text-2xl';
                   activeClass = `${activeSize} font-serif italic font-bold text-amber-100 drop-shadow-[0_4px_8px_rgba(0,0,0,0.9)]`;
                   inactiveClass = `${inactiveSize} font-serif text-zinc-500/60 hover:text-zinc-300 italic`;
+                } else if (preset === 'slideshow' || preset === 'just_video') {
+                  // Slideshow: Small, centered
+                  const activeSize = isEditor ? 'text-lg md:text-xl' : 'text-xl md:text-2xl';
+                  activeClass = `${activeSize} text-white tracking-wide text-center`;
+                  inactiveClass = 'hidden';
                 } else {
                   // Default
                   const activeSize = isEditor ? 'text-2xl md:text-3xl' : 'text-3xl md:text-5xl';
@@ -1115,7 +1365,8 @@ function App() {
                               : preset === 'romantic' ? '"Dancing Script", cursive'
                                 : preset === 'tech' ? '"Orbitron", sans-serif'
                                   : preset === 'gothic' ? '"UnifrakturMaguntia", cursive'
-                                    : undefined
+                                    : (preset === 'testing' || preset === 'testing_up') ? '"Rubik Glitch", cursive'
+                                      : undefined
                     }}
                     onClick={() => {
                       if (audioRef.current && !isRendering) {
@@ -1256,6 +1507,10 @@ function App() {
                       <option value="gothic">Gothic</option>
                       <option value="classic">Classic Serif</option>
                       <option value="monospace">Monospace</option>
+                      <option value="testing_up">Testing (UP)</option>
+                      <option value="testing">Testing</option>
+                      <option value="slideshow">Slideshow</option>
+                      <option value="just_video">Just Video</option>
                     </select>
                     <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-1 text-zinc-500">
                       <svg className="fill-current h-3 w-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" /></svg>

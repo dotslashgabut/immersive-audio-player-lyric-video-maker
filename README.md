@@ -28,10 +28,23 @@ A modern, single-page web application that transforms your music listening into 
   - **Gothic**: Old English style blackletter font.
   - **Classic Serif**: Elegant, italicized serif font for a cinematic feel.
   - **Monospace**: Clean code-style font.
+  - **Testing**: Alternate centered layout optimized for video export.
+  - **Testing (UP)**: Uppercase variation of the Testing preset.
+  - **Slideshow**: Small, line-by-line lyrics (Web) / Single line (Export).
+  - **Just Video**: Hides lyrics on export, showing only the background video.
 
 ### 🎬 Visual Timeline Editor
-- **Create Stories**: Drag and drop images to create a background slideshow synchronized to specific timestamps.
+- **Create Stories**: Drag and drop images or videos to create a background slideshow synchronized to specific timestamps.
 - **Timeline Interface**: Intuitive interface to move, resize, and snap slides to lyrics or audio duration.
+- **Advanced Selection**:
+  - **Single Click**: Select a slide.
+  - **Shift + Click**: Select multiple slides.
+  - **Select All**: Quick button to select all items.
+- **Precise Control**:
+  - **Arrow Keys (Left/Right)**: Move selected slides by 0.5s.
+  - **Duration Input**: Manually type duration (MM:SS) for exact timing.
+- **Video Support**:
+  - **Volume Control**: Mute/Unmute or adjust volume for video slides directly on the timeline.
 - **Zoom Controls**: Zoom in/out of the timeline for precise editing.
 
 ![Timeline Editor](screenshot-timeline.jpg)
@@ -134,10 +147,17 @@ Terminal akan menampilkan alamat server lokal (biasanya `http://localhost:5173`)
 #### Langkah 2: Edit Visual (Timeline)
 Anda bisa menambahkan gambar background yang berubah-ubah sesuai durasi lagu.
 1.  Klik ikon **Timeline** 🎞️ atau tekan tombol **T** di keyboard untuk membuka Timeline Editor.
-2.  Klik **"Add Images"** untuk memilih gambar-gambar yang ingin dimasukkan.
-3.  **Atur Posisi**: Drag & drop gambar di timeline untuk menentukan kapan gambar muncul.
-4.  **Atur Durasi**: Tarik ujung kiri/kanan blok gambar di timeline untuk memperpanjang atau memperpendek durasinya.
-5.  **Pilih Preset Lirik**: Di bagian kiri bawah, pilih gaya tampilan lirik yang diinginkan (contoh: *Big Text* untuk video TikTok/Reels).
+2.  Klik **"Add Images"** untuk memilih gambar atau video yang ingin dimasukkan.
+3.  **Seleksi & Navigasi**:
+    *   Klik satu kali untuk memilih item.
+    *   Tahan **Shift + Klik** untuk memilih banyak item sekaligus.
+    *   Gunakan tombol **Panah Kiri/Kanan** di keyboard untuk menggeser item terpilih (0.5 detik).
+4.  **Atur Posisi & Durasi**:
+    *   Drag & drop untuk memindahkan.
+    *   Tarik ujung kiri/kanan untuk mengubah durasi.
+    *   Ketik durasi manual (MM:SS) pada input box untuk presisi tinggi.
+5.  **Kontrol Video**: Untuk slide video, Anda bisa mengatur volume atau mute audio bawaan video tersebut.
+6.  **Pilih Preset Lirik**: Di bagian kiri bawah, pilih gaya tampilan lirik yang diinginkan (contoh: *Big Text*, *Slideshow* untuk tampilan minimalis).
 
 #### Langkah 3: Export Video
 Setelah puas dengan tampilan:

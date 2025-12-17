@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { VisualSlide, LyricLine } from '../types';
-import { Plus, X, ImageIcon, GripHorizontal, ZoomIn, ZoomOut, Trash2 } from './Icons';
+import { Plus, X, ImageIcon, GripHorizontal, ZoomIn, ZoomOut, Trash2, Volume2, VolumeX } from './Icons';
 import { formatTime } from '../utils/parsers';
 
 interface VisualEditorProps {
@@ -16,6 +16,7 @@ const RULER_INTERVAL = 5; // Seconds between ruler marks
 const SNAP_THRESHOLD_PX = 10; // Pixels to snap
 
 const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentTime, duration, lyrics, onSeek }) => {
+  const editorRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
   const [pxPerSec, setPxPerSec] = useState(40); // Default zoom level
@@ -28,7 +29,7 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
   const totalWidth = timelineDuration * pxPerSec;
 
   // Interaction State
-  const [selectedSlideId, setSelectedSlideId] = useState<string | null>(null);
+  const [selectedSlideIds, setSelectedSlideIds] = useState<string[]>([]);
 
   const [activeDrag, setActiveDrag] = useState<{
     id: string;
@@ -40,7 +41,7 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
 
   const [isScrubbing, setIsScrubbing] = useState(false);
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const fileCount = e.target.files.length;
 
@@ -59,6 +60,7 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
       Array.from(e.target.files).forEach((item, index) => {
         const file = item as File;
         const url = URL.createObjectURL(file);
+        const type = file.type.startsWith('video/') ? 'video' : 'image';
 
         const start = startTime + (index * durationPerImage);
         const end = start + durationPerImage;
@@ -66,9 +68,12 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
         newSlides.push({
           id: Math.random().toString(36).substr(2, 9),
           url,
+          type,
           startTime: start,
           endTime: end,
-          name: file.name
+          name: file.name,
+          isMuted: type === 'video', // Default muted
+          volume: type === 'video' ? 1 : undefined
         });
       });
 
@@ -93,8 +98,29 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
   const handleMouseDown = (e: React.MouseEvent, id: string, type: 'move' | 'resize-start' | 'resize-end') => {
     e.stopPropagation();
     e.preventDefault(); // Prevent default drag behavior
+    editorRef.current?.focus();
 
-    setSelectedSlideId(id);
+    // Handle Selection Logic
+    if (e.shiftKey) {
+      setSelectedSlideIds(prev => {
+        if (prev.includes(id)) return prev.filter(sid => sid !== id);
+        return [...prev, id];
+      });
+    } else {
+      // If clicking an already selected item (without shift), keep it selected (and potentially others if we supported multi-drag, but for now reset to single if it wasn't selected or if we want to isolate)
+      // Standard behavior: Click on unselected -> Select only that. Click on selected -> Keep selection (until mouse up usually, but simpler: select only that unless already selected??)
+      // Simplest: If not shift, set to just this ID.
+      if (!selectedSlideIds.includes(id)) {
+        setSelectedSlideIds([id]);
+      } else {
+        // If it is already selected, we don't clear others immediately on mousedown to allow for potential multi-drag in future, 
+        // but since we only support single drag, we might as well reduce validation friction.
+        // Actually, let's strictly set single selection on click without shift to match "Single Selection" requirement clearly.
+        // User requested: "Single selection (image click)... Multi select ... shift+click".
+        // If I click one of a group without shift, it usually deselects others.
+        setSelectedSlideIds([id]);
+      }
+    }
 
     const slide = slides.find(s => s.id === id);
     if (!slide) return;
@@ -119,8 +145,9 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
     // Stop propagation to prevent conflicting drags if clicking specific elements
     // But we want to allow this on Ruler/Track/Playhead
     e.stopPropagation();
+    editorRef.current?.focus();
 
-    setSelectedSlideId(null);
+    setSelectedSlideIds([]);
     setIsScrubbing(true);
     updateScrubPosition(e.clientX);
 
@@ -150,26 +177,47 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
     window.removeEventListener('mouseup', handleScrubMouseUp);
   };
 
-  // Delete Shortcut
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Check for Delete or Backspace
-      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedSlideId) {
-        // Prevent if user is typing in an input
-        const target = e.target as HTMLElement;
-        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
-          return;
-        }
+  // Keyboard Shortcuts (Delete & Move)
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLElement;
+    if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
+      return;
+    }
 
-        e.preventDefault();
-        setSlides(prev => prev.filter(s => s.id !== selectedSlideId));
-        setSelectedSlideId(null);
+    // 1. Delete
+    if ((e.key === 'Delete' || e.key === 'Backspace') && selectedSlideIds.length > 0) {
+      e.preventDefault();
+      setSlides(prev => prev.filter(s => !selectedSlideIds.includes(s.id)));
+      setSelectedSlideIds([]);
+    }
+
+    // 2. Move (Left/Right Arrow) - 0.5s Step
+    if (selectedSlideIds.length > 0 && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+      e.preventDefault();
+      e.stopPropagation(); // Stop bubbling to prevent audio seek
+      const delta = e.key === 'ArrowRight' ? 0.5 : -0.5;
+
+      // Sync slider to the first selected item's new start time
+      const firstSelected = slides.find(s => s.id === selectedSlideIds[0]);
+      if (firstSelected) {
+        const newStart = Math.max(0, firstSelected.startTime + delta);
+        onSeek(newStart);
       }
-    };
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedSlideId]);
+      setSlides(prev => {
+        const updated = prev.map(s => {
+          if (selectedSlideIds.includes(s.id)) {
+            const durationLen = s.endTime - s.startTime;
+            let newStart = s.startTime + delta;
+            newStart = Math.max(0, newStart);
+            return { ...s, startTime: newStart, endTime: newStart + durationLen };
+          }
+          return s;
+        });
+        return updated.sort((a, b) => a.startTime - b.startTime);
+      });
+    }
+  };
 
 
   // Snapping Utility
@@ -284,7 +332,13 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
   const handleZoomOut = () => setPxPerSec(prev => Math.max(10, prev - 10));
 
   return (
-    <div className="w-full max-w-[100vw] h-64 flex flex-col bg-zinc-900/95 backdrop-blur-md border-t border-white/10 z-20 shadow-xl overflow-hidden">
+    <div
+      ref={editorRef}
+      className="w-full max-w-[100vw] h-64 flex flex-col bg-zinc-900/95 backdrop-blur-md border-t border-white/10 z-20 shadow-xl overflow-hidden outline-none"
+      tabIndex={0}
+      onMouseDown={(e) => e.currentTarget.focus()}
+      onKeyDown={handleKeyDown}
+    >
 
       {/* Header / Tools */}
       <div className="p-2 border-b border-white/10 flex items-center justify-between bg-zinc-900 z-30 shrink-0 h-12">
@@ -303,12 +357,108 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
               <ZoomIn size={14} />
             </button>
           </div>
+          <div className="w-px h-4 bg-zinc-700"></div>
+
+          {/* Selection Utilities */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setSelectedSlideIds(slides.map(s => s.id))}
+              className="px-2 py-0.5 text-[10px] bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded text-zinc-300 transition-colors"
+            >
+              Select All
+            </button>
+
+            {/* Duration Input (Single Selection Only) */}
+            {selectedSlideIds.length === 1 && (
+              <div className="flex items-center gap-1 bg-zinc-800 rounded px-1 border border-zinc-700">
+                <span className="text-[10px] text-zinc-500 px-1">Dur:</span>
+                <input
+                  key={selectedSlideIds[0]}
+                  type="text"
+                  className="w-12 bg-transparent text-[10px] text-white font-mono focus:outline-none py-0.5 text-center"
+                  placeholder="MM:SS"
+                  defaultValue={(() => {
+                    const s = slides.find(si => si.id === selectedSlideIds[0]);
+                    return s ? formatTime(s.endTime - s.startTime) : "00:00";
+                  })()}
+                  onBlur={(e) => {
+                    const val = e.target.value;
+                    const parts = val.split(':');
+                    if (parts.length === 2) {
+                      const m = parseInt(parts[0]) || 0;
+                      const s = parseInt(parts[1]) || 0;
+                      const totalSec = (m * 60) + s;
+                      if (totalSec > 0) {
+                        setSlides(prev => prev.map(slide => {
+                          if (slide.id === selectedSlideIds[0]) {
+                            return { ...slide, endTime: slide.startTime + totalSec };
+                          }
+                          return slide;
+                        }));
+                      }
+                    }
+                    // Force re-render to formatted value if invalid or updated
+                    const s = slides.find(si => si.id === selectedSlideIds[0]);
+                    if (s) e.target.value = formatTime(s.endTime - s.startTime);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') e.currentTarget.blur();
+                  }}
+                />
+              </div>
+            )}
+
+            {/* Volume Input (Single Video Selection Only) */}
+            {selectedSlideIds.length === 1 && (() => {
+              const s = slides.find(si => si.id === selectedSlideIds[0]);
+              if (s && s.type === 'video') {
+                return (
+                  <div className="flex items-center gap-2 bg-zinc-800 rounded px-2 border border-zinc-700 h-[22px]">
+                    <span className="text-[10px] text-zinc-500">Vol:</span>
+                    <div className="flex items-center gap-1 w-20">
+                      <button
+                        onClick={() => {
+                          setSlides(prev => prev.map(slide => {
+                            if (slide.id === s.id) return { ...slide, isMuted: !slide.isMuted };
+                            return slide;
+                          }));
+                        }}
+                        className="p-0.5 hover:bg-zinc-700 rounded cursor-pointer text-zinc-400 hover:text-white"
+                        title={s.isMuted !== false ? "Unmute" : "Mute"}
+                      >
+                        {s.isMuted !== false ? <VolumeX size={10} /> : <Volume2 size={10} />}
+                      </button>
+                      <input
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.05"
+                        className="w-full h-1 bg-zinc-600 rounded-lg appearance-none cursor-pointer"
+                        value={s.volume !== undefined ? s.volume : 1}
+                        onChange={(e) => {
+                          const newVol = parseFloat(e.target.value);
+                          setSlides(prev => prev.map(slide => {
+                            if (slide.id === s.id) return { ...slide, volume: newVol, isMuted: newVol === 0 };
+                            return slide;
+                          }));
+                        }}
+                      />
+                    </div>
+                    <span className="text-[9px] text-zinc-400 w-6 text-right">
+                      {Math.round((s.volume || 1) * 100)}%
+                    </span>
+                  </div>
+                );
+              }
+              return null;
+            })()}
+          </div>
         </div>
 
         <div className="flex gap-2 shrink-0">
           <label className="flex items-center gap-2 px-3 py-1 bg-purple-600 hover:bg-purple-500 rounded text-xs font-medium cursor-pointer transition-colors text-white whitespace-nowrap">
-            <Plus size={14} /> Import Images (Append)
-            <input type="file" className="hidden" accept="image/*" multiple onChange={handleImageUpload} />
+            <Plus size={14} /> Import Images/Videos
+            <input type="file" className="hidden" accept="image/*,video/*" multiple onChange={handleFileUpload} />
           </label>
           <button
             onClick={handleClearAll}
@@ -328,7 +478,7 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
             containerRef.current.scrollLeft += e.deltaY;
           }
         }}
-        className="flex-1 overflow-x-auto overflow-y-hidden relative bg-zinc-950 scroll-smooth custom-scrollbar cursor-text"
+        className="flex-1 overflow-x-auto overflow-y-hidden relative bg-zinc-950 scroll-smooth custom-scrollbar cursor-default"
       >
         <div
           ref={trackRef}
@@ -401,17 +551,38 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
                   width: Math.max(10, (slide.endTime - slide.startTime) * pxPerSec)
                 }}
                 className={`absolute top-1 bottom-1 rounded-md overflow-hidden group bg-zinc-800 border shadow-sm select-none cursor-move
-                     ${(activeDrag?.id === slide.id || selectedSlideId === slide.id) ? 'border-purple-400 z-30 shadow-xl opacity-90' : 'border-zinc-600 hover:border-zinc-400 z-10 hover:z-20'}
+                     ${(activeDrag?.id === slide.id || selectedSlideIds.includes(slide.id)) ? 'border-purple-400 z-30 shadow-xl opacity-90' : 'border-zinc-600 hover:border-zinc-400 z-10 hover:z-20'}
                    `}
                 onMouseDown={(e) => handleMouseDown(e, slide.id, 'move')}
               >
-                {/* Background Image Preview */}
-                <img src={slide.url} className="w-full h-full object-cover opacity-60 pointer-events-none" draggable={false} alt={slide.name} />
+                {/* Background Media Preview */}
+                {slide.type === 'video' ? (
+                  <video src={slide.url} className="w-full h-full object-cover opacity-60 pointer-events-none" muted />
+                ) : (
+                  <img src={slide.url} className="w-full h-full object-cover opacity-60 pointer-events-none" draggable={false} alt={slide.name} />
+                )}
 
                 {/* Info Overlay */}
                 <div className="absolute inset-0 p-1 pointer-events-none flex flex-col justify-end">
                   <span className="text-[10px] font-bold drop-shadow-md truncate text-zinc-200 bg-black/30 px-1 rounded w-max max-w-full">{slide.name}</span>
                 </div>
+
+                {/* Mute/Unmute Button (Videos Only) */}
+                {slide.type === 'video' && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSlides(prev => prev.map(s => {
+                        if (s.id === slide.id) return { ...s, isMuted: !s.isMuted };
+                        return s;
+                      }));
+                    }}
+                    className="absolute top-1 right-6 p-0.5 bg-black/60 hover:bg-zinc-600 rounded text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer z-40"
+                    title={slide.isMuted !== false ? "Unmute" : "Mute"}
+                  >
+                    {slide.isMuted !== false ? <VolumeX size={10} /> : <Volume2 size={10} />}
+                  </button>
+                )}
 
                 {/* Delete Button */}
                 <button
