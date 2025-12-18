@@ -15,6 +15,10 @@ A modern, single-page web application that transforms your music listening into 
 - **Dual Format Support**: Compatible with both `.lrc` (Karaoke style) and `.srt` (Subtitle style) files.
 - **Auto-Scroll**: Lyrics scroll automatically in sync with the music.
 - **Click-to-Seek**: Click any lyric line to instantly jump to that exact time in the song.
+- **Advanced Formatting**:
+  - **Multiple Timestamps**: Support for same lyric line at different times (e.g., `[00:05.75][00:08.03]Chorus Line`).
+  - **Line Breaks**: Use `\n` to force a line break within a single lyric block (e.g., `Line 1\nLine 2`).
+  - **Empty Lines**: Use an empty text block (e.g., `[00:10.00]`) to clear the lyrics from the screen (useful for instrumental sections).
 - **Visual Presets**: Choose from multiple display styles:
   - **Default**: Modern, centered, balanced.
   - **Big Text**: Large, left-aligned, high impact (Great for short videos).
@@ -149,6 +153,10 @@ Terminal akan menampilkan alamat server lokal (biasanya `http://localhost:5173`)
 1.  Klik ikon **Nada Musik** 🎵 di menu bawah untuk memilih file lagu dari komputer Anda (MP3, WAV, dll).
 2.  Klik ikon **Dokumen** 📄 untuk memasukkan file lirik (`.lrc` atau `.srt`).
     *   *Catatan*: Pastikan file lirik memiliki timing yang sinkron dengan lagu Anda.
+3.  **Fitur Format Lanjut**:
+    - **Multi-Timestamp**: Satu baris lirik bisa muncul di beberapa waktu berbeda (contoh: `[00:05.75][00:08.03]Reff`).
+    - **Line Break**: Gunakan `\n` untuk membuat baris baru dalam satu tampilan (contoh: `Baris 1\nBaris 2`).
+    - **Baris Kosong**: Gunakan timestamp tanpa teks (contoh: `[00:10.00]`) untuk membersihkan lirik dari layar (misal saat instrumental).
 
 #### Langkah 2: Edit Visual (Timeline)
 Anda bisa menambahkan gambar background yang berubah-ubah sesuai durasi lagu.

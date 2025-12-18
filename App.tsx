@@ -45,7 +45,7 @@ function App() {
   // State: Video Export
   const [isRendering, setIsRendering] = useState(false);
   const [renderProgress, setRenderProgress] = useState(0);
-  const [aspectRatio, setAspectRatio] = useState<'16:9' | '9:16' | '3:4' | '1:1'>('16:9');
+  const [aspectRatio, setAspectRatio] = useState<'16:9' | '9:16' | '3:4' | '1:1' | '1:2' | '2:1' | '2:3' | '3:2'>('16:9');
   const [resolution, setResolution] = useState<'720p' | '1080p'>('1080p');
   const [preset, setPreset] = useState<VideoPreset>('default');
   const [customFontName, setCustomFontName] = useState<string | null>(null);
@@ -61,11 +61,20 @@ function App() {
         return is1080p ? { w: 1080, h: 1440 } : { w: 720, h: 960 };
       case '1:1':
         return is1080p ? { w: 1080, h: 1080 } : { w: 720, h: 720 };
+      case '1:2':
+        return is1080p ? { w: 1080, h: 2160 } : { w: 720, h: 1440 };
+      case '2:1':
+        return is1080p ? { w: 2160, h: 1080 } : { w: 1440, h: 720 };
+      case '2:3':
+        return is1080p ? { w: 1080, h: 1620 } : { w: 720, h: 1080 };
+      case '3:2':
+        return is1080p ? { w: 1620, h: 1080 } : { w: 1080, h: 720 };
       case '16:9':
       default:
         return is1080p ? { w: 1920, h: 1080 } : { w: 1280, h: 720 };
     }
   };
+
 
   const { w: canvasWidth, h: canvasHeight } = getCanvasDimensions();
 
@@ -1437,7 +1446,7 @@ function App() {
                 // --- Dynamic Styling based on Preset ---
                 let activeClass = '';
                 let inactiveClass = '';
-                let containerClass = 'transition-all duration-500 cursor-pointer ';
+                let containerClass = 'transition-all duration-500 cursor-pointer whitespace-pre-wrap ';
 
                 if (preset === 'large' || preset === 'large_upper') {
                   // Large: Left aligned, huge text, bold
@@ -1720,10 +1729,14 @@ function App() {
                       if (prev === '16:9') return '9:16';
                       if (prev === '9:16') return '3:4';
                       if (prev === '3:4') return '1:1';
+                      if (prev === '1:1') return '1:2';
+                      if (prev === '1:2') return '2:1';
+                      if (prev === '2:1') return '2:3';
+                      if (prev === '2:3') return '3:2';
                       return '16:9';
                     })}
                     className="text-[10px] font-mono text-zinc-500 hover:text-zinc-300 border border-zinc-700 rounded px-1 h-6 transition-colors disabled:opacity-30"
-                    title="Toggle Aspect Ratio (16:9 / 9:16 / 3:4 / 1:1)"
+                    title="Toggle Aspect Ratio (16:9 / 9:16 / 3:4 / 1:1 / 1:2 / 2:1 / 2:3 / 3:2)"
                     disabled={isRendering}
                   >
                     {aspectRatio}
