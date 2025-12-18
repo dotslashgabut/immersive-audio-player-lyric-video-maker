@@ -49,6 +49,7 @@ function App() {
   const [resolution, setResolution] = useState<'720p' | '1080p'>('1080p');
   const [preset, setPreset] = useState<VideoPreset>('default');
   const [customFontName, setCustomFontName] = useState<string | null>(null);
+  const [fontSizeScale, setFontSizeScale] = useState(1);
 
   // Derived dimensions
   const getCanvasDimensions = () => {
@@ -447,6 +448,11 @@ function App() {
       secondaryFontSize = 0;
       lineSpacing = 0;
     }
+
+    // Apply user font size scaling
+    baseFontSize *= fontSizeScale;
+    secondaryFontSize *= fontSizeScale;
+    lineSpacing *= fontSizeScale;
 
     if (activeIdx !== -1) {
       const centerY = height / 2;
@@ -1435,13 +1441,24 @@ function App() {
           {lyrics.length > 0 ? (
             <div
               ref={lyricsContainerRef}
-              className={`w-full max-w-5xl max-h-full overflow-y-auto no-scrollbar px-6 text-center space-y-6 transition-all duration-500`}
+              className={`w-full max-w-5xl max-h-full overflow-y-auto no-scrollbar px-6 text-center space-y-6 transition-all duration-500 lyrics-root`}
               style={{
                 maskImage: (isHeaderVisible || isFooterVisible)
                   ? 'linear-gradient(to bottom, transparent, black 10%, black 90%, transparent)'
                   : 'none'
               }}
             >
+              <style>{`
+                .lyrics-root .text-lg { font-size: calc(1.125rem * ${fontSizeScale}); line-height: calc(1.75rem * ${fontSizeScale}); }
+                .lyrics-root .text-xl { font-size: calc(1.25rem * ${fontSizeScale}); line-height: calc(1.75rem * ${fontSizeScale}); }
+                .lyrics-root .text-2xl { font-size: calc(1.5rem * ${fontSizeScale}); line-height: calc(2rem * ${fontSizeScale}); }
+                .lyrics-root .text-3xl { font-size: calc(1.875rem * ${fontSizeScale}); line-height: calc(2.25rem * ${fontSizeScale}); }
+                .lyrics-root .text-4xl { font-size: calc(2.25rem * ${fontSizeScale}); line-height: calc(2.5rem * ${fontSizeScale}); }
+                .lyrics-root .text-5xl { font-size: calc(3rem * ${fontSizeScale}); }
+                .lyrics-root .text-6xl { font-size: calc(3.75rem * ${fontSizeScale}); }
+                .lyrics-root .text-7xl { font-size: calc(4.5rem * ${fontSizeScale}); }
+                .lyrics-root .text-8xl { font-size: calc(6rem * ${fontSizeScale}); }
+              `}</style>
               <div className="h-[50vh]"></div>
               {lyrics.map((line, idx) => {
                 const isActive = idx === currentLyricIndex;
@@ -1606,6 +1623,28 @@ function App() {
                   />
                 </div>
                 <span className="text-xs text-zinc-400 font-mono w-10">{formatTime(duration)}</span>
+
+                {/* Volume Control (Top Row) */}
+                <div className="flex items-center gap-2 pl-4">
+                  <button onClick={() => setIsMuted(!isMuted)} className="text-zinc-400 hover:text-white">
+                    {isMuted || volume === 0 ? <VolumeX size={16} /> : <Volume2 size={16} />}
+                  </button>
+                  <div className="w-16 h-1 bg-zinc-700/50 rounded-full relative overflow-hidden group/vol">
+                    <div
+                      className="absolute top-0 left-0 h-full bg-zinc-300 group-hover/vol:bg-purple-400 transition-colors"
+                      style={{ width: `${isMuted ? 0 : volume * 100}%` }}
+                    ></div>
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.05"
+                      value={isMuted ? 0 : volume}
+                      onChange={handleVolumeChange}
+                      className="absolute inset-0 opacity-0 cursor-pointer"
+                    />
+                  </div>
+                </div>
               </div>
 
               {/* Main Buttons */}
@@ -1648,27 +1687,30 @@ function App() {
                     )}
                   </div>
 
-                  {/* Volume Control (Moved here) */}
-                  <div className="flex items-center gap-2 ml-2 bg-zinc-800/50 rounded-lg px-2 py-1">
-                    <button onClick={() => setIsMuted(!isMuted)} className="text-zinc-400 hover:text-white">
-                      {isMuted || volume === 0 ? <VolumeX size={16} /> : <Volume2 size={16} />}
+                  {/* Font Size Control */}
+                  <div className="flex items-center gap-1 ml-1 bg-zinc-800/50 rounded-lg px-2 py-1 h-9">
+                    <button
+                      onClick={() => setFontSizeScale(s => Math.max(0.5, parseFloat((s - 0.1).toFixed(1))))}
+                      className="text-zinc-400 hover:text-white px-1 font-mono"
+                      title="Decrease Font Size"
+                      disabled={isRendering}
+                    >
+                      -
                     </button>
-                    <div className="w-16 h-1 bg-zinc-700 rounded-full relative overflow-hidden group">
-                      <div
-                        className="absolute top-0 left-0 h-full bg-zinc-300 group-hover:bg-purple-400 transition-colors"
-                        style={{ width: `${isMuted ? 0 : volume * 100}%` }}
-                      ></div>
-                      <input
-                        type="range"
-                        min="0"
-                        max="1"
-                        step="0.05"
-                        value={isMuted ? 0 : volume}
-                        onChange={handleVolumeChange}
-                        className="absolute inset-0 opacity-0 cursor-pointer"
-                      />
-                    </div>
+                    <span className="text-xs text-zinc-300 w-8 text-center font-mono select-none">
+                      {Math.round(fontSizeScale * 100)}%
+                    </span>
+                    <button
+                      onClick={() => setFontSizeScale(s => Math.min(3.0, parseFloat((s + 0.1).toFixed(1))))}
+                      className="text-zinc-400 hover:text-white px-1 font-mono"
+                      title="Increase Font Size"
+                      disabled={isRendering}
+                    >
+                      +
+                    </button>
                   </div>
+
+
                 </div>
 
                 <div className="flex items-center gap-6">
@@ -1701,6 +1743,8 @@ function App() {
                   >
                     <Repeat size={20} />
                   </button>
+
+
                 </div>
 
                 <div className="flex items-center gap-2 w-full justify-end group">
