@@ -118,9 +118,14 @@ This application is built with React + Vite and requires **Node.js** to run.
 
 ## Browser Compatibility
 
-Video export relies on modern browser APIs (`MediaRecorder` and `captureStream`). 
-- **Recommended**: Google Chrome, Microsoft Edge, or other Chromium-based browsers.
+Video export relies on modern browser APIs (`MediaRecorder` and `captureStream`).
+- **Recommended**: Google Chrome, Microsoft Edge, or other Chromium-based browsers (Best performance with hardware acceleration).
 - **Note**: Firefox and Safari may have varying levels of support for specific video export features.
+
+### ⚙️ Codec & Rendering Engine
+- **High-Quality Export**: The render engine now prioritizes **H.264 High Profile** (`avc1.64001E`) for sharper visuals and better text clarity, especially useful for lyric videos.
+- **Social Media Ready**: Auto-negotiates the best available codec (Baseline/Main/High profiles) to ensure files are compatible with Instagram, TikTok, and YouTube without needing conversion.
+- **Smooth Playback**: Enhanced synchronization logic ensures that imported videos and audio clips render smoothly without stuttering or "freezing" effects.
 
 ---
 

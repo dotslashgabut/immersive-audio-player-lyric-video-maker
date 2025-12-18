@@ -898,7 +898,23 @@ function App() {
       stream.addTrack(audioStream.getAudioTracks()[0]);
     }
 
-    const mimeType = MediaRecorder.isTypeSupported('video/mp4') ? 'video/mp4' : 'video/webm';
+    // Attempt to use social-media friendly codecs if supported (H.264/AAC)
+    const getPreferredMimeType = () => {
+      const types = [
+        'video/mp4; codecs="avc1.64001E, mp4a.40.2"', // H.264 High + AAC (Best Quality)
+        'video/mp4; codecs="avc1.4D401E, mp4a.40.2"', // H.264 Main + AAC
+        'video/mp4; codecs="avc1.42E01E, mp4a.40.2"', // H.264 Baseline + AAC (Best Compatibility)
+        'video/mp4',                                  // Generic MP4
+        'video/webm; codecs=vp9',                     // WebM VP9
+        'video/webm'                                  // Generic WebM
+      ];
+      for (const t of types) {
+        if (MediaRecorder.isTypeSupported(t)) return t;
+      }
+      return 'video/webm';
+    };
+
+    const mimeType = getPreferredMimeType();
     const bitrate = resolution === '1080p' ? 8000000 : 4000000;
     const mediaRecorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: bitrate });
 
@@ -912,11 +928,15 @@ function App() {
     mediaRecorder.onstop = () => {
       // Only download if NOT aborted
       if (!abortRenderRef.current) {
+        // Note to user: MediaRecorder often produces Variable Frame Rate videos.
+        // The duration metadata might be missing in some players for WebM/MP4 recorded this way.
         const blob = new Blob(chunks, { type: mimeType });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `${metadata.title || 'video'}_${aspectRatio.replace(':', '-')}_${resolution}.${mimeType === 'video/mp4' ? 'mp4' : 'webm'}`;
+        // Clean filename
+        const ext = mimeType.includes('mp4') ? 'mp4' : 'webm';
+        a.download = `${metadata.title || 'video'}_${aspectRatio.replace(':', '-')}_${resolution}.${ext}`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -954,6 +974,7 @@ function App() {
           const vidDuration = v.duration || 1;
           const targetTime = t % vidDuration;
 
+          // Background tolerance 0.3s
           if (Math.abs(v.currentTime - targetTime) > 0.3) v.currentTime = targetTime;
           if (v.paused) v.play().catch(() => { });
         } else {
@@ -962,7 +983,9 @@ function App() {
           if (s) {
             if (t >= s.startTime && t < s.endTime) {
               const rel = t - s.startTime;
-              if (Math.abs(v.currentTime - rel) > 0.1) v.currentTime = rel;
+
+              // [FIX] Increased tolerance from 0.1 to 0.3 to prevent aggressive seeking (stutter)
+              if (Math.abs(v.currentTime - rel) > 0.3) v.currentTime = rel;
 
               // Handle Audio Muting & Volume for Export
               // If slide is unmuted (isMuted === false), we unmute the video element so it feeds into the mixer
@@ -988,15 +1011,11 @@ function App() {
         if (s) {
           if (t >= s.startTime && t < s.endTime) {
             const rel = t - s.startTime;
-            if (Math.abs(a.currentTime - rel) > 0.1) a.currentTime = rel;
+            // [FIX] Increased tolerance to 0.2 for audio
+            if (Math.abs(a.currentTime - rel) > 0.2) a.currentTime = rel;
 
             // Handle Audio Muting & Volume for Export
-            const shouldMute = s.isMuted === true; // Default false (unmuted for audio usually?) - wait, logic was: default muted for video.
-            // For audio files, default should be unmuted?
-            // In handleFileUpload I set `isMuted: type === 'video'`. So for audio, isMuted is false.
-            // So `s.isMuted === true` means user explicitly muted it (if I provide UI).
-            // But wait, my previous logic in VisualEditor was: `isMuted: type === 'video'`.
-            // So for audio, isMuted is false.
+            const shouldMute = s.isMuted === true;
             if (a.muted !== shouldMute) a.muted = shouldMute;
 
             const targetVol = s.volume !== undefined ? s.volume : 1;
