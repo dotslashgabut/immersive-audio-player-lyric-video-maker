@@ -632,7 +632,7 @@ function App() {
 
         // Artist
         let artistSize = 16 * scale;
-        if (activePreset === 'testing' || activePreset === 'testing_up') artistSize = 25 * scale;
+        if (activePreset === 'testing' || activePreset === 'testing_up') artistSize = 18 * scale;
         ctx.font = `${artistSize}px ${fontFamily}`;
         ctx.fillStyle = '#d4d4d8';
 
