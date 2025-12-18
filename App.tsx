@@ -346,7 +346,6 @@ function App() {
     else if (activePreset === 'romantic') fontFamily = loveFont;
     else if (activePreset === 'tech') fontFamily = techFont;
     else if (activePreset === 'gothic') fontFamily = gothicFont;
-    else if (activePreset === 'testing' || activePreset === 'testing_up') fontFamily = experimentalFont;
 
     if (customFontName) fontFamily = `"${customFontName}", sans-serif`;
 
@@ -524,6 +523,10 @@ function App() {
               ctx.shadowBlur = 0;
               ctx.shadowOffsetX = 3 * scale;
               ctx.shadowOffsetY = 3 * scale;
+            } else if (activePreset === 'testing' || activePreset === 'testing_up') {
+              ctx.shadowColor = 'transparent';
+              ctx.shadowOffsetX = 0;
+              ctx.shadowOffsetY = 0;
             } else {
               ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
               ctx.shadowBlur = (activePreset === 'classic' ? 20 : 10) * scale;
@@ -1523,8 +1526,7 @@ function App() {
                               : preset === 'romantic' ? '"Dancing Script", cursive'
                                 : preset === 'tech' ? '"Orbitron", sans-serif'
                                   : preset === 'gothic' ? '"UnifrakturMaguntia", cursive'
-                                    : (preset === 'testing' || preset === 'testing_up') ? '"Rubik Glitch", cursive'
-                                      : undefined
+                                    : undefined
                     }}
                     onClick={() => {
                       if (audioRef.current && !isRendering) {
