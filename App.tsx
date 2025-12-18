@@ -1463,6 +1463,7 @@ function App() {
               {lyrics.map((line, idx) => {
                 const isActive = idx === currentLyricIndex;
                 const isEditor = activeTab === TabView.EDITOR;
+                const isPortraitPreview = ['9:16', '3:4', '1:1', '1:2', '2:3'].includes(aspectRatio);
 
                 // Handle Big Text preset visibility (show only current, prev, and next)
                 const isBigLayout = ['large', 'large_upper', 'big_center', 'metal', 'kids', 'sad', 'romantic', 'tech', 'gothic', 'testing', 'testing_up'].includes(preset);
@@ -1487,75 +1488,135 @@ function App() {
 
                 if (preset === 'large' || preset === 'large_upper') {
                   // Large: Left aligned, huge text, bold
-                  const activeSize = isEditor ? 'text-4xl md:text-6xl' : 'text-5xl md:text-8xl';
-                  const inactiveSize = isEditor ? 'text-xl md:text-2xl' : 'text-2xl md:text-3xl';
+                  // Render Logic Equiv: Portrait=90, Landscape=120. (Approx 25% diff)
+                  // Web Logic: 7xl (4.5rem) vs 9xl (8rem via arbitrary? no 9xl in tailwind default but maybe user has it, or we stick to 8xl/7xl)
+                  // Let's us 6xl(3.75) vs 8xl(6)
+                  const portraitActive = isEditor ? 'text-4xl' : 'text-6xl';
+                  const landscapeActive = isEditor ? 'text-6xl' : 'text-8xl';
+                  const activeSize = isPortraitPreview ? portraitActive : landscapeActive;
+
+                  const inactiveSize = isPortraitPreview
+                    ? (isEditor ? 'text-xl' : 'text-2xl')
+                    : (isEditor ? 'text-2xl' : 'text-3xl');
                   activeClass = `${activeSize} font-black text-white ${preset === 'large_upper' ? 'uppercase' : ''} tracking-tight text-left pl-4`;
                   inactiveClass = `${inactiveSize} text-zinc-600/40 hover:text-zinc-400 text-left pl-4`;
                 } else if (preset === 'big_center') {
-                  const activeSize = isEditor ? 'text-4xl md:text-6xl' : 'text-5xl md:text-8xl';
-                  const inactiveSize = isEditor ? 'text-xl md:text-2xl' : 'text-2xl md:text-3xl';
+                  const activeSize = isPortraitPreview
+                    ? (isEditor ? 'text-4xl' : 'text-5xl')
+                    : (isEditor ? 'text-6xl' : 'text-8xl');
+                  const inactiveSize = isPortraitPreview
+                    ? (isEditor ? 'text-xl' : 'text-2xl')
+                    : (isEditor ? 'text-2xl' : 'text-3xl');
                   activeClass = `${activeSize} font-black text-white uppercase tracking-tight text-center`;
                   inactiveClass = `${inactiveSize} text-zinc-600/40 hover:text-zinc-400 text-center`;
                 } else if (preset === 'testing_up') {
-                  const activeSize = isEditor ? 'text-4xl md:text-6xl' : 'text-5xl md:text-8xl';
-                  const inactiveSize = isEditor ? 'text-xl md:text-2xl' : 'text-2xl md:text-3xl';
+                  const activeSize = isPortraitPreview
+                    ? (isEditor ? 'text-4xl' : 'text-5xl')
+                    : (isEditor ? 'text-6xl' : 'text-8xl');
+                  const inactiveSize = isPortraitPreview
+                    ? (isEditor ? 'text-xl' : 'text-2xl')
+                    : (isEditor ? 'text-2xl' : 'text-3xl');
                   activeClass = `${activeSize} text-white uppercase tracking-tight text-center`;
                   inactiveClass = `${inactiveSize} text-zinc-600/40 hover:text-zinc-400 text-center`;
                 } else if (preset === 'testing') {
-                  const activeSize = isEditor ? 'text-4xl md:text-6xl' : 'text-5xl md:text-8xl';
-                  const inactiveSize = isEditor ? 'text-xl md:text-2xl' : 'text-2xl md:text-3xl';
+                  const activeSize = isPortraitPreview
+                    ? (isEditor ? 'text-4xl' : 'text-5xl')
+                    : (isEditor ? 'text-6xl' : 'text-8xl');
+                  const inactiveSize = isPortraitPreview
+                    ? (isEditor ? 'text-xl' : 'text-2xl')
+                    : (isEditor ? 'text-2xl' : 'text-3xl');
                   activeClass = `${activeSize} text-white tracking-tight text-center`;
                   inactiveClass = `${inactiveSize} text-zinc-600/40 hover:text-zinc-400 text-center`;
                 } else if (preset === 'metal') {
-                  const activeSize = isEditor ? 'text-4xl md:text-6xl' : 'text-5xl md:text-8xl';
-                  const inactiveSize = isEditor ? 'text-xl md:text-2xl' : 'text-2xl md:text-3xl';
+                  const activeSize = isPortraitPreview
+                    ? (isEditor ? 'text-4xl' : 'text-5xl')
+                    : (isEditor ? 'text-6xl' : 'text-8xl');
+                  const inactiveSize = isPortraitPreview
+                    ? (isEditor ? 'text-xl' : 'text-2xl')
+                    : (isEditor ? 'text-2xl' : 'text-3xl');
                   activeClass = `${activeSize} text-white uppercase tracking-wide text-center drop-shadow-[0_4px_6px_rgba(255,0,0,0.5)]`;
                   inactiveClass = `${inactiveSize} text-zinc-600/60 hover:text-zinc-400 text-center`;
                 } else if (preset === 'kids') {
-                  const activeSize = isEditor ? 'text-4xl md:text-6xl' : 'text-5xl md:text-8xl';
-                  const inactiveSize = isEditor ? 'text-xl md:text-2xl' : 'text-2xl md:text-3xl';
+                  const activeSize = isPortraitPreview
+                    ? (isEditor ? 'text-4xl' : 'text-5xl')
+                    : (isEditor ? 'text-6xl' : 'text-8xl');
+                  const inactiveSize = isPortraitPreview
+                    ? (isEditor ? 'text-xl' : 'text-2xl')
+                    : (isEditor ? 'text-2xl' : 'text-3xl');
                   activeClass = `${activeSize} text-white tracking-wide text-center drop-shadow-[3px_3px_0px_rgba(0,0,0,0.5)]`;
                   inactiveClass = `${inactiveSize} text-zinc-600/60 hover:text-zinc-400 text-center`;
                 } else if (preset === 'sad') {
-                  const activeSize = isEditor ? 'text-3xl md:text-5xl' : 'text-4xl md:text-6xl';
-                  const inactiveSize = isEditor ? 'text-lg md:text-xl' : 'text-xl md:text-2xl';
+                  const activeSize = isPortraitPreview
+                    ? (isEditor ? 'text-4xl' : 'text-5xl') // 48px / 60px
+                    : (isEditor ? 'text-6xl' : 'text-7xl'); // 60px / 72px (Render 75px)
+                  const inactiveSize = isPortraitPreview
+                    ? (isEditor ? 'text-lg' : 'text-xl')
+                    : (isEditor ? 'text-xl' : 'text-2xl');
                   activeClass = `${activeSize} text-zinc-200 tracking-wider text-center drop-shadow-md`;
                   inactiveClass = `${inactiveSize} text-zinc-600/60 hover:text-zinc-400 text-center`;
                 } else if (preset === 'romantic') {
-                  const activeSize = isEditor ? 'text-3xl md:text-5xl' : 'text-4xl md:text-6xl';
-                  const inactiveSize = isEditor ? 'text-lg md:text-xl' : 'text-xl md:text-2xl';
+                  const activeSize = isPortraitPreview
+                    ? (isEditor ? 'text-4xl' : 'text-5xl')
+                    : (isEditor ? 'text-6xl' : 'text-7xl');
+                  const inactiveSize = isPortraitPreview
+                    ? (isEditor ? 'text-lg' : 'text-xl')
+                    : (isEditor ? 'text-xl' : 'text-2xl');
                   activeClass = `${activeSize} text-pink-100 italic tracking-wide text-center drop-shadow-[0_0_10px_rgba(236,72,153,0.5)]`;
                   inactiveClass = `${inactiveSize} text-zinc-600/60 hover:text-zinc-400 text-center italic`;
                 } else if (preset === 'tech') {
-                  const activeSize = isEditor ? 'text-3xl md:text-5xl' : 'text-4xl md:text-7xl';
-                  const inactiveSize = isEditor ? 'text-lg md:text-xl' : 'text-xl md:text-2xl';
+                  const activeSize = isPortraitPreview
+                    ? (isEditor ? 'text-4xl' : 'text-5xl')
+                    : (isEditor ? 'text-6xl' : 'text-8xl');
+                  const inactiveSize = isPortraitPreview
+                    ? (isEditor ? 'text-xl' : 'text-2xl')
+                    : (isEditor ? 'text-2xl' : 'text-3xl');
                   activeClass = `${activeSize} text-cyan-50 font-bold uppercase tracking-widest text-center drop-shadow-[0_0_10px_rgba(34,211,238,0.8)]`;
                   inactiveClass = `${inactiveSize} text-cyan-900/40 hover:text-cyan-800 text-center uppercase`;
                 } else if (preset === 'gothic') {
-                  const activeSize = isEditor ? 'text-4xl md:text-6xl' : 'text-5xl md:text-8xl';
-                  const inactiveSize = isEditor ? 'text-xl md:text-2xl' : 'text-2xl md:text-3xl';
+                  const activeSize = isPortraitPreview
+                    ? (isEditor ? 'text-4xl' : 'text-5xl')
+                    : (isEditor ? 'text-6xl' : 'text-7xl');
+                  const inactiveSize = isPortraitPreview
+                    ? (isEditor ? 'text-xl' : 'text-2xl')
+                    : (isEditor ? 'text-2xl' : 'text-3xl');
                   activeClass = `${activeSize} text-zinc-300 tracking-normal text-center drop-shadow-[0_4px_10px_rgba(0,0,0,0.9)]`;
                   inactiveClass = `${inactiveSize} text-zinc-700/60 hover:text-zinc-500 text-center`;
                 } else if (preset === 'monospace') {
-                  const activeSize = isEditor ? 'text-2xl md:text-3xl' : 'text-3xl md:text-5xl';
-                  const inactiveSize = isEditor ? 'text-lg md:text-xl' : 'text-xl md:text-2xl';
+                  const activeSize = isPortraitPreview
+                    ? (isEditor ? 'text-2xl' : 'text-3xl')
+                    : (isEditor ? 'text-3xl' : 'text-5xl');
+                  const inactiveSize = isPortraitPreview
+                    ? (isEditor ? 'text-lg' : 'text-xl')
+                    : (isEditor ? 'text-xl' : 'text-2xl');
                   activeClass = `${activeSize} font-mono font-bold text-white scale-105 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]`;
                   inactiveClass = `${inactiveSize} font-mono text-zinc-500/60 hover:text-zinc-300 drop-shadow-sm`;
                 } else if (preset === 'classic') {
                   // Classic: Serif, Italic
-                  const activeSize = isEditor ? 'text-2xl md:text-4xl' : 'text-3xl md:text-6xl';
-                  const inactiveSize = isEditor ? 'text-lg md:text-xl' : 'text-xl md:text-2xl';
+                  // Render: Portrait=55, Landscape=65
+                  const activeSize = isPortraitPreview
+                    ? (isEditor ? 'text-2xl' : 'text-3xl') // 30 / 36
+                    : (isEditor ? 'text-3xl' : 'text-6xl'); // 36 / 60
+                  const inactiveSize = isPortraitPreview
+                    ? (isEditor ? 'text-lg' : 'text-xl')
+                    : (isEditor ? 'text-xl' : 'text-2xl');
                   activeClass = `${activeSize} font-serif italic font-bold text-amber-100 drop-shadow-[0_4px_8px_rgba(0,0,0,0.9)]`;
                   inactiveClass = `${inactiveSize} font-serif text-zinc-500/60 hover:text-zinc-300 italic`;
                 } else if (preset === 'slideshow' || preset === 'just_video') {
                   // Slideshow: Small, centered
-                  const activeSize = isEditor ? 'text-lg md:text-xl' : 'text-xl md:text-2xl';
+                  // Slideshow: Small, centered
+                  const activeSize = isPortraitPreview
+                    ? (isEditor ? 'text-2xl' : 'text-3xl')
+                    : (isEditor ? 'text-3xl' : 'text-4xl');
                   activeClass = `${activeSize} text-white tracking-wide text-center`;
                   inactiveClass = 'hidden';
                 } else {
                   // Default
-                  const activeSize = isEditor ? 'text-2xl md:text-3xl' : 'text-3xl md:text-5xl';
-                  const inactiveSize = isEditor ? 'text-lg md:text-xl' : 'text-xl md:text-2xl';
+                  const activeSize = isPortraitPreview
+                    ? (isEditor ? 'text-2xl' : 'text-3xl') //
+                    : (isEditor ? 'text-3xl' : 'text-5xl');
+                  const inactiveSize = isPortraitPreview
+                    ? (isEditor ? 'text-lg' : 'text-xl')
+                    : (isEditor ? 'text-xl' : 'text-2xl');
                   activeClass = `${activeSize} font-bold text-white scale-105 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]`;
                   inactiveClass = `${inactiveSize} text-zinc-500/60 hover:text-zinc-300 drop-shadow-sm`;
                 }
