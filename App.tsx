@@ -773,6 +773,7 @@ function App() {
 
     // Stop and Reset
     stopPlayback();
+    setIsLooping(false);
 
     // Capture current preset to use inside the loop (avoid closure staleness if any, though activePreset is const in this render)
     const currentPreset = preset;
