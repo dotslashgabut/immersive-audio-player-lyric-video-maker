@@ -499,8 +499,8 @@ function App() {
 
           if (isCurrent) {
             let weight = 'bold';
-            if (activePreset === 'large' || activePreset === 'large_upper' || activePreset === 'big_center' || activePreset === 'metal' || activePreset === 'tech' || activePreset === 'testing' || activePreset === 'testing_up') weight = '900';
-            if (activePreset === 'slideshow') weight = '400';
+            if (activePreset === 'large' || activePreset === 'large_upper' || activePreset === 'big_center' || activePreset === 'metal' || activePreset === 'tech') weight = '900';
+            if (activePreset === 'slideshow' || activePreset === 'testing' || activePreset === 'testing_up') weight = '400';
             if (activePreset === 'classic' || activePreset === 'romantic') weight = 'italic bold';
             if (activePreset === 'sad' || activePreset === 'gothic' || activePreset === 'kids') weight = '400'; // Some fonts come with specific weights
 
@@ -1453,12 +1453,12 @@ function App() {
                 } else if (preset === 'testing_up') {
                   const activeSize = isEditor ? 'text-4xl md:text-6xl' : 'text-5xl md:text-8xl';
                   const inactiveSize = isEditor ? 'text-xl md:text-2xl' : 'text-2xl md:text-3xl';
-                  activeClass = `${activeSize} font-black text-white uppercase tracking-tight text-center`;
+                  activeClass = `${activeSize} text-white uppercase tracking-tight text-center`;
                   inactiveClass = `${inactiveSize} text-zinc-600/40 hover:text-zinc-400 text-center`;
                 } else if (preset === 'testing') {
                   const activeSize = isEditor ? 'text-4xl md:text-6xl' : 'text-5xl md:text-8xl';
                   const inactiveSize = isEditor ? 'text-xl md:text-2xl' : 'text-2xl md:text-3xl';
-                  activeClass = `${activeSize} font-black text-white tracking-tight text-center`;
+                  activeClass = `${activeSize} text-white tracking-tight text-center`;
                   inactiveClass = `${inactiveSize} text-zinc-600/40 hover:text-zinc-400 text-center`;
                 } else if (preset === 'metal') {
                   const activeSize = isEditor ? 'text-4xl md:text-6xl' : 'text-5xl md:text-8xl';
