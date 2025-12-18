@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   Play, Pause, SkipBack, SkipForward, Volume2, VolumeX,
   Maximize, Minimize, Upload, Music, FileText, Settings, ImageIcon,
-  Repeat, Square, Eye, EyeOff, Video, Download, Film
+  Repeat, Square, Eye, EyeOff, Video, Download, Film, Type, X
 } from './components/Icons';
 import { AudioMetadata, LyricLine, TabView, VisualSlide, VideoPreset } from './types';
 import { formatTime, parseLRC, parseSRT } from './utils/parsers';
@@ -48,6 +48,7 @@ function App() {
   const [aspectRatio, setAspectRatio] = useState<'16:9' | '9:16' | '3:4' | '1:1'>('16:9');
   const [resolution, setResolution] = useState<'720p' | '1080p'>('1080p');
   const [preset, setPreset] = useState<VideoPreset>('default');
+  const [customFontName, setCustomFontName] = useState<string | null>(null);
 
   // Derived dimensions
   const getCanvasDimensions = () => {
@@ -151,16 +152,42 @@ function App() {
   const handleLyricsUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const text = await file.text();
-      const ext = file.name.split('.').pop()?.toLowerCase();
-      let parsedLyrics: LyricLine[] = [];
+      try {
+        const text = await file.text();
+        const ext = file.name.split('.').pop()?.toLowerCase();
+        let parsedLyrics: LyricLine[] = [];
 
-      if (ext === 'lrc') {
-        parsedLyrics = parseLRC(text);
-      } else if (ext === 'srt') {
-        parsedLyrics = parseSRT(text);
+        if (ext === 'lrc') {
+          parsedLyrics = parseLRC(text);
+        } else if (ext === 'srt') {
+          parsedLyrics = parseSRT(text);
+        }
+        setLyrics(parsedLyrics);
+      } catch (err) {
+        console.error("Failed to parse lyrics:", err);
+        alert("Failed to parse lyric file.");
       }
-      setLyrics(parsedLyrics);
+    }
+  };
+
+  const handleFontUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (!window.FontFace || !document.fonts) {
+        alert("Custom fonts are not supported in this browser.");
+        return;
+      }
+      try {
+        const url = URL.createObjectURL(file);
+        const fontName = 'CustomFont';
+        const font = new FontFace(fontName, `url(${url})`);
+        await font.load();
+        document.fonts.add(font);
+        setCustomFontName(fontName);
+      } catch (err) {
+        console.error("Failed to load font:", err);
+        alert("Failed to load font file.");
+      }
     }
   };
 
@@ -320,6 +347,8 @@ function App() {
     else if (activePreset === 'tech') fontFamily = techFont;
     else if (activePreset === 'gothic') fontFamily = gothicFont;
     else if (activePreset === 'testing' || activePreset === 'testing_up') fontFamily = experimentalFont;
+
+    if (customFontName) fontFamily = `"${customFontName}", sans-serif`;
 
     // Treat Square (1:1) as portrait for layout purposes (centered content)
     const isPortrait = width <= height;
@@ -1411,7 +1440,7 @@ function App() {
                   // Large: Left aligned, huge text, bold
                   const activeSize = isEditor ? 'text-4xl md:text-6xl' : 'text-5xl md:text-8xl';
                   const inactiveSize = isEditor ? 'text-xl md:text-2xl' : 'text-2xl md:text-3xl';
-                  activeClass = `${activeSize} font-black text-white uppercase tracking-tight text-left pl-4`;
+                  activeClass = `${activeSize} font-black text-white ${preset === 'large_upper' ? 'uppercase' : ''} tracking-tight text-left pl-4`;
                   inactiveClass = `${inactiveSize} text-zinc-600/40 hover:text-zinc-400 text-left pl-4`;
                 } else if (preset === 'big_center') {
                   const activeSize = isEditor ? 'text-4xl md:text-6xl' : 'text-5xl md:text-8xl';
@@ -1487,7 +1516,7 @@ function App() {
                     key={idx}
                     className={`${containerClass} ${isActive ? activeClass : inactiveClass}`}
                     style={{
-                      fontFamily:
+                      fontFamily: customFontName ? `"${customFontName}", sans-serif` :
                         preset === 'metal' ? '"Metal Mania", cursive'
                           : preset === 'kids' ? '"Fredoka One", cursive'
                             : preset === 'sad' ? '"Shadows Into Light", cursive'
@@ -1555,10 +1584,38 @@ function App() {
                     <Music size={18} />
                     <input type="file" accept="audio/*" className="hidden" onChange={handleAudioUpload} disabled={isRendering} />
                   </label>
-                  <label className="p-2 rounded-lg hover:bg-white/10 text-zinc-400 hover:text-white cursor-pointer transition-colors" title="Load Lyrics (.lrc, .srt)">
-                    <FileText size={18} />
-                    <input type="file" accept=".lrc,.srt" className="hidden" onChange={handleLyricsUpload} disabled={isRendering} />
-                  </label>
+                  <div className="flex items-center gap-1">
+                    <label className={`p-2 rounded-lg hover:bg-white/10 cursor-pointer transition-colors ${lyrics.length > 0 ? 'text-purple-400' : 'text-zinc-400 hover:text-white'}`} title="Load Lyrics (.lrc, .srt)">
+                      <FileText size={18} />
+                      <input type="file" accept=".lrc,.srt" className="hidden" onChange={handleLyricsUpload} disabled={isRendering} />
+                    </label>
+                    {lyrics.length > 0 && (
+                      <button
+                        onClick={() => setLyrics([])}
+                        className="p-1 rounded-full text-zinc-500 hover:text-red-400 hover:bg-white/5 transition-colors"
+                        title="Clear Lyrics"
+                        disabled={isRendering}
+                      >
+                        <X size={14} />
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <label className={`p-2 rounded-lg hover:bg-white/10 cursor-pointer transition-colors ${customFontName ? 'text-purple-400' : 'text-zinc-400 hover:text-white'}`} title={customFontName ? `Custom Font: ${customFontName}` : "Load Custom Font (.ttf, .otf, .woff)"}>
+                      <Type size={18} />
+                      <input type="file" accept=".ttf,.otf,.woff,.woff2" className="hidden" onChange={handleFontUpload} disabled={isRendering} />
+                    </label>
+                    {customFontName && (
+                      <button
+                        onClick={() => setCustomFontName(null)}
+                        className="p-1 rounded-full text-zinc-500 hover:text-red-400 hover:bg-white/5 transition-colors"
+                        title="Reset Default Font"
+                        disabled={isRendering}
+                      >
+                        <X size={14} />
+                      </button>
+                    )}
+                  </div>
 
                   {/* Volume Control (Moved here) */}
                   <div className="flex items-center gap-2 ml-2 bg-zinc-800/50 rounded-lg px-2 py-1">

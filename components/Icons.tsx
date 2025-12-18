@@ -24,7 +24,8 @@ import {
   EyeOff,
   Video,
   Download,
-  Film
+  Film,
+  Type
 } from 'lucide-react';
 
 export {
@@ -53,5 +54,6 @@ export {
   EyeOff,
   Video,
   Download,
-  Film
+  Film,
+  Type
 };
