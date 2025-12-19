@@ -335,10 +335,16 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
                                         </button>
 
                                         <div className="flex-1 min-w-0">
-                                            <div className={`text-xs font-medium truncate ${isCurrent ? 'text-orange-100' : 'text-zinc-300'}`}>
+                                            <div
+                                                className={`text-xs font-medium truncate ${isCurrent ? 'text-orange-100' : 'text-zinc-300'}`}
+                                                title={item.audioFile.name}
+                                            >
                                                 {item.metadata.title}
                                             </div>
-                                            <div className="text-[9px] text-zinc-500 truncate">
+                                            <div
+                                                className="text-[9px] text-zinc-500 truncate"
+                                                title={item.metadata.artist}
+                                            >
                                                 {item.metadata.artist}
                                             </div>
                                         </div>
@@ -350,7 +356,10 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
                                             {(item.audioFile.size / 1024 / 1024).toFixed(1)}MB
                                         </span>
                                         {item.lyricFile ? (
-                                            <div className="flex items-center gap-0.5 text-[8px] px-1 rounded bg-blue-900/30 text-blue-300/80">
+                                            <div
+                                                className="flex items-center gap-0.5 text-[8px] px-1 rounded bg-blue-900/30 text-blue-300/80"
+                                                title={item.lyricFile.name}
+                                            >
                                                 <FileText size={7} />
                                                 <span className="truncate max-w-[80px]">
                                                     {item.lyricFile.name}
