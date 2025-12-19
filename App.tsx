@@ -1642,7 +1642,11 @@ function App() {
               <Video size={48} className="text-purple-500" />
             </div>
             <h2 className="text-2xl font-bold text-white">Rendering Video ({aspectRatio} {resolution})</h2>
-            <p className="text-zinc-400 max-w-md">The song is playing to capture the video. Please do not close the tab or switch windows.</p>
+            <p className="text-zinc-400 max-w-md">
+              Rendering in real-time using Canvas 2D engine.<br />
+              The audio will play during capture.<br />
+              Please keep this tab active for best performance.
+            </p>
 
             <div className="w-full max-w-md h-2 bg-zinc-800 rounded-full overflow-hidden">
               <div
