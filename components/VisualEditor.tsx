@@ -665,23 +665,37 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
       setSlides(currentSlides => {
         if (prev.type === 'move') {
           // --- Group Move Logic ---
-          // 1. Calculate the ideal target start specific to the dragged item
-          const draggedInit = prev.initialMap[prev.id];
-          const itemDuration = draggedInit.end - draggedInit.start;
-          const rawTargetStart = draggedInit.start + deltaSec;
-          const rawTargetEnd = rawTargetStart + itemDuration;
-
-          // 2. Snap Logic (Start and End)
-          // We check both the left edge (Start) and right edge (End) for snap candidates.
           const movingIds = Object.keys(prev.initialMap);
+          const allInits = Object.values(prev.initialMap) as { start: number, end: number }[];
+
+          // Identify Group Bounds (Initial)
+          const groupInitStart = Math.min(...allInits.map(i => i.start));
+          const groupInitEnd = Math.max(...allInits.map(i => i.end));
+
+          // Dragged Item (Initial)
+          const draggedInit = prev.initialMap[prev.id];
+
+          // Determine Candidates for Snapping:
+          // 1. Dragged Item Start
+          // 2. Dragged Item End
+          // 3. Group Start
+          // 4. Group End
+
+          // NOTE: deltaSec is the raw mouse movement applied to everyone.
+          // We test if (candidate_initial + deltaSec) is close to a snap point.
+
+          const candidates = [
+            { type: 'drag-start', initVal: draggedInit.start },
+            { type: 'drag-end', initVal: draggedInit.end },
+            { type: 'group-start', initVal: groupInitStart },
+            { type: 'group-end', initVal: groupInitEnd }
+          ];
+
           const snapThresholdSec = SNAP_THRESHOLD_PX / pxPerSec;
 
-          // Recreate snap points
-          const snapPoints = [0, duration, currentTime];
+          // Recreate snap points (Static Objects)
+          const snapPoints: number[] = [0, duration, currentTime];
           const rulerInterval = getRulerInterval(pxPerSec);
-          // Add grid lines for both start and end approximation
-          snapPoints.push(Math.round(rawTargetStart / rulerInterval) * rulerInterval);
-          snapPoints.push(Math.round(rawTargetEnd / rulerInterval) * rulerInterval);
 
           slides.forEach(s => {
             if (!movingIds.includes(s.id)) {
@@ -693,49 +707,38 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
             snapPoints.push(line.time);
           });
 
-          // Helper to find closest snap
-          const findClosest = (target: number) => {
-            let closest = target;
-            let minDiff = snapThresholdSec;
-            let matched = false;
+          let bestDelta = deltaSec; // Default to raw movement
+          let minSnapDist = snapThresholdSec; // Only snap if within threshold
+          let foundSnap = false;
+
+          candidates.forEach(cand => {
+            const proposedVal = cand.initVal + deltaSec;
+
+            // 1. Check against Static Points
             for (const point of snapPoints) {
-              const diff = Math.abs(point - target);
-              if (diff < minDiff) {
-                minDiff = diff;
-                closest = point;
-                matched = true;
+              const dist = Math.abs(point - proposedVal);
+              if (dist < minSnapDist) {
+                minSnapDist = dist;
+                bestDelta = point - cand.initVal;
+                foundSnap = true;
               }
             }
-            return { val: closest, diff: matched ? minDiff : null };
-          };
 
-          const snapS = findClosest(rawTargetStart);
-          const snapE = findClosest(rawTargetEnd);
-
-          let effectiveDelta = rawTargetStart - draggedInit.start;
-
-          // Decide based on closest snap
-          if (snapS.diff !== null && snapE.diff !== null) {
-            // Both snapped
-            if (snapS.diff <= snapE.diff) {
-              effectiveDelta = snapS.val - draggedInit.start;
-            } else {
-              effectiveDelta = (snapE.val - itemDuration) - draggedInit.start;
+            // 2. Check against Grid (Infinite Grid)
+            const closestGrid = Math.round(proposedVal / rulerInterval) * rulerInterval;
+            const gridDist = Math.abs(closestGrid - proposedVal);
+            if (gridDist < minSnapDist) {
+              minSnapDist = gridDist;
+              bestDelta = closestGrid - cand.initVal;
+              foundSnap = true;
             }
-          } else if (snapS.diff !== null) {
-            effectiveDelta = snapS.val - draggedInit.start;
-          } else if (snapE.diff !== null) {
-            effectiveDelta = (snapE.val - itemDuration) - draggedInit.start;
-          }
+          });
+
+          let effectiveDelta = foundSnap ? bestDelta : deltaSec;
 
           // 4. Global Clamp: Ensure NO item in the group is pushed before 0
-          // Find the minimum start time in the group
-          const allInits = Object.values(prev.initialMap) as { start: number, end: number }[];
-          const minStart = Math.min(...allInits.map(i => i.start));
-
-          // If minStart + delta < 0, then delta must be >= -minStart
-          if (minStart + effectiveDelta < 0) {
-            effectiveDelta = -minStart;
+          if (groupInitStart + effectiveDelta < 0) {
+            effectiveDelta = -groupInitStart;
           }
 
           // 5. Apply effective delta to all allowed items
