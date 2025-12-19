@@ -1,4 +1,4 @@
-# Immersive Audio Player
+# Immersive Audio Player & Lyric Video Maker
 
 **Immersive Audio Player & Lyric Video Maker** is a powerful all-in-one web tool designed for music lovers and content creators. It combines a distraction-free audio player with a professional-grade timeline editor, allowing you to create stunning, synchronized lyric videos directly in your browser. Whether you want to enjoy your local music library with beautiful visuals or create viral content for TikTok, Instagram, and YouTube, this app delivers high-quality results without watermarks or server uploads.
 
@@ -54,6 +54,11 @@
   - **2:1** (Cinematic Landscape)
 - **Smart Overlays**: Automatically generates metadata overlays for "Now Playing" visuals.
 - **High-Fidelity Rendering**: Uses H.264 High Profile for crisp text and smooth 60fps video.
+
+### 🛠 Technical Architecture
+- **Rendering Engine**: Highly optimized **Canvas 2D** pipeline. Text rendering is handled natively by the browser, ensuring perfect clarity and compatibility with all languages and writing systems.
+- **OffscreenCanvas Ready**: The application structure decouples rendering logic from the UI thread (`utils/canvasRenderer.ts`). This architecture supports `OffscreenCanvas` and Web Workers, enabling potential future upgrades for background rendering or "lag-free" exports on lower-end devices.
+- **WebGPU Note**: While not currently used, the modular design allows for a hybrid approach in the future (e.g., using WebGPU for background visualizers while keeping Canvas 2D for crisp text overlays).
 
 ## Keyboard Shortcuts
 
