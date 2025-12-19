@@ -12,7 +12,29 @@ interface VisualEditorProps {
   onSeek: (time: number) => void;
 }
 
-const RULER_INTERVAL = 5; // Seconds between ruler marks
+// Dynamic ruler interval based on zoom level
+const getRulerInterval = (pxPerSec: number): number => {
+  // Higher zoom = smaller intervals for more detail
+  if (pxPerSec >= 150) return 0.5;   // Very high zoom: 0.5s intervals
+  if (pxPerSec >= 100) return 1;     // High zoom: 1s intervals
+  if (pxPerSec >= 60) return 2;      // Medium-high zoom: 2s intervals
+  if (pxPerSec >= 40) return 5;      // Medium zoom: 5s intervals
+  if (pxPerSec >= 25) return 10;     // Low zoom: 10s intervals
+  return 15;                          // Very low zoom: 15s intervals
+};
+
+// Format time for ruler with precision based on interval
+const formatRulerTime = (seconds: number, interval: number): string => {
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+
+  // Show decimal for sub-second intervals
+  if (interval < 1) {
+    return `${mins}:${secs.toFixed(1).padStart(4, '0')}`;
+  }
+
+  return `${mins}:${Math.floor(secs).toString().padStart(2, '0')}`;
+};
 const SNAP_THRESHOLD_PX = 10; // Pixels to snap
 const MAX_HISTORY_SIZE = 50; // Maximum number of undo steps
 
@@ -325,11 +347,11 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
       setSelectedSlideIds([]);
     }
 
-    // 2. Move (Left/Right Arrow) - 0.5s Step
+    // 2. Move (Left/Right Arrow) - 0.01s Step
     if (selectedSlideIds.length > 0 && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
       e.preventDefault();
       e.stopPropagation(); // Stop bubbling to prevent audio seek
-      const delta = e.key === 'ArrowRight' ? 0.5 : -0.5;
+      const delta = e.key === 'ArrowRight' ? 0.01 : -0.01;
 
       // Sync slider to the first selected item's new start time
       const firstSelected = slides.find(s => s.id === selectedSlideIds[0]);
@@ -677,30 +699,36 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
             className="absolute top-0 left-0 right-0 h-6 border-b border-white/10 bg-zinc-900/50 select-none cursor-pointer z-40"
             onMouseDown={handleTimelineMouseDown}
           >
-            {Array.from({ length: Math.ceil(totalWidth / (pxPerSec * RULER_INTERVAL)) }).map((_, i) => {
-              const seconds = i * RULER_INTERVAL;
-              if (seconds > timelineDuration) return null;
-              return (
-                <div
-                  key={i}
-                  className="absolute bottom-0 border-l border-white/20 text-[9px] text-zinc-500 font-mono pl-1 pb-0.5 pointer-events-none"
-                  style={{ left: seconds * pxPerSec, width: RULER_INTERVAL * pxPerSec }}
-                >
-                  {formatTime(seconds)}
-                </div>
-              );
-            })}
+            {(() => {
+              const rulerInterval = getRulerInterval(pxPerSec);
+              return Array.from({ length: Math.ceil(totalWidth / (pxPerSec * rulerInterval)) }).map((_, i) => {
+                const seconds = i * rulerInterval;
+                if (seconds > timelineDuration) return null;
+                return (
+                  <div
+                    key={i}
+                    className="absolute bottom-0 border-l border-white/20 text-[9px] text-zinc-500 font-mono pl-1 pb-0.5 pointer-events-none"
+                    style={{ left: seconds * pxPerSec, width: rulerInterval * pxPerSec }}
+                  >
+                    {formatRulerTime(seconds, rulerInterval)}
+                  </div>
+                );
+              });
+            })()}
           </div>
 
           {/* 2. Grid Lines (Vertical) */}
           <div className="absolute top-6 bottom-0 left-0 right-0 pointer-events-none">
-            {Array.from({ length: Math.ceil(totalWidth / (pxPerSec * RULER_INTERVAL)) }).map((_, i) => (
-              <div
-                key={i}
-                className="absolute h-full border-l border-white/5"
-                style={{ left: i * RULER_INTERVAL * pxPerSec }}
-              ></div>
-            ))}
+            {(() => {
+              const rulerInterval = getRulerInterval(pxPerSec);
+              return Array.from({ length: Math.ceil(totalWidth / (pxPerSec * rulerInterval)) }).map((_, i) => (
+                <div
+                  key={i}
+                  className="absolute h-full border-l border-white/5"
+                  style={{ left: i * rulerInterval * pxPerSec }}
+                ></div>
+              ));
+            })()}
             {/* End of Audio Line */}
             {duration > 0 && (
               <div
