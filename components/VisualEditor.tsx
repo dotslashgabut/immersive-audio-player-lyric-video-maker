@@ -1,6 +1,6 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { VisualSlide, LyricLine } from '../types';
-import { Plus, X, ImageIcon, GripHorizontal, ZoomIn, ZoomOut, Trash2, Volume2, VolumeX } from './Icons';
+import { Plus, X, ImageIcon, GripHorizontal, ZoomIn, ZoomOut, Trash2, Volume2, VolumeX, Undo2, Redo2, Copy, Clipboard, Scissors, Film } from './Icons';
 import { formatTime } from '../utils/parsers';
 
 interface VisualEditorProps {
@@ -14,12 +14,63 @@ interface VisualEditorProps {
 
 const RULER_INTERVAL = 5; // Seconds between ruler marks
 const SNAP_THRESHOLD_PX = 10; // Pixels to snap
+const MAX_HISTORY_SIZE = 50; // Maximum number of undo steps
 
 const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentTime, duration, lyrics, onSeek }) => {
   const editorRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
   const [pxPerSec, setPxPerSec] = useState(40); // Default zoom level
+
+  // --- Undo/Redo History ---
+  const [history, setHistory] = useState<VisualSlide[][]>([slides]);
+  const [historyIndex, setHistoryIndex] = useState<number>(0);
+  const isUndoRedoAction = useRef<boolean>(false);
+
+  // Sync history when slides change externally (e.g., initial load)
+  useEffect(() => {
+    if (isUndoRedoAction.current) {
+      isUndoRedoAction.current = false;
+      return;
+    }
+    // Only push if different from current history position
+    const currentHistoryState = history[historyIndex];
+    if (JSON.stringify(currentHistoryState) !== JSON.stringify(slides)) {
+      // Trim future history if we're not at the end
+      const newHistory = history.slice(0, historyIndex + 1);
+      newHistory.push(slides);
+      // Limit history size
+      if (newHistory.length > MAX_HISTORY_SIZE) {
+        newHistory.shift();
+        setHistory(newHistory);
+        // historyIndex stays the same since we shifted
+      } else {
+        setHistory(newHistory);
+        setHistoryIndex(historyIndex + 1);
+      }
+    }
+  }, [slides, history, historyIndex]);
+
+  const canUndo = historyIndex > 0;
+  const canRedo = historyIndex < history.length - 1;
+
+  const handleUndo = useCallback(() => {
+    if (historyIndex > 0) {
+      const newIndex = historyIndex - 1;
+      setHistoryIndex(newIndex);
+      isUndoRedoAction.current = true;
+      setSlides(history[newIndex]);
+    }
+  }, [setSlides, history, historyIndex]);
+
+  const handleRedo = useCallback(() => {
+    if (historyIndex < history.length - 1) {
+      const newIndex = historyIndex + 1;
+      setHistoryIndex(newIndex);
+      isUndoRedoAction.current = true;
+      setSlides(history[newIndex]);
+    }
+  }, [setSlides, history, historyIndex]);
 
   // Calculate max extent of slides to expand timeline if needed
   const maxSlideEnd = Math.max(0, ...slides.map(s => s.endTime));
@@ -30,6 +81,46 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
 
   // Interaction State
   const [selectedSlideIds, setSelectedSlideIds] = useState<string[]>([]);
+  const [lastSelectedId, setLastSelectedId] = useState<string | null>(null); // Anchor for shift-select
+
+  // --- Clipboard for Copy/Paste ---
+  const [clipboard, setClipboard] = useState<VisualSlide[]>([]);
+
+  // --- Copy/Cut/Paste Handlers ---
+  const handleCopy = useCallback(() => {
+    if (selectedSlideIds.length === 0) return;
+    const selectedSlides = slides.filter(s => selectedSlideIds.includes(s.id));
+    setClipboard(selectedSlides);
+  }, [selectedSlideIds, slides]);
+
+  const handleCut = useCallback(() => {
+    if (selectedSlideIds.length === 0) return;
+    const selectedSlides = slides.filter(s => selectedSlideIds.includes(s.id));
+    setClipboard(selectedSlides);
+    setSlides(prev => prev.filter(s => !selectedSlideIds.includes(s.id)));
+    setSelectedSlideIds([]);
+  }, [selectedSlideIds, slides, setSlides]);
+
+  const handlePaste = useCallback(() => {
+    if (clipboard.length === 0) return;
+
+    // Calculate offset: paste at current playback time
+    // Find the earliest start time in clipboard to use as reference
+    const minStartTime = Math.min(...clipboard.map(s => s.startTime));
+    const offset = currentTime - minStartTime;
+
+    const newSlides: VisualSlide[] = clipboard.map(s => ({
+      ...s,
+      id: Math.random().toString(36).substr(2, 9), // New unique ID
+      startTime: s.startTime + offset,
+      endTime: s.endTime + offset
+    }));
+
+    setSlides(prev => [...prev, ...newSlides].sort((a, b) => a.startTime - b.startTime));
+
+    // Select the newly pasted slides
+    setSelectedSlideIds(newSlides.map(s => s.id));
+  }, [clipboard, currentTime, setSlides]);
 
   const [activeDrag, setActiveDrag] = useState<{
     id: string;
@@ -101,25 +192,33 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
     editorRef.current?.focus();
 
     // Handle Selection Logic
-    if (e.shiftKey) {
+    if (e.shiftKey && lastSelectedId) {
+      // Shift+Click: Range selection from anchor to clicked item
+      const anchorIndex = slides.findIndex(s => s.id === lastSelectedId);
+      const clickedIndex = slides.findIndex(s => s.id === id);
+
+      if (anchorIndex !== -1 && clickedIndex !== -1) {
+        const startIdx = Math.min(anchorIndex, clickedIndex);
+        const endIdx = Math.max(anchorIndex, clickedIndex);
+        const rangeIds = slides.slice(startIdx, endIdx + 1).map(s => s.id);
+
+        // Merge with existing selection (add range to current selection)
+        setSelectedSlideIds(prev => {
+          const combined = new Set([...prev, ...rangeIds]);
+          return Array.from(combined);
+        });
+      }
+    } else if (e.ctrlKey || e.metaKey) {
+      // Ctrl/Cmd+Click: Toggle individual selection
       setSelectedSlideIds(prev => {
         if (prev.includes(id)) return prev.filter(sid => sid !== id);
         return [...prev, id];
       });
+      setLastSelectedId(id); // Update anchor
     } else {
-      // If clicking an already selected item (without shift), keep it selected (and potentially others if we supported multi-drag, but for now reset to single if it wasn't selected or if we want to isolate)
-      // Standard behavior: Click on unselected -> Select only that. Click on selected -> Keep selection (until mouse up usually, but simpler: select only that unless already selected??)
-      // Simplest: If not shift, set to just this ID.
-      if (!selectedSlideIds.includes(id)) {
-        setSelectedSlideIds([id]);
-      } else {
-        // If it is already selected, we don't clear others immediately on mousedown to allow for potential multi-drag in future, 
-        // but since we only support single drag, we might as well reduce validation friction.
-        // Actually, let's strictly set single selection on click without shift to match "Single Selection" requirement clearly.
-        // User requested: "Single selection (image click)... Multi select ... shift+click".
-        // If I click one of a group without shift, it usually deselects others.
-        setSelectedSlideIds([id]);
-      }
+      // Regular click: Select only this item
+      setSelectedSlideIds([id]);
+      setLastSelectedId(id); // Set as new anchor
     }
 
     const slide = slides.find(s => s.id === id);
@@ -181,6 +280,41 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     const target = e.target as HTMLElement;
     if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
+      return;
+    }
+
+    // Undo: Ctrl+Z
+    if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+      e.preventDefault();
+      handleUndo();
+      return;
+    }
+
+    // Redo: Ctrl+Y or Ctrl+Shift+Z
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
+      e.preventDefault();
+      handleRedo();
+      return;
+    }
+
+    // Copy: Ctrl+C
+    if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
+      e.preventDefault();
+      handleCopy();
+      return;
+    }
+
+    // Cut: Ctrl+X
+    if ((e.ctrlKey || e.metaKey) && e.key === 'x') {
+      e.preventDefault();
+      handleCut();
+      return;
+    }
+
+    // Paste: Ctrl+V
+    if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
+      e.preventDefault();
+      handlePaste();
       return;
     }
 
@@ -344,7 +478,8 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
       <div className="p-2 border-b border-white/10 flex items-center justify-between bg-zinc-900 z-30 shrink-0 h-12">
         <div className="flex items-center gap-4 shrink-0">
           <h2 className="text-sm font-bold flex items-center gap-2 text-zinc-300 whitespace-nowrap">
-            <ImageIcon size={16} className="text-purple-400" />
+            <Film size={16} className="text-purple-400" />
+
             Timeline
           </h2>
           <div className="w-px h-4 bg-zinc-700"></div>
@@ -355,6 +490,56 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
             <div className="text-[10px] text-zinc-500 font-mono min-w-[50px] text-center">{pxPerSec}px/s</div>
             <button onClick={handleZoomIn} className="p-1 hover:bg-zinc-700 rounded text-zinc-400 hover:text-white" title="Zoom In">
               <ZoomIn size={14} />
+            </button>
+          </div>
+          <div className="w-px h-4 bg-zinc-700"></div>
+
+          {/* Undo/Redo Buttons */}
+          <div className="flex items-center gap-1">
+            <button
+              onClick={handleUndo}
+              disabled={!canUndo}
+              className="p-1 hover:bg-zinc-700 rounded text-zinc-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
+              title="Undo (Ctrl+Z)"
+            >
+              <Undo2 size={14} />
+            </button>
+            <button
+              onClick={handleRedo}
+              disabled={!canRedo}
+              className="p-1 hover:bg-zinc-700 rounded text-zinc-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
+              title="Redo (Ctrl+Y)"
+            >
+              <Redo2 size={14} />
+            </button>
+          </div>
+          <div className="w-px h-4 bg-zinc-700"></div>
+
+          {/* Copy/Cut/Paste Buttons */}
+          <div className="flex items-center gap-1">
+            <button
+              onClick={handleCopy}
+              disabled={selectedSlideIds.length === 0}
+              className="p-1 hover:bg-zinc-700 rounded text-zinc-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
+              title="Copy (Ctrl+C)"
+            >
+              <Copy size={14} />
+            </button>
+            <button
+              onClick={handleCut}
+              disabled={selectedSlideIds.length === 0}
+              className="p-1 hover:bg-zinc-700 rounded text-zinc-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
+              title="Cut (Ctrl+X)"
+            >
+              <Scissors size={14} />
+            </button>
+            <button
+              onClick={handlePaste}
+              disabled={clipboard.length === 0}
+              className="p-1 hover:bg-zinc-700 rounded text-zinc-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
+              title="Paste (Ctrl+V)"
+            >
+              <Clipboard size={14} />
             </button>
           </div>
           <div className="w-px h-4 bg-zinc-700"></div>
@@ -552,6 +737,7 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
                 }}
                 className={`absolute top-1 bottom-1 rounded-md overflow-hidden group bg-zinc-800 border shadow-sm select-none cursor-move
                      ${(activeDrag?.id === slide.id || selectedSlideIds.includes(slide.id)) ? 'border-purple-400 z-30 shadow-xl opacity-90' : 'border-zinc-600 hover:border-zinc-400 z-10 hover:z-20'}
+                     ${selectedSlideIds.includes(slide.id) ? 'ring-2 ring-blue-500/70 ring-offset-1 ring-offset-zinc-950' : ''}
                    `}
                 onMouseDown={(e) => handleMouseDown(e, slide.id, 'move')}
               >
@@ -587,7 +773,7 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
                 {/* Delete Button */}
                 <button
                   onClick={(e) => { e.stopPropagation(); removeSlide(slide.id); }}
-                  className="absolute top-1 right-1 p-0.5 bg-black/60 hover:bg-red-500 rounded text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                  className="absolute top-1 right-4 p-0.5 bg-black/60 hover:bg-red-500 rounded text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer z-30"
                 >
                   <X size={10} />
                 </button>
@@ -641,6 +827,7 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
                 }}
                 className={`absolute top-1 bottom-1 rounded-md overflow-hidden group bg-emerald-900/50 border shadow-sm select-none cursor-move
                      ${(activeDrag?.id === slide.id || selectedSlideIds.includes(slide.id)) ? 'border-emerald-400 z-30 shadow-xl opacity-90' : 'border-emerald-700/50 hover:border-emerald-500 z-10 hover:z-20'}
+                     ${selectedSlideIds.includes(slide.id) ? 'ring-2 ring-blue-500/70 ring-offset-1 ring-offset-zinc-950' : ''}
                    `}
                 onMouseDown={(e) => handleMouseDown(e, slide.id, 'move')}
               >
@@ -672,7 +859,7 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
                 {/* Delete Button */}
                 <button
                   onClick={(e) => { e.stopPropagation(); removeSlide(slide.id); }}
-                  className="absolute top-1 right-1 p-0.5 bg-black/60 hover:bg-red-500 rounded text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer z-40"
+                  className="absolute top-1 right-3 p-0.5 bg-black/60 hover:bg-red-500 rounded text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer z-40"
                 >
                   <X size={10} />
                 </button>

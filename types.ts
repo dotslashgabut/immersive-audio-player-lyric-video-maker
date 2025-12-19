@@ -19,6 +19,7 @@ export interface VisualSlide {
 export interface AudioMetadata {
   title: string;
   artist: string;
+  album?: string;
   coverUrl: string | null;
   backgroundType?: 'image' | 'video';
 }
@@ -44,4 +45,14 @@ export type VideoPreset =
   | 'testing'
   | 'testing_up'
   | 'slideshow'
-  | 'just_video';
+  | 'just_video'
+  | 'subtitle';
+
+export interface PlaylistItem {
+  id: string;
+  audioFile: File;
+  lyricFile?: File; // Optional
+  parsedLyrics?: LyricLine[]; // Parsed content for persistence
+  metadata: AudioMetadata; // Extracted or fallback
+  duration?: number; // In seconds, might be unknown until loaded
+}

@@ -2,11 +2,12 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   Play, Pause, SkipBack, SkipForward, Volume2, VolumeX,
   Maximize, Minimize, Upload, Music, FileText, Settings, ImageIcon,
-  Repeat, Square, Eye, EyeOff, Video, Download, Film, Type, X
+  Repeat, Repeat1, Square, Eye, EyeOff, Video, Download, Film, Type, X, ListMusic, Rewind, FastForward
 } from './components/Icons';
-import { AudioMetadata, LyricLine, TabView, VisualSlide, VideoPreset } from './types';
+import { AudioMetadata, LyricLine, TabView, VisualSlide, VideoPreset, PlaylistItem } from './types';
 import { formatTime, parseLRC, parseSRT } from './utils/parsers';
 import VisualEditor from './components/VisualEditor';
+import PlaylistEditor from './components/PlaylistEditor';
 
 function App() {
   // Refs
@@ -29,7 +30,7 @@ function App() {
 
   // State: Playback
   const [isPlaying, setIsPlaying] = useState(false);
-  const [isLooping, setIsLooping] = useState(false);
+  const [repeatMode, setRepeatMode] = useState<'off' | 'all' | 'one'>('off');
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(1);
@@ -50,6 +51,9 @@ function App() {
   const [preset, setPreset] = useState<VideoPreset>('default');
   const [customFontName, setCustomFontName] = useState<string | null>(null);
   const [fontSizeScale, setFontSizeScale] = useState(1);
+  const [playlist, setPlaylist] = useState<PlaylistItem[]>([]);
+  const [currentTrackIndex, setCurrentTrackIndex] = useState<number>(-1);
+  const [isPlaylistMode, setIsPlaylistMode] = useState(false);
 
   // Derived dimensions
   const getCanvasDimensions = () => {
@@ -201,14 +205,75 @@ function App() {
     }
   };
 
+  const playTrack = useCallback(async (index: number) => {
+    if (index < 0 || index >= playlist.length) return;
+    const track = playlist[index];
+
+    // Load Audio
+    const url = URL.createObjectURL(track.audioFile);
+    setAudioSrc(url);
+
+    // Metadata - use cover art from track if available
+    setMetadata({
+      title: track.metadata.title,
+      artist: track.metadata.artist,
+      coverUrl: track.metadata.coverUrl || null,
+      backgroundType: 'image'
+    });
+
+    // Reset Lyrics
+    setLyrics([]);
+
+    // Load Lyrics
+    if (track.parsedLyrics && track.parsedLyrics.length > 0) {
+      setLyrics(track.parsedLyrics);
+    } else if (track.lyricFile) {
+      try {
+        const text = await track.lyricFile.text();
+        const ext = track.lyricFile.name.split('.').pop()?.toLowerCase();
+        if (ext === 'lrc') setLyrics(parseLRC(text));
+        else if (ext === 'srt') setLyrics(parseSRT(text));
+      } catch (e) {
+        console.error("Failed to load lyrics", e);
+      }
+    }
+
+    setCurrentTrackIndex(index);
+    // Auto-play after state update
+    setTimeout(() => {
+      if (audioRef.current) {
+        audioRef.current.play().catch(e => console.log("Autoplay failed", e));
+        setIsPlaying(true);
+      }
+    }, 100);
+  }, [playlist]);
+
+  const playNextSong = useCallback(() => {
+    if (playlist.length === 0) return;
+    const nextIndex = (currentTrackIndex + 1) % playlist.length;
+    playTrack(nextIndex);
+  }, [playlist, currentTrackIndex, playTrack]);
+
+  const playPreviousSong = useCallback(() => {
+    if (playlist.length === 0) return;
+    const prevIndex = (currentTrackIndex - 1 + playlist.length) % playlist.length;
+    playTrack(prevIndex);
+  }, [playlist, currentTrackIndex, playTrack]);
+
   const togglePlay = () => {
     if (audioRef.current) {
       if (isPlaying) {
         audioRef.current.pause();
+        setIsPlaying(false);
       } else {
-        audioRef.current.play();
+        // If no audio source is loaded but we have a playlist, start the first track
+        if (!audioSrc && playlist.length > 0) {
+          playTrack(0);
+        } else {
+          audioRef.current.play().catch(console.error);
+          setIsPlaying(true);
+        }
       }
-      setIsPlaying(!isPlaying);
     }
   };
 
@@ -221,8 +286,12 @@ function App() {
     }
   }, []);
 
-  const toggleLoop = () => {
-    setIsLooping(!isLooping);
+  const toggleRepeat = () => {
+    setRepeatMode(prev => {
+      if (prev === 'off') return 'all';
+      if (prev === 'all') return 'one';
+      return 'off';
+    });
   };
 
   const toggleFullscreen = () => {
@@ -447,6 +516,10 @@ function App() {
       baseFontSize = (isPortrait ? 30 : 40) * scale;
       secondaryFontSize = 0;
       lineSpacing = 0;
+    } else if (activePreset === 'subtitle') {
+      baseFontSize = (isPortrait ? 30 : 40) * scale;
+      secondaryFontSize = 0;
+      lineSpacing = 0;
     }
 
     // Apply user font size scaling
@@ -460,7 +533,7 @@ function App() {
       // Calculate vertical shift if active line is wrapped (for Large presets)
       let activeLineShift = 0;
       const isBigLayout = ['large', 'large_upper', 'big_center', 'metal', 'kids', 'sad', 'romantic', 'tech', 'gothic', 'testing', 'testing_up'].includes(activePreset);
-      if (isBigLayout || activePreset === 'slideshow') {
+      if (isBigLayout || activePreset === 'slideshow' || activePreset === 'subtitle') {
         const activeLine = lyrics[activeIdx];
         // We need to temporarily set the font to measure accurately
         const weight = '900';
@@ -573,6 +646,11 @@ function App() {
             // Slideshow strict single line or wrapped but simple
             if (i !== 0) continue; // Hide neighbors
             drawWrappedText(ctx, line.text, xPos, yPos, maxWidth, baseFontSize * 1.2);
+          } else if (activePreset === 'subtitle') {
+            // Subtitle: Bottom-center positioned, single line
+            if (i !== 0) continue; // Hide neighbors
+            const bottomY = height - (120 * scale); // Position slightly higher like typical subtitles
+            drawWrappedText(ctx, line.text, xPos, bottomY, maxWidth, baseFontSize * 1.2);
           } else if (isBigLayout && isCurrent) {
             const textToDraw = (activePreset === 'large_upper' || activePreset === 'big_center' || activePreset === 'metal' || activePreset === 'tech' || activePreset === 'testing_up') ? line.text.toUpperCase() : line.text;
             drawWrappedText(ctx, textToDraw, xPos, yPos, maxWidth, baseFontSize * 1.2);
@@ -604,7 +682,7 @@ function App() {
     }
 
     // 3. Draw Metadata Overlay
-    if (true) {
+    if (activePreset !== 'subtitle') {
       // Group 2: Bottom Center Layouts
       if (['big_center', 'metal', 'kids', 'sad', 'romantic', 'tech', 'gothic', 'testing', 'testing_up', 'slideshow'].includes(activePreset)) {
         // Custom Metadata: Bottom of screen, centered, no art, small title
@@ -779,7 +857,8 @@ function App() {
 
     // Stop and Reset
     stopPlayback();
-    setIsLooping(false);
+    stopPlayback();
+    setRepeatMode('off');
 
     // Capture current preset to use inside the loop (avoid closure staleness if any, though activePreset is const in this render)
     const currentPreset = preset;
@@ -1061,38 +1140,45 @@ function App() {
   }, [stopPlayback]);
 
   // Scroll active lyric into view
-  useEffect(() => {
+  const scrollToActiveLyric = useCallback(() => {
     if (currentLyricIndex !== -1 && lyricsContainerRef.current) {
-      // +1 to account for the top spacer div
-      const activeEl = lyricsContainerRef.current.children[currentLyricIndex + 1] as HTMLElement;
+      // Use data attribute to find the active lyric element
+      const activeEl = lyricsContainerRef.current.querySelector('[data-lyric-active="true"]') as HTMLElement;
       if (activeEl) {
-        const isBigLayout = ['large', 'large_upper', 'big_center', 'metal', 'kids', 'sad', 'romantic', 'tech', 'gothic'].includes(preset);
-        if (isBigLayout) {
-          // Custom scrolling for large text presets to avoid bottom overlap
-          const container = lyricsContainerRef.current;
-          const containerRect = container.getBoundingClientRect();
-          const elRect = activeEl.getBoundingClientRect();
+        const container = lyricsContainerRef.current;
 
-          // Current relative position
-          const relativeTop = elRect.top - containerRect.top;
+        // Skip if element is hidden
+        if (activeEl.offsetHeight === 0) return;
 
-          // Target position: Center - Bias (Shift UP)
-          // Shifting UP means target top is smaller.
-          const offsetBias = containerRect.height * 0.15; // 15% shift up
-          const targetTop = (containerRect.height - elRect.height) / 2 - offsetBias;
+        // Use offsetTop (layout position) instead of getBoundingClientRect (visual position)
+        // This avoids issues with CSS transforms like scale-105
+        const elOffsetTop = activeEl.offsetTop;
+        const elHeight = activeEl.offsetHeight;
+        const containerHeight = container.clientHeight;
 
-          const scrollDelta = relativeTop - targetTop;
+        // Target: center the element in the container
+        const targetScrollTop = elOffsetTop - (containerHeight / 2) + (elHeight / 2);
 
-          container.scrollTo({
-            top: container.scrollTop + scrollDelta,
-            behavior: 'smooth'
-          });
-        } else {
-          activeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }
+        container.scrollTo({
+          top: targetScrollTop,
+          behavior: 'smooth'
+        });
       }
     }
   }, [currentLyricIndex, preset]);
+
+  // Trigger scroll on lyric change
+  useEffect(() => {
+    scrollToActiveLyric();
+  }, [scrollToActiveLyric]);
+
+  // Re-scroll after visibility changes (wait for CSS transition to complete)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      scrollToActiveLyric();
+    }, 550); // Wait for 500ms CSS transition + buffer
+    return () => clearTimeout(timer);
+  }, [isMouseIdle, bypassAutoHide, showInfo, showPlayer, activeTab, isPlaylistMode, scrollToActiveLyric]);
 
   const controlsTimeoutRef = useRef<number | null>(null);
 
@@ -1126,7 +1212,7 @@ function App() {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Check if the key shoud trigger UI wake-up
       const key = e.key.toLowerCase();
-      const ignoredKeysForIdle = [' ', 'k', 's', 'l', 'f', 'h', 'arrowleft', 'arrowright', 'arrowup', 'arrowdown', 'meta', 'control', 'shift', 'alt', 'printscreen', 'fn'];
+      const ignoredKeysForIdle = [' ', 'k', 's', 't', 'l', 'r', 'f', 'h', 'm', 'j', 'arrowleft', 'arrowright', 'arrowup', 'arrowdown', 'meta', 'control', 'shift', 'alt', 'printscreen', 'fn', '+', '-', '='];
 
       if (!ignoredKeysForIdle.includes(key)) {
         resetIdleTimer();
@@ -1152,9 +1238,15 @@ function App() {
           e.preventDefault();
           stopPlayback();
           break;
-        case 'l':
+        case 'r': // Loop (Repeat)
           e.preventDefault();
-          toggleLoop();
+          toggleRepeat();
+          break;
+        case 'l': // List (Playlist)
+          e.preventDefault();
+          const newMode = !isPlaylistMode;
+          setIsPlaylistMode(newMode);
+          if (newMode) setActiveTab(TabView.PLAYER);
           break;
         case 'h':
           e.preventDefault();
@@ -1170,7 +1262,29 @@ function App() {
           setShowPlayer(prev => !prev);
           break;
         case 't': // Toggle Timeline (Editor)
-          setActiveTab(prev => prev === TabView.PLAYER ? TabView.EDITOR : TabView.PLAYER);
+          if (isPlaylistMode) {
+            setIsPlaylistMode(false);
+            setActiveTab(TabView.EDITOR);
+          } else {
+            setActiveTab(prev => prev === TabView.PLAYER ? TabView.EDITOR : TabView.PLAYER);
+          }
+          break;
+        case 'm': // Mute
+          e.preventDefault();
+          setIsMuted(prev => !prev);
+          break;
+        case 'j': // Cycle Preset
+          e.preventDefault();
+          const presets: VideoPreset[] = [
+            'default', 'large', 'classic', 'large_upper', 'monospace',
+            'big_center', 'metal', 'kids', 'sad', 'romantic', 'tech',
+            'gothic', 'testing', 'testing_up', 'slideshow', 'just_video', 'subtitle'
+          ];
+          setPreset(prev => {
+            const idx = presets.indexOf(prev);
+            const nextIdx = (idx + 1) % presets.length;
+            return presets[nextIdx];
+          });
           break;
         case 'arrowleft':
           e.preventDefault();
@@ -1188,12 +1302,33 @@ function App() {
             setCurrentTime(newTime);
           }
           break;
+        case 'arrowup':
+          e.preventDefault();
+          if (lyricsContainerRef.current) {
+            lyricsContainerRef.current.scrollBy({ top: -100, behavior: 'smooth' });
+          }
+          break;
+        case 'arrowdown':
+          e.preventDefault();
+          if (lyricsContainerRef.current) {
+            lyricsContainerRef.current.scrollBy({ top: 100, behavior: 'smooth' });
+          }
+          break;
+        case '+':
+        case '=': // For keyboards where + is Shift+=
+          e.preventDefault();
+          setFontSizeScale(prev => Math.min(prev + 0.1, 2)); // Max 200%
+          break;
+        case '-':
+          e.preventDefault();
+          setFontSizeScale(prev => Math.max(prev - 0.1, 0.5)); // Min 50%
+          break;
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isPlaying, isLooping, activeTab, isRendering, resetIdleTimer, handleAbortRender]);
+  }, [isPlaying, repeatMode, activeTab, isRendering, resetIdleTimer, handleAbortRender, isPlaylistMode]);
 
   // --- Render Helpers ---
 
@@ -1296,12 +1431,40 @@ function App() {
       <audio
         ref={audioRef}
         src={audioSrc || undefined}
-        loop={isLooping}
+        loop={repeatMode === 'one'}
         muted={isMuted}
         onTimeUpdate={handleTimeUpdate}
         onLoadedMetadata={handleLoadedMetadata}
         onEnded={() => {
-          if (!isLooping) setIsPlaying(false);
+          if (repeatMode === 'one') {
+            // Native loop handles it, but safety fallback
+          } else {
+            // Off or All
+            if (isPlaylistMode && playlist.length > 0) {
+              if (repeatMode === 'all') {
+                playNextSong();
+              } else {
+                // Off: Stop if last song
+                if (currentTrackIndex < playlist.length - 1) {
+                  playNextSong();
+                } else {
+                  setIsPlaying(false);
+                }
+              }
+            } else {
+              // Normal Mode (Single)
+              if (repeatMode === 'all') {
+                // Treat 'All' as 'One' for single file? or just stop? Usually stop or loop.
+                // Let's loop for continuity if user selected 'All' (implicitly meaning 'Repeat')
+                if (audioRef.current) {
+                  audioRef.current.currentTime = 0;
+                  audioRef.current.play();
+                }
+              } else {
+                setIsPlaying(false);
+              }
+            }
+          }
         }}
         crossOrigin="anonymous"
       />
@@ -1419,11 +1582,25 @@ function App() {
                 {bypassAutoHide ? <Eye size={20} /> : <EyeOff size={20} />}
               </button>
               <button
-                onClick={() => setActiveTab(activeTab === TabView.PLAYER ? TabView.EDITOR : TabView.PLAYER)}
-                className={`p-2 rounded-full transition-colors ${activeTab === TabView.EDITOR ? 'bg-purple-600 text-white' : 'bg-black/30 text-zinc-300 hover:bg-white/10'}`}
+                onClick={() => {
+                  if (isPlaylistMode) setIsPlaylistMode(false);
+                  setActiveTab(activeTab === TabView.PLAYER ? TabView.EDITOR : TabView.PLAYER);
+                }}
+                className={`p-2 rounded-full transition-colors ${activeTab === TabView.EDITOR && !isPlaylistMode ? 'bg-purple-600 text-white' : 'bg-black/30 text-zinc-300 hover:bg-white/10'}`}
                 title="Toggle Timeline (T)"
               >
                 <Film size={20} />
+              </button>
+              <button
+                onClick={() => {
+                  const newMode = !isPlaylistMode;
+                  setIsPlaylistMode(newMode);
+                  if (newMode) setActiveTab(TabView.PLAYER);
+                }}
+                className={`p-2 rounded-full transition-colors ${isPlaylistMode ? 'bg-orange-600 text-white' : 'bg-black/30 text-zinc-300 hover:bg-white/10'}`}
+                title="Toggle Playlist (L)"
+              >
+                <ListMusic size={20} />
               </button>
               <button
                 onClick={toggleFullscreen}
@@ -1459,10 +1636,10 @@ function App() {
                 .lyrics-root .text-7xl { font-size: calc(4.5rem * ${fontSizeScale}); }
                 .lyrics-root .text-8xl { font-size: calc(6rem * ${fontSizeScale}); }
               `}</style>
-              <div className="h-[50vh]"></div>
+              <div className={`transition-all duration-500 ${(activeTab === TabView.EDITOR || isPlaylistMode) ? 'h-[25vh]' : (!isHeaderVisible && !isFooterVisible) ? 'h-[50vh]' : 'h-[40vh]'}`}></div>
               {lyrics.map((line, idx) => {
                 const isActive = idx === currentLyricIndex;
-                const isEditor = activeTab === TabView.EDITOR;
+                const isEditor = activeTab === TabView.EDITOR || isPlaylistMode;
                 const isPortraitPreview = ['9:16', '3:4', '1:1', '1:2', '2:3'].includes(aspectRatio);
 
                 // Handle Big Text preset visibility (show only current, prev, and next)
@@ -1476,15 +1653,17 @@ function App() {
                   return <p key={idx} className="hidden" />;
                 }
 
-                // Slideshow / Just Video: Hide neighbours
-                if ((preset === 'slideshow' || preset === 'just_video') && idx !== currentLyricIndex) {
+                // Slideshow / Just Video / Subtitle: Hide neighbours
+                if ((preset === 'slideshow' || preset === 'just_video' || preset === 'subtitle') && idx !== currentLyricIndex) {
                   return <p key={idx} className="hidden" />;
                 }
 
                 // --- Dynamic Styling based on Preset ---
                 let activeClass = '';
                 let inactiveClass = '';
-                let containerClass = 'transition-all duration-500 cursor-pointer whitespace-pre-wrap ';
+                // [FIX] Use specific transitions instead of transition-all to prevent font-size/height animation
+                // animating dimensions causes layout shifts during scroll calculation, leading to "jumps".
+                let containerClass = 'transition-colors transition-opacity transition-transform duration-500 cursor-pointer whitespace-pre-wrap ';
 
                 if (preset === 'large' || preset === 'large_upper') {
                   // Large: Left aligned, huge text, bold
@@ -1603,12 +1782,21 @@ function App() {
                   inactiveClass = `${inactiveSize} font-serif text-zinc-500/60 hover:text-zinc-300 italic`;
                 } else if (preset === 'slideshow' || preset === 'just_video') {
                   // Slideshow: Small, centered
-                  // Slideshow: Small, centered
                   const activeSize = isPortraitPreview
                     ? (isEditor ? 'text-2xl' : 'text-3xl')
                     : (isEditor ? 'text-3xl' : 'text-4xl');
                   activeClass = `${activeSize} text-white tracking-wide text-center`;
                   inactiveClass = 'hidden';
+                } else if (preset === 'subtitle') {
+                  // Subtitle: Small, bottom-center (adjusts based on footer visibility)
+                  const activeSize = isPortraitPreview
+                    ? (isEditor ? 'text-2xl' : 'text-3xl')
+                    : (isEditor ? 'text-3xl' : 'text-4xl');
+                  activeClass = `${activeSize} text-white tracking-wide text-center`;
+                  inactiveClass = 'hidden';
+                  // Position higher when footer is visible (bottom-40), lower when hidden (bottom-16)
+                  const bottomClass = isFooterVisible ? 'bottom-40' : 'bottom-16';
+                  containerClass += `fixed ${bottomClass} left-1/2 -translate-x-1/2 w-full max-w-4xl px-4 `;
                 } else {
                   // Default
                   const activeSize = isPortraitPreview
@@ -1624,6 +1812,7 @@ function App() {
                 return (
                   <p
                     key={idx}
+                    data-lyric-active={isActive ? "true" : "false"}
                     className={`${containerClass} ${isActive ? activeClass : inactiveClass}`}
                     style={{
                       fontFamily: customFontName ? `"${customFontName}", sans-serif` :
@@ -1646,7 +1835,7 @@ function App() {
                   </p>
                 );
               })}
-              <div className="h-[50vh]"></div>
+              <div className={`transition-all duration-500 ${(activeTab === TabView.EDITOR || isPlaylistMode) ? 'h-[25vh]' : (!isHeaderVisible && !isFooterVisible) ? 'h-[50vh]' : 'h-[40vh]'}`}></div>
             </div>
           ) : (
             <div className="text-center text-zinc-400/50 select-none pointer-events-none">
@@ -1654,7 +1843,7 @@ function App() {
                 <div className="flex flex-col items-center gap-4 animate-pulse">
                   <Music size={64} className="opacity-20" />
                   <p>Load audio & lyrics to start</p>
-                  <p className="text-xs opacity-50">Shortcuts: Space (Play), S (Stop), L (Loop), H (Hold UI)</p>
+                  <p className="text-xs opacity-50">Shortcuts: Space (Play), S (Stop), R (Repeat), H (Hold UI)</p>
                 </div>
               )}
             </div>
@@ -1663,7 +1852,7 @@ function App() {
 
         {/* Bottom Controls (Player) */}
         <div className={`transition-all duration-500 ease-in-out overflow-hidden ${isFooterVisible ? 'max-h-60 opacity-100 translate-y-0' : 'max-h-0 opacity-0 translate-y-4'}`}>
-          <div className="bg-gradient-to-t from-black/60 via-black/30 to-transparent p-6 pb-8">
+          <div className="bg-gradient-to-t from-black/60 via-black/30 to-transparent p-4 pb-6 lg:p-6 lg:pb-8">
             <div className="max-w-4xl mx-auto space-y-4">
               {/* Progress Bar */}
               <div className="flex items-center gap-3 group">
@@ -1709,8 +1898,8 @@ function App() {
               </div>
 
               {/* Main Buttons */}
-              <div className="grid grid-cols-[1fr_auto_1fr] items-center">
-                <div className="flex gap-2">
+              <div className="flex flex-wrap lg:grid lg:grid-cols-[1fr_auto_1fr] items-center justify-center gap-4">
+                <div className="flex gap-2 justify-center lg:justify-start flex-wrap order-2 lg:order-none w-auto lg:w-full">
                   <label className="p-2 rounded-lg hover:bg-white/10 text-zinc-400 hover:text-white cursor-pointer transition-colors" title="Load Audio">
                     <Music size={18} />
                     <input type="file" accept="audio/*" className="hidden" onChange={handleAudioUpload} disabled={isRendering} />
@@ -1774,7 +1963,7 @@ function App() {
 
                 </div>
 
-                <div className="flex items-center gap-6">
+                <div className="flex items-center gap-4 lg:gap-6 justify-center order-1 lg:order-none w-full lg:w-auto mb-2 lg:mb-0">
                   <button
                     className="text-zinc-400 hover:text-white transition-colors disabled:opacity-50"
                     onClick={stopPlayback}
@@ -1783,8 +1972,11 @@ function App() {
                   >
                     <Square size={20} fill="currentColor" />
                   </button>
-                  <button className="text-zinc-400 hover:text-white transition-colors disabled:opacity-50" disabled={isRendering} onClick={() => audioRef.current && (audioRef.current.currentTime -= 5)}>
+                  <button className="text-zinc-400 hover:text-white transition-colors disabled:opacity-50" disabled={isRendering || playlist.length === 0} onClick={playPreviousSong} title="Previous Song">
                     <SkipBack size={24} />
+                  </button>
+                  <button className="text-zinc-400 hover:text-white transition-colors disabled:opacity-50" disabled={isRendering} onClick={() => audioRef.current && (audioRef.current.currentTime -= 5)} title="Rewind 5s">
+                    <Rewind size={20} />
                   </button>
                   <button
                     onClick={togglePlay}
@@ -1793,22 +1985,25 @@ function App() {
                   >
                     {isPlaying ? <Pause size={28} fill="currentColor" /> : <Play size={28} fill="currentColor" className="ml-1" />}
                   </button>
-                  <button className="text-zinc-400 hover:text-white transition-colors disabled:opacity-50" disabled={isRendering} onClick={() => audioRef.current && (audioRef.current.currentTime += 5)}>
+                  <button className="text-zinc-400 hover:text-white transition-colors disabled:opacity-50" disabled={isRendering} onClick={() => audioRef.current && (audioRef.current.currentTime += 5)} title="Fast Forward 5s">
+                    <FastForward size={20} />
+                  </button>
+                  <button className="text-zinc-400 hover:text-white transition-colors disabled:opacity-50" disabled={isRendering || playlist.length === 0} onClick={playNextSong} title="Next Song">
                     <SkipForward size={24} />
                   </button>
                   <button
-                    className={`transition-colors disabled:opacity-50 ${isLooping ? 'text-green-400 hover:text-green-300' : 'text-zinc-400 hover:text-white'}`}
-                    onClick={toggleLoop}
-                    title="Loop (L)"
+                    className={`transition-colors disabled:opacity-50 ${repeatMode !== 'off' ? 'text-green-400 hover:text-green-300' : 'text-zinc-400 hover:text-white'}`}
+                    onClick={toggleRepeat}
+                    title={`Repeat: ${repeatMode === 'off' ? 'Off' : repeatMode === 'all' ? 'All' : 'One'} (R)`}
                     disabled={isRendering}
                   >
-                    <Repeat size={20} />
+                    {repeatMode === 'one' ? <Repeat1 size={20} /> : <Repeat size={20} />}
                   </button>
 
 
                 </div>
 
-                <div className="flex items-center gap-2 w-full justify-end group">
+                <div className="flex items-center gap-2 justify-center lg:justify-end group flex-wrap order-3 lg:order-none w-auto lg:w-full">
                   {/* Preset Dropdown */}
                   <div className="relative group mr-2">
                     <select
@@ -1833,6 +2028,7 @@ function App() {
                       <option value="testing">Testing</option>
                       <option value="slideshow">Slideshow</option>
                       <option value="just_video">Just Video</option>
+                      <option value="subtitle">Subtitle</option>
                     </select>
                     <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-1 text-zinc-500">
                       <svg className="fill-current h-3 w-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" /></svg>
@@ -1882,23 +2078,49 @@ function App() {
             </div>
           </div>
         </div>
-        {/* --- Bottom Timeline Editor --- */}
-        {activeTab === TabView.EDITOR && (
+        {/* --- Bottom Timeline Editor or Playlist --- */}
+        {isPlaylistMode ? (
           <div className="animate-slide-up border-t border-white/10 z-30 shrink-0 w-full max-w-[100vw] overflow-hidden">
-            <VisualEditor
-              slides={visualSlides}
-              setSlides={setVisualSlides}
-              currentTime={currentTime}
-              duration={duration || 60}
-              lyrics={lyrics}
+            <PlaylistEditor
+              playlist={playlist}
+              setPlaylist={setPlaylist}
+              currentTrackIndex={currentTrackIndex}
+              setCurrentTrackIndex={setCurrentTrackIndex}
+              onPlayTrack={playTrack}
               onSeek={(time) => {
                 if (audioRef.current && !isRendering) {
                   audioRef.current.currentTime = time;
                   setCurrentTime(time);
                 }
               }}
+              onClearPlaylist={() => {
+                // Stop playback and clear audio state
+                stopPlayback();
+                setAudioSrc(null);
+                setLyrics([]);
+                setCurrentTrackIndex(-1);
+                setMetadata({ title: 'No Audio Loaded', artist: 'Select a file', coverUrl: null, backgroundType: 'image' });
+              }}
             />
           </div>
+        ) : (
+          activeTab === TabView.EDITOR && (
+            <div className="animate-slide-up border-t border-white/10 z-30 shrink-0 w-full max-w-[100vw] overflow-hidden">
+              <VisualEditor
+                slides={visualSlides}
+                setSlides={setVisualSlides}
+                currentTime={currentTime}
+                duration={duration || 60}
+                lyrics={lyrics}
+                onSeek={(time) => {
+                  if (audioRef.current && !isRendering) {
+                    audioRef.current.currentTime = time;
+                    setCurrentTime(time);
+                  }
+                }}
+              />
+            </div>
+          )
         )}
 
       </div>

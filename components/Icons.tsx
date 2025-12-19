@@ -25,7 +25,20 @@ import {
   Video,
   Download,
   Film,
-  Type
+  Type,
+  ListMusic,
+  Rewind,
+  FastForward,
+  Undo2,
+  Redo2,
+  Copy,
+  Clipboard,
+  Scissors,
+  Repeat1,
+  ArrowDownAZ,
+  Shuffle,
+  User,
+  Disc
 } from 'lucide-react';
 
 export {
@@ -49,11 +62,25 @@ export {
   ZoomOut,
   Trash2,
   Repeat,
+  Repeat1,
+
   Square,
   Eye,
   EyeOff,
   Video,
   Download,
   Film,
-  Type
+  Type,
+  ListMusic,
+  Rewind,
+  FastForward,
+  Undo2,
+  Redo2,
+  Copy,
+  Clipboard,
+  Scissors,
+  ArrowDownAZ,
+  Shuffle,
+  User,
+  Disc
 };

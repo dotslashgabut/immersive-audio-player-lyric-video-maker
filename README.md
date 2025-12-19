@@ -1,91 +1,79 @@
 # Immersive Audio Player
 
-A modern, single-page web application that transforms your music listening into a visual experience. Supports synchronized lyrics, custom visual storytelling, and high-quality video export for social media content creation.
+**Immersive Audio Player & Lyric Video Maker** is a powerful all-in-one web tool designed for music lovers and content creators. It combines a distraction-free audio player with a professional-grade timeline editor, allowing you to create stunning, synchronized lyric videos directly in your browser. Whether you want to enjoy your local music library with beautiful visuals or create viral content for TikTok, Instagram, and YouTube, this app delivers high-quality results without watermarks or server uploads.
 
 ![Immersive Audio Player Main Screen](screenshot-main-screen.jpg)
 
 ## Key Features
 
-### 🎧 Advanced Audio Player
-- **Universal Format Support**: Plays standard web audio formats (MP3, WAV, OGG, etc.).
-- **Smart Metadata**: Automatically extracts Cover Art, Title, and Artist using `jsmediatags`.
+### 🎧 Advanced Audio Player & Playlist
+- **Smart Playlist**: Drag & drop multiple files. Automatically groups audio files with matching lyric files (`.lrc` or `.srt`) based on filename.
+- **Sorting & Management**: Sort by Filename, Artist, Title, Album, or Shuffle.
+- **Repeat Modes**: Cycle between **Off**, **Repeat All**, and **Repeat One**.
 - **Immersive Mode**: UI controls automatically fade out when idle for a distraction-free experience.
 
 ### 📝 Synchronized Lyrics
 - **Dual Format Support**: Compatible with both `.lrc` (Karaoke style) and `.srt` (Subtitle style) files.
-- **Auto-Scroll**: Lyrics scroll automatically in sync with the music.
-- **Click-to-Seek**: Click any lyric line to instantly jump to that exact time in the song.
-- **Advanced Formatting**:
-  - **Multiple Timestamps**: Support for same lyric line at different times (e.g., `[00:05.75][00:08.03]Chorus Line`).
-  - **Line Breaks**: Use `\n` to force a line break within a single lyric block (e.g., `Line 1\nLine 2`).
-  - **Empty Lines**: Use an empty text block (e.g., `[00:10.00]`) to clear the lyrics from the screen (useful for instrumental sections).
-- **Visual Presets**: Choose from multiple display styles:
-  - **Default**: Modern, centered, balanced.
-  - **Big Text**: Large, left-aligned, high impact (Great for short videos).
-  - **Big Text (UP)**: Uppercase variation of Big Text for bold statements.
-  - **Big Center**: Large, centered, uppercase text.
-  - **Metal**: Intense, jagged font for rock/metal vibes.
-  - **Kids**: Playful, rounded font with soft shadows.
-  - **Sad**: Handwritten style, ideal for emotional or acoustic tracks.
-  - **Romantic**: Elegant script font with a soft glow.
-  - **Tech**: Futuristic, digital font with a cyan glow.
-  - **Gothic**: Old English style blackletter font.
-  - **Classic Serif**: Elegant, italicized serif font for a cinematic feel.
-  - **Monospace**: Clean code-style font.
-  - **Testing**: Alternate centered layout optimized for video export.
-  - **Testing (UP)**: Uppercase variation of the Testing preset.
-  - **Slideshow**: Small, line-by-line lyrics (Web) / Single line (Export).
-  - **Just Video**: Hides lyrics on export, showing only the background video.
+- **Auto-Scroll & Centering**: Lyrics scroll automatically and active lines are perfectly centered.
+- **Click-to-Seek**: Click any lyric line to instantly jump to that exact time.
+- **Adjustable Font Size**: Use **+** / **-** hotkeys to adjust lyric size on the fly.
+- **Visual Presets**: Choose from a wide variety of display styles:
+  - **Standard**: Default, Big Text, Big Text (UP), Big Center (UP).
+  - **Thematic**: Metal, Kids, Sad, Romantic, Tech, Gothic, Classic Serif, Monospace.
+  - **Social**: 
+    - **Slideshow**: Minimalist line-by-line (Great for Reels).
+    - **Subtitle**: Cinematic bottom-centered text (No song metadata).
+    - **Just Video**: Hides text completely.
 
-### 🔤 Custom Fonts
-- **Upload Support**: Supports standard `.ttf` and `.otf` font files.
-- **Font Testing**: Easily switch between custom fonts to find the perfect typography for your lyrics. Great for testing how different fonts render in the video.
-
-### 🎬 Visual Timeline Editor
-- **Create Stories**: Drag and drop images, videos, or audio clips to create a multimedia experience synchronized to specific timestamps.
-- **Timeline Interface**: Intuitive interface to move, resize, and snap slides to lyrics or audio duration.
+### 🎬 Professional Visual Timeline Editor
+ Create complex visual stories synchronized to your music.
+- **Full Editing Suite**:
+  - **Undo/Redo** (Ctrl+Z / Ctrl+Y): Never worry about mistakes.
+  - **Copy/Cut/Paste** (Ctrl+C / Ctrl+X / Ctrl+V): Duplicate slides easily.
+  - **Snapping**: Clips snap to each other, lyric timestamps, and grid lines for pixel-perfect timing.
+- **Multi-Track Capabilities**: Add Images, Videos, and Sound Effects overlaid on the main track.
 - **Advanced Selection**:
-  - **Single Click**: Select a slide.
-  - **Shift + Click**: Select multiple slides.
-  - **Select All**: Quick button to select all items.
+  - **Shift + Click** for range selection.
+  - **Ctrl + Click** for multi-selection.
 - **Precise Control**:
-  - **Arrow Keys (Left/Right)**: Move selected slides by 0.5s.
-  - **Duration Input**: Manually type duration (MM:SS) for exact timing.
-- **Video & Audio Support**:
-  - **Volume Control**: Mute/Unmute or adjust volume for video and audio slides directly on the timeline.
-- **Zoom Controls**: Zoom in/out of the timeline for precise editing.
+  - **Arrow Keys**: Nudge selected clips by 0.5s.
+  - **Volume Mixing**: Independent mute/volume control for every video and audio clip on the timeline.
 
 ![Timeline Editor](screenshot-timeline.jpg)
 
 ### 🎥 Content Creation & Export
-Turn your audio and visuals into shareable videos directly in the browser.
-- **Resolutions**: 
-  - **720p** (HD - Faster render, smaller file size)
-  - **1080p** (Full HD - High quality)
-- **Aspect Ratios**:
-  - **16:9**: Classic Landscape (YouTube, Desktop)
-  - **9:16**: Vertical (TikTok, Instagram Reels, YouTube Shorts)
-  - **3:4**: Vertical (Instagram Feed, Facebook)
-  - **1:1**: Square (Instagram Post, Facebook)
-- **Smart Overlays**: Automatically renders a professional metadata overlay (Cover Art + Text).
-  - *Landscape*: Top-left alignment.
-  - *Portrait (9:16/3:4/1:1)*: Top-center alignment.
-- **Audio Mixing**: Seamlessly blends the main track with audio from video slides (volume controlled via timeline).
+- **Resolutions**: 720p (Fast) / 1080p (High Quality).
+- **Aspect Ratios**: 
+  - **16:9** (Landscape - YouTube)
+  - **9:16** (Vertical - TikTok/Reels)
+  - **1:1** (Square - Instagram)
+  - **3:4** (Portrait - Instagram)
+  - **2:3** (Portrait - Digital Photography)
+  - **3:2** (Landscape - Classic Photo)
+  - **1:2** (Tall Vertical)
+  - **2:1** (Cinematic Landscape)
+- **Smart Overlays**: Automatically generates metadata overlays for "Now Playing" visuals.
+- **High-Fidelity Rendering**: Uses H.264 High Profile for crisp text and smooth 60fps video.
 
 ## Keyboard Shortcuts
 
 | Key | Function |
 | :--- | :--- |
 | **Space / K** | Play / Pause |
-| **Arrow Left** | Rewind 5 seconds |
-| **Arrow Right** | Forward 5 seconds |
+| **Arrow Left / Right** | Rewind / Forward 5s (Player) OR Nudge Slide (Editor) |
+| **Arrow Up / Down**| Navigate Playlist Tracks |
+| **M** | Toggle Mute |
+| **R** | Toggle Repeat Mode (Off -> All -> One) |
+| **J** | Next Visual Preset |
+| **+ / -**| Increase / Decrease Lyric Font Size |
 | **S** | Stop & Reset |
-| **L** | Toggle Loop |
-| **F** | Toggle Fullscreen |
-| **H** | Toggle "Hold UI" (Prevents auto-hide) |
 | **T** | Open/Close Timeline Editor |
 | **I** | Toggle Info Header |
 | **P** | Toggle Player Controls |
+| **F** | Toggle Fullscreen |
+| **Delete** | Remove selected Playlist Item or Visual Slide |
+| **Ctrl + Z / Y** | Undo / Redo (Editor) |
+| **Ctrl + C / V** | Copy / Paste (Editor) |
 | **Escape** | Abort Video Rendering |
 
 ## Installation
@@ -93,99 +81,56 @@ Turn your audio and visuals into shareable videos directly in the browser.
 This application is built with React + Vite and requires **Node.js** to run.
 
 1.  **Prerequisites**: Install **Node.js** (LTS version recommended).
-2.  **Install Dependencies**: Open a terminal in the project folder and run:
+2.  **Install Dependencies**:
     ```bash
     npm install
     ```
-3.  **Start the Server**: Run the development server:
+3.  **Start the Server**:
     ```bash
     npm run dev
     ```
-4.  **Launch**: Open your browser (Chrome/Edge recommended) and navigate to the URL shown in the terminal (usually `http://localhost:5173`).
+4.  **Launch**: Open `http://localhost:5173` in Chrome or Edge.
 
 ## How to Use
 
-1. **Import Audio**: Click the **Music Note** icon to select an audio file from your device.
-2. **Import Lyrics**: Click the **File** icon to load a matching `.lrc` or `.srt` file.
-3. **Design Visuals**: 
-   - Press **T** or click the **Timeline** 🎞️ icon.
-   - Click "Add Images" to populate the timeline.
-   - Drag images to position them; drag the edges to adjust duration.
-4. **Export Video**:
-   - Select your target resolution (e.g., 1080p) and aspect ratio (e.g., 9:16) in the bottom bar.
-   - Click the **Video** icon.
-   - *Important*: The audio will play in real-time to capture the video. Keep the tab active until rendering finishes. (Press **Escape** to abort).
-
-## Browser Compatibility
-
-Video export relies on modern browser APIs (`MediaRecorder` and `captureStream`).
-- **Recommended**: Google Chrome, Microsoft Edge, or other Chromium-based browsers (Best performance with hardware acceleration).
-- **Note**: Firefox and Safari may have varying levels of support for specific video export features.
-
-### ⚙️ Codec & Rendering Engine
-- **High-Quality Export**: The render engine now prioritizes **H.264 High Profile** (`avc1.64001E`) for sharper visuals and better text clarity, especially useful for lyric videos.
-- **Social Media Ready**: Auto-negotiates the best available codec (Baseline/Main/High profiles) to ensure files are compatible with Instagram, TikTok, and YouTube without needing conversion.
-- **Smooth Playback**: Enhanced synchronization logic ensures that imported videos and audio clips render smoothly without stuttering or "freezing" effects.
+1. **Build a Playlist**: 
+    - Click **"Add Audio & Lyrics"** in the Playlist panel.
+    - Select multiple MP3s and LRCs at once. The app will pair them automatically.
+2. **Design Visuals**: 
+    - Press **T** to open the Timeline.
+    - Drag & Drop media or use "Import Media".
+    - Use **Ctrl+C / Ctrl+V** to duplicate sequences.
+3. **Export Video**:
+    - Choose your resolution and aspect ratio (e.g., **9:16** for TikTok).
+    - Click the **Video Camera** icon.
+    - Wait for the render to complete (Video plays in real-time).
 
 ---
 
 ## Panduan Pengguna (Bahasa Indonesia)
 
-Berikut adalah panduan lengkap penggunaan aplikasi mulai dari instalasi hingga export video.
+### Fitur Utama Baru
+- **Playlist Pintar**: Masukkan banyak file sekaligus. Aplikasi otomatis memasangkan lagu dengan lirik (`.lrc`/`.srt`) yang bernama sama.
+- **Timeline Canggih**: Sekarang dengan fitur **Undo/Redo**, **Copy-Paste** slide, dan **Snapping** otomatis agar visual pas dengan ketukan lirik.
+- **Shortcut Baru**: Tekan **M** untuk Mute, **R** untuk Repeat, dan **+/-** untuk ukuran huruf.
 
-### 1. Persiapan & Instalasi
-Aplikasi ini berbasis web modern (React + Vite) dan membutuhkan **Node.js** untuk dijalankan.
-
-1.  **Install Node.js**: Pastikan komputer Anda sudah terinstall Node.js (versi LTS atau terbaru).
-2.  **Siapkan Project**: Buka folder project ini.
-3.  **Install Dependencies**:
-    Buka terminal (Command Prompt atau PowerShell) di dalam folder project, lalu ketik perintah berikut dan tekan Enter:
+### Cara Install & Jalan
+1.  Pastikan sudah install **Node.js**.
+2.  Buka terminal di folder project:
     ```bash
     npm install
+    npm run dev
     ```
-    Tunggu hingga proses download selesai.
+3.  Buka browser di `http://localhost:5173`.
 
-### 2. Menjalankan Aplikasi
-Setelah instalasi berhasil, jalankan aplikasi dengan perintah:
-```bash
-npm run dev
-```
-Terminal akan menampilkan alamat server lokal (biasanya `http://localhost:5173`). Buka link tersebut di browser Anda (disarankan menggunakan **Google Chrome** atau **Edge**).
-
-### 3. Cara Penggunaan Langkah demi Langkah
-
-#### Langkah 1: Masukkan Lagu & Lirik
-1.  Klik ikon **Nada Musik** 🎵 di menu bawah untuk memilih file lagu dari komputer Anda (MP3, WAV, dll).
-2.  Klik ikon **Dokumen** 📄 untuk memasukkan file lirik (`.lrc` atau `.srt`).
-    *   *Catatan*: Pastikan file lirik memiliki timing yang sinkron dengan lagu Anda.
-3.  **Fitur Format Lanjut**:
-    - **Multi-Timestamp**: Satu baris lirik bisa muncul di beberapa waktu berbeda (contoh: `[00:05.75][00:08.03]Reff`).
-    - **Line Break**: Gunakan `\n` untuk membuat baris baru dalam satu tampilan (contoh: `Baris 1\nBaris 2`).
-    - **Baris Kosong**: Gunakan timestamp tanpa teks (contoh: `[00:10.00]`) untuk membersihkan lirik dari layar (misal saat instrumental).
-
-#### Langkah 2: Edit Visual (Timeline)
-Anda bisa menambahkan gambar background yang berubah-ubah sesuai durasi lagu.
-1.  Klik ikon **Timeline** 🎞️ atau tekan tombol **T** di keyboard untuk membuka Timeline Editor.
-2.  Klik **"Add Images"** untuk memilih gambar, video, atau audio tambahan yang ingin dimasukkan.
-3.  **Seleksi & Navigasi**:
-    *   Klik satu kali untuk memilih item.
-    *   Tahan **Shift + Klik** untuk memilih banyak item sekaligus.
-    *   Gunakan tombol **Panah Kiri/Kanan** di keyboard untuk menggeser item terpilih (0.5 detik).
-4.  **Atur Posisi & Durasi**:
-    *   Drag & drop untuk memindahkan.
-    *   Tarik ujung kiri/kanan untuk mengubah durasi.
-    *   Ketik durasi manual (MM:SS) pada input box untuk presisi tinggi.
-5.  **Kontrol Audio & Video**: Atur volume atau mute untuk slide video dan audio tambahan.
-6.  **Pilih Preset Lirik**: Di bagian kiri bawah, pilih gaya tampilan lirik yang diinginkan (contoh: *Big Text*, *Slideshow* untuk tampilan minimalis).
-7.  **Custom Font**: Unggah file font sendiri (`.ttf`, `.otf`) untuk mengganti jenis huruf. Fitur ini sangat cocok untuk pengetesan kecocokan font dengan lirik.
-
-#### Langkah 3: Export Video
-Setelah puas dengan tampilan:
-1.  Di menu bawah, pilih **Resolusi** (720p atau 1080p).
-2.  Pilih **Rasio Video** sesuai tujuan upload:
-    *   **16:9**: YouTube / Layar Lebar.
-    *   **9:16**: TikTok / Shoots / Reels.
-    *   **3:4**: Instagram Feed / Facebook.
-    *   **1:1**: Instagram Post / Facebook.
-3.  Klik ikon **Video/Kamera** 🎥 untuk memulai export.
-4.  **PENTING**: Lagu akan berputar dari awal. **Jangan tutup atau minimalkan tab browser** selama proses ini berlangsung hingga file video otomatis terunduh. (Tekan tombol **Escape** jika ingin membatalkan).
+### Alur Kerja
+1.  **Playlist**: Masukkan semua aset lagu dan lirik. Gunakan panah Atas/Bawah untuk ganti lagu.
+2.  **Visual**:
+    - Tekan **T** untuk menu Visual.
+    - Masukkan gambar/video background.
+    - Gunakan **Ctrl+Z** jika salah edit.
+    - Shift+Klik untuk pilih banyak slide.
+3.  **Export**:
+    - Pilih rasio yang tersedia (**16:9, 9:16, 1:1, 3:4, 2:3, 3:2, 1:2, 2:1**).
+    - Klik tombol Video 🎥.
+    - Jangan ganti tab browser sampai selesai.
