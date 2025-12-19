@@ -176,6 +176,7 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
     startX: number;
     initialStart: number;
     initialEnd: number;
+    initialMap: Record<string, { start: number, end: number }>;
   } | null>(null);
 
   const [isScrubbing, setIsScrubbing] = useState(false);
@@ -290,8 +291,11 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
         return [...prev, id];
       });
       setLastSelectedId(id); // Update anchor
+    } else if (selectedSlideIds.includes(id)) {
+      // Clicked on already selected item: maintain selection for potential drag
+      setLastSelectedId(id);
     } else {
-      // Regular click: Select only this item
+      // Regular click on unselected: Select only this item
       setSelectedSlideIds([id]);
       setLastSelectedId(id); // Set as new anchor
     }
@@ -299,12 +303,104 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
     const slide = slides.find(s => s.id === id);
     if (!slide) return;
 
+    // Build map of initial positions for all selected items (or just this one if not selected)
+    // If we clicked a selected item, we move all selected items.
+    // If we clicked an unselected item, the logic above (lines 286-297) would have handled selection state.
+    // However, we need to be careful: the state update `setSelectedSlideIds` is async.
+    // We should rely on the *calculated* selection state if possible, but here we can't easily access the 'next' state.
+    // BUT: The standard UI behavior is:
+    // 1. Click on unselected -> Selects it (and deselects others unless modifiers).
+    // 2. Click on selected -> Keeps selection (unless modifiers).
+    // The code above updates `selectedSlideIds`. Since `setSelectedSlideIds` is async, we can't use the *new* value immediately.
+    // However, we can re-derive what 'selectedSlideIds' WILL be, or simply:
+    // If we just clicked 'id', it IS selected.
+    // If modifiers were used, we handled it.
+    // FOR DRAGGING: We usually drag what is selected.
+    // We'll trust that if the user holds ctrl/shift, they expect standard behavior.
+    // To simplify: we'll grab specific initial positions based on the `id` being dragged.
+    // If `id` was already in `selectedSlideIds` (and no modifiers cleared it), we move the group.
+    // If `id` was NOT in `selectedSlideIds`, we selected it alone (or added it).
+
+    // Let's re-calculate effectively what IDs are "moving".
+    // If we clicked an explicitly unselected item (without modifiers), it becomes the only selection.
+    // If we click a selected item (without modifiers), we keep the group.
+
+    // To properly support "move all selected", we need access to the current list of selected IDs.
+    // But since state updates are pending, we might have a race if we rely on `selectedSlideIds`.
+    // Strategy:
+    // If shift/ctrl was NOT pressed, and `id` was NOT in `selectedSlideIds` before this click,
+    // then the group is just `[id]`.
+    // If `id` WAS in `selectedSlideIds`, and no modifiers, then the group is `selectedSlideIds` (preserved).
+    // If modifiers used, `selectedSlideIds` is changing complexly.
+    //
+    // Given the complexity of predicting React state updates here:
+    // A simpler approach for the *drag start* is to defer slightly or use a Ref for selectedIds?
+    // Or simpler:
+    // If the user *just* clicked to select this item (replacing selection), we only move this item.
+    // If the user clicked an item *already* in the selection (and didn't deselect it), we move the whole group.
+
+    const isAlreadySelected = selectedSlideIds.includes(id);
+    const isModifier = e.ctrlKey || e.metaKey || e.shiftKey;
+
+    let dragSet: string[] = [];
+
+    if (!isModifier && !isAlreadySelected) {
+      // We just replaced the selection with this one.
+      dragSet = [id];
+    } else if (isModifier) {
+      // Modifiers are changing selection.
+      // Dragging immediately after a modifier click is tricky.
+      // Usually, if you Ctrl+Click to add, you "hold" that one.
+      // If you Shift+Click, you "hold" the range.
+      // For simplicity, if a modifier is used, we might just drag the clicked item effectively?
+      // OR we try to respect the new selection.
+      // Let's assume if you just added it, you want to drag it + others?
+      // The `setSelectedSlideIds` above has fired.
+      // We'll fallback to just dragging `id` to avoid glitches if state isn't ready,
+      // UNLESS we are confident.
+      // Actually, in many apps, Ctrl+Click *toggles* selection but doesn't immediately start a drag of the group unless you click-drag.
+      // Let's assume the drag set is `selectedSlideIds` + changes.
+      // Safest fallback:
+      dragSet = [id];
+
+      // Attempt to include others if we can reliable guess.
+      // If Ctrl+Click added it:
+      if ((e.ctrlKey || e.metaKey) && !isAlreadySelected) {
+        dragSet = [...selectedSlideIds, id];
+      }
+      // If already selected and Ctrl+Click removed it:
+      else if ((e.ctrlKey || e.metaKey) && isAlreadySelected) {
+        dragSet = selectedSlideIds.filter(sid => sid !== id);
+        // If we deselected it, we shouldn't be dragging it?
+        // If we drag a deselected item, it's weird.
+        // Let's just return to avoid dragging a deselected item?
+        return;
+      }
+    } else {
+      // No modifier, is already selected -> dragging the whole group.
+      dragSet = selectedSlideIds;
+    }
+
+    // Prepare map
+    const initialMap: Record<string, { start: number, end: number }> = {};
+    slides.forEach(s => {
+      if (dragSet.includes(s.id)) {
+        initialMap[s.id] = { start: s.startTime, end: s.endTime };
+      }
+    });
+
+    // Fallback: always include current if somehow missing
+    if (!initialMap[id]) {
+      initialMap[id] = { start: slide.startTime, end: slide.endTime };
+    }
+
     setActiveDrag({
       id,
       type,
       startX: e.clientX,
       initialStart: slide.startTime,
-      initialEnd: slide.endTime
+      initialEnd: slide.endTime,
+      initialMap
     });
 
     window.addEventListener('mousemove', handleMouseMove);
@@ -521,7 +617,7 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
 
 
   // Snapping Utility
-  const getSnapTime = (proposedTime: number, ignoreId?: string): number => {
+  const getSnapTime = (proposedTime: number, ignoreIds: string[] = []): number => {
     const snapThresholdSec = SNAP_THRESHOLD_PX / pxPerSec;
 
     // Snap points: 0, duration, and Start/End of ALL other slides
@@ -534,7 +630,7 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
 
     // Add slide boundaries
     slides.forEach(s => {
-      if (s.id !== ignoreId) {
+      if (!ignoreIds.includes(s.id)) {
         snapPoints.push(s.startTime);
         snapPoints.push(s.endTime);
       }
@@ -566,82 +662,155 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
       const deltaPx = e.clientX - prev.startX;
       const deltaSec = deltaPx / pxPerSec;
 
-      setSlides(currentSlides => currentSlides.map(s => {
-        if (s.id !== prev.id) return s;
-
+      setSlides(currentSlides => {
         if (prev.type === 'move') {
-          const durationLen = prev.initialEnd - prev.initialStart;
-          let newStart = prev.initialStart + deltaSec;
-          let newEnd = newStart + durationLen;
+          // --- Group Move Logic ---
+          // 1. Calculate the ideal target start specific to the dragged item
+          const draggedInit = prev.initialMap[prev.id];
+          const itemDuration = draggedInit.end - draggedInit.start;
+          const rawTargetStart = draggedInit.start + deltaSec;
+          const rawTargetEnd = rawTargetStart + itemDuration;
 
-          // Check snap for Start
-          const snappedStart = getSnapTime(newStart, prev.id);
-          const startDiff = Math.abs(snappedStart - newStart);
+          // 2. Snap Logic (Start and End)
+          // We check both the left edge (Start) and right edge (End) for snap candidates.
+          const movingIds = Object.keys(prev.initialMap);
+          const snapThresholdSec = SNAP_THRESHOLD_PX / pxPerSec;
 
-          // Check snap for End
-          const snappedEnd = getSnapTime(newEnd, prev.id);
-          const endDiff = Math.abs(snappedEnd - newEnd);
+          // Recreate snap points
+          const snapPoints = [0, duration, currentTime];
+          const rulerInterval = getRulerInterval(pxPerSec);
+          // Add grid lines for both start and end approximation
+          snapPoints.push(Math.round(rawTargetStart / rulerInterval) * rulerInterval);
+          snapPoints.push(Math.round(rawTargetEnd / rulerInterval) * rulerInterval);
 
-          const isStartSnapped = startDiff > 0.000001;
-          const isEndSnapped = endDiff > 0.000001;
+          slides.forEach(s => {
+            if (!movingIds.includes(s.id)) {
+              snapPoints.push(s.startTime);
+              snapPoints.push(s.endTime);
+            }
+          });
+          lyrics.forEach(line => {
+            snapPoints.push(line.time);
+          });
 
-          if (isEndSnapped && (!isStartSnapped || endDiff < startDiff)) {
-            newStart = snappedEnd - durationLen;
-          } else {
-            newStart = snappedStart;
+          // Helper to find closest snap
+          const findClosest = (target: number) => {
+            let closest = target;
+            let minDiff = snapThresholdSec;
+            let matched = false;
+            for (const point of snapPoints) {
+              const diff = Math.abs(point - target);
+              if (diff < minDiff) {
+                minDiff = diff;
+                closest = point;
+                matched = true;
+              }
+            }
+            return { val: closest, diff: matched ? minDiff : null };
+          };
+
+          const snapS = findClosest(rawTargetStart);
+          const snapE = findClosest(rawTargetEnd);
+
+          let effectiveDelta = rawTargetStart - draggedInit.start;
+
+          // Decide based on closest snap
+          if (snapS.diff !== null && snapE.diff !== null) {
+            // Both snapped
+            if (snapS.diff <= snapE.diff) {
+              effectiveDelta = snapS.val - draggedInit.start;
+            } else {
+              effectiveDelta = (snapE.val - itemDuration) - draggedInit.start;
+            }
+          } else if (snapS.diff !== null) {
+            effectiveDelta = snapS.val - draggedInit.start;
+          } else if (snapE.diff !== null) {
+            effectiveDelta = (snapE.val - itemDuration) - draggedInit.start;
           }
 
-          // Clamp
-          // Allow dragging past duration but clamp 0
-          newStart = Math.max(0, newStart);
+          // 4. Global Clamp: Ensure NO item in the group is pushed before 0
+          // Find the minimum start time in the group
+          const allInits = Object.values(prev.initialMap) as { start: number, end: number }[];
+          const minStart = Math.min(...allInits.map(i => i.start));
 
-          return {
-            ...s,
-            startTime: newStart,
-            endTime: newStart + durationLen
-          };
+          // If minStart + delta < 0, then delta must be >= -minStart
+          if (minStart + effectiveDelta < 0) {
+            effectiveDelta = -minStart;
+          }
+
+          // 5. Apply effective delta to all allowed items
+          return currentSlides.map(s => {
+            const init = prev.initialMap[s.id];
+            if (init) {
+              const duration = init.end - init.start;
+              return {
+                ...s,
+                startTime: init.start + effectiveDelta,
+                endTime: init.start + effectiveDelta + duration
+              };
+            }
+            return s;
+          });
+
         } else if (prev.type === 'resize-start') {
-          // Resize Start
+          // Resize Start (Single Item)
           let newStart = prev.initialStart + deltaSec;
 
-          // Snap
-          newStart = getSnapTime(newStart, prev.id);
+          // Snap (ignore itself)
+          newStart = getSnapTime(newStart, [prev.id]);
 
           // Clamp
-          // Must not exceed end time (minus min duration) and not below 0
           const minDuration = 0.5;
           const currentEnd = prev.initialEnd;
           newStart = Math.max(0, Math.min(newStart, currentEnd - minDuration));
 
-          return {
-            ...s,
-            startTime: newStart
-          };
+          return currentSlides.map(s => {
+            if (s.id !== prev.id) return s;
+            return { ...s, startTime: newStart };
+          });
+
         } else {
-          // Resize End
+          // Resize End (Single Item)
           let newEnd = prev.initialEnd + deltaSec;
 
-          // Snap
-          newEnd = getSnapTime(newEnd, prev.id);
+          // Snap (ignore itself)
+          newEnd = getSnapTime(newEnd, [prev.id]);
 
           // Clamp
-          // Must not be before start time (plus min duration)
           const minDuration = 0.5;
           const currentStart = prev.initialStart;
           newEnd = Math.max(currentStart + minDuration, newEnd);
 
-          return {
-            ...s,
-            endTime: newEnd
-          };
+          return currentSlides.map(s => {
+            if (s.id !== prev.id) return s;
+            return { ...s, endTime: newEnd };
+          });
         }
-      }));
-
+      });
       return prev;
     });
   };
 
-  const handleMouseUp = () => {
+  const handleMouseUp = (e: MouseEvent) => {
+    // If it was a click on a selected item (no drag), update selection to just that item
+    if (activeDrag && activeDrag.type === 'move') {
+      const dist = Math.abs(e.clientX - activeDrag.startX);
+      if (dist < 5) {
+        // Check if this was a non-modifier click (implied by execution flow reaching here for group clicks)
+        // Actually, to be safe, we only force single selection if the intent wasn't a modifier action.
+        // Since modifier actions in mouseDown manipulate selection immediately, verification isn't strictly needed if we assume standard flow.
+        // But we should check if the key is currently held? e.ctrlKey?
+        // If I Ctrl+Click (Toggle), distance is 0.
+        // If I toggle off, activeDrag might not even be set?
+        // If I toggle off, 'selectedSlideIds' changes.
+        // This block handles the case where we *preserved* multiple selection in anticipation of a drag.
+        // That only happened in the `else if (selectedSlideIds.includes(id))` branch of MouseDown, which implies NO modifiers.
+        if (!e.ctrlKey && !e.metaKey && !e.shiftKey) {
+          setSelectedSlideIds([activeDrag.id]);
+        }
+      }
+    }
+
     setActiveDrag(null);
     window.removeEventListener('mousemove', handleMouseMove);
     window.removeEventListener('mouseup', handleMouseUp);
