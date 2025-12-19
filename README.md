@@ -8,13 +8,14 @@
 
 ### 🎧 Advanced Audio Player & Playlist
 - **Smart Playlist**: Drag & drop multiple files. Automatically groups audio files with matching lyric files (`.lrc` or `.srt`) based on filename.
-- **Sorting & Management**: Sort by Filename, Artist, Title, Album, or Shuffle.
+- **Sorting & Management**: Sort by Filename, Artist, Title, Album (Ascending/Descending), or Shuffle.
 - **Repeat Modes**: Cycle between **Off**, **Repeat All**, and **Repeat One**.
 - **Immersive Mode**: UI controls automatically fade out when idle for a distraction-free experience.
 
 ### 📝 Synchronized Lyrics
 - **Dual Format Support**: Compatible with both `.lrc` (Karaoke style) and `.srt` (Subtitle style) files.
 - **Auto-Scroll & Centering**: Lyrics scroll automatically and active lines are perfectly centered.
+- **Lyric Offset Control**: Fine-tune sync issues with **+0.1s / -0.1s** buttons directly in the player.
 - **Click-to-Seek**: Click any lyric line to instantly jump to that exact time.
 - **Adjustable Font Size**: Use **+** / **-** hotkeys to adjust lyric size on the fly.
 - **Visual Presets**: Choose from a wide variety of display styles:
@@ -72,6 +73,8 @@
 | **J** | Next Visual Preset |
 | **+ / -**| Increase / Decrease Lyric Font Size |
 | **S** | Stop & Reset |
+| **L** | Toggle Playlist View |
+| **H** | Toggle UI Auto-Hide Inhibit |
 | **T** | Open/Close Timeline Editor |
 | **I** | Toggle Info Header |
 | **P** | Toggle Player Controls |
@@ -116,8 +119,10 @@ This application is built with React + Vite and requires **Node.js** to run.
 
 ### Fitur Utama Baru
 - **Playlist Pintar**: Masukkan banyak file sekaligus. Aplikasi otomatis memasangkan lagu dengan lirik (`.lrc`/`.srt`) yang bernama sama.
+- **Sorting Fleksibel**: Urutkan playlist berdasarkan Artis, Judul, Album (Bolak-balik Ascending/Descending), atau acak.
+- **Kontrol Akurasi**: Atur offset lirik (maju/mundur 0.1s) jika teks kurang pas dengan suara.
 - **Timeline Canggih**: Sekarang dengan fitur **Undo/Redo**, **Copy-Paste** slide, dan **Snapping** otomatis agar visual pas dengan ketukan lirik.
-- **Shortcut Baru**: Tekan **M** untuk Mute, **R** untuk Repeat, dan **+/-** untuk ukuran huruf.
+- **Shortcut Baru**: Tekan **M** untuk Mute, **R** untuk Repeat, **L** untuk Playlist, dan **+/-** untuk ukuran huruf.
 
 ### Cara Install & Jalan
 1.  Pastikan sudah install **Node.js**.

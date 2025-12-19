@@ -38,7 +38,9 @@ import {
   ArrowDownAZ,
   Shuffle,
   User,
-  Disc
+  Disc,
+  ChevronUp,
+  ChevronDown
 } from 'lucide-react';
 
 export {
@@ -82,5 +84,7 @@ export {
   ArrowDownAZ,
   Shuffle,
   User,
-  Disc
+  Disc,
+  ChevronUp,
+  ChevronDown
 };

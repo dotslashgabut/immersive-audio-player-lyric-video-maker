@@ -1,8 +1,9 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import {
   Play, Pause, SkipBack, SkipForward, Volume2, VolumeX,
   Maximize, Minimize, Upload, Music, FileText, Settings, ImageIcon,
-  Repeat, Repeat1, Square, Eye, EyeOff, Video, Download, Film, Type, X, ListMusic, Rewind, FastForward
+  Repeat, Repeat1, Square, Eye, EyeOff, Video, Download, Film, Type, X, ListMusic, Rewind, FastForward,
+  ChevronUp, ChevronDown
 } from './components/Icons';
 import { AudioMetadata, LyricLine, TabView, VisualSlide, VideoPreset, PlaylistItem } from './types';
 import { formatTime, parseLRC, parseSRT } from './utils/parsers';
@@ -28,6 +29,7 @@ function App() {
   });
   const [lyrics, setLyrics] = useState<LyricLine[]>([]);
   const [visualSlides, setVisualSlides] = useState<VisualSlide[]>([]);
+  const [lyricOffset, setLyricOffset] = useState(0);
 
   // State: Playback
   const [isPlaying, setIsPlaying] = useState(false);
@@ -97,8 +99,14 @@ function App() {
     s => s.type === 'audio' && currentTime >= s.startTime && currentTime < s.endTime
   );
 
-  const currentLyricIndex = lyrics.findIndex((line, index) => {
-    const nextLine = lyrics[index + 1];
+  // Adjusted lyrics based on offset
+  const adjustedLyrics = useMemo(() => {
+    if (lyricOffset === 0) return lyrics;
+    return lyrics.map(l => ({ ...l, time: l.time + lyricOffset }));
+  }, [lyrics, lyricOffset]);
+
+  const currentLyricIndex = adjustedLyrics.findIndex((line, index) => {
+    const nextLine = adjustedLyrics[index + 1];
     return currentTime >= line.time && (!nextLine || currentTime < nextLine.time);
   });
 
@@ -147,6 +155,7 @@ function App() {
       });
 
       // Reset play state
+      setLyricOffset(0);
       setIsPlaying(false);
       setCurrentTime(0);
       if (audioRef.current) {
@@ -239,6 +248,7 @@ function App() {
       }
     }
 
+    setLyricOffset(0);
     setCurrentTrackIndex(index);
     // Auto-play after state update
     setTimeout(() => {
@@ -615,7 +625,7 @@ function App() {
           canvas.width,
           canvas.height,
           audioEl.currentTime,
-          lyrics,
+          adjustedLyrics,
           metadata,
           visualSlides,
           imageMap,
@@ -1144,7 +1154,7 @@ function App() {
                 .lyrics-root .text-8xl { font-size: calc(6rem * ${fontSizeScale}); }
               `}</style>
               <div className={`transition-all duration-500 ${(activeTab === TabView.EDITOR || isPlaylistMode) ? 'h-[25vh]' : (!isHeaderVisible && !isFooterVisible) ? 'h-[50vh]' : 'h-[40vh]'}`}></div>
-              {lyrics.map((line, idx) => {
+              {adjustedLyrics.map((line, idx) => {
                 const isActive = idx === currentLyricIndex;
                 const isEditor = activeTab === TabView.EDITOR || isPlaylistMode;
                 const isPortraitPreview = ['9:16', '3:4', '1:1', '1:2', '2:3'].includes(aspectRatio);
@@ -1333,7 +1343,14 @@ function App() {
                     }}
                     onClick={() => {
                       if (audioRef.current && !isRendering) {
-                        audioRef.current.currentTime = line.time;
+                        audioRef.current.currentTime = line.time; // This is the adjusted time, which is what we want? 
+                        // If we want to jump to the EXACT point in audio where this lyric is SUPPOSED to play now:
+                        // line.time IS (originalTime + offset).
+                        // So if we seek to line.time, we are seeking to the adjusted time.
+                        // Example: Lyric originally 10s. Offset +5s. adjusted time = 15s.
+                        // We see text. Click it. Audio jumps to 15s.
+                        // At 15s, currentLyricIndex checks if time >= 15s. Yes.
+                        // So the lyric matches the audio at that new point. Correct.
                         setCurrentTime(line.time);
                       }
                     }}
@@ -1360,7 +1377,7 @@ function App() {
         {/* Bottom Controls (Player) */}
         <div className={`transition-all duration-500 ease-in-out overflow-hidden ${isFooterVisible ? 'max-h-60 opacity-100 translate-y-0' : 'max-h-0 opacity-0 translate-y-4'}`}>
           <div className="bg-gradient-to-t from-black/60 via-black/30 to-transparent p-4 pb-6 lg:p-6 lg:pb-8">
-            <div className="max-w-4xl mx-auto space-y-4">
+            <div className="max-w-7xl mx-auto space-y-4">
               {/* Progress Bar */}
               <div className="flex items-center gap-3 group">
                 <span className="text-xs text-zinc-400 font-mono w-10 text-right">{formatTime(currentTime)}</span>
@@ -1427,6 +1444,32 @@ function App() {
                       </button>
                     )}
                   </div>
+
+                  {/* Lyric Offset Controls */}
+                  <div className="flex items-center gap-1 bg-zinc-800/50 rounded-lg px-2 py-1 h-9">
+                    <span className="text-xs text-zinc-300 w-12 text-center font-mono select-none border-r border-white/10 pr-2 mr-1">
+                      {lyricOffset > 0 ? '+' : ''}{lyricOffset.toFixed(1)}s
+                    </span>
+                    <div className="flex flex-col -my-1 h-full justify-center">
+                      <button
+                        onClick={() => setLyricOffset(prev => parseFloat((prev + 0.1).toFixed(1)))}
+                        className="text-zinc-400 hover:text-white flex items-center justify-center h-3.5 w-4 hover:bg-white/10 rounded-sm transition-colors"
+                        title="Increase Lyric Offset (+0.1s)"
+                        disabled={isRendering}
+                      >
+                        <ChevronUp size={12} />
+                      </button>
+                      <button
+                        onClick={() => setLyricOffset(prev => parseFloat((prev - 0.1).toFixed(1)))}
+                        className="text-zinc-400 hover:text-white flex items-center justify-center h-3.5 w-4 hover:bg-white/10 rounded-sm transition-colors"
+                        title="Decrease Lyric Offset (-0.1s)"
+                        disabled={isRendering}
+                      >
+                        <ChevronDown size={12} />
+                      </button>
+                    </div>
+                  </div>
+
                   <div className="flex items-center gap-1">
                     <label className={`p-2 rounded-lg hover:bg-white/10 cursor-pointer transition-colors ${customFontName ? 'text-purple-400' : 'text-zinc-400 hover:text-white'}`} title={customFontName ? `Custom Font: ${customFontName}` : "Load Custom Font (.ttf, .otf, .woff)"}>
                       <Type size={18} />
@@ -1446,25 +1489,27 @@ function App() {
 
                   {/* Font Size Control */}
                   <div className="flex items-center gap-1 ml-1 bg-zinc-800/50 rounded-lg px-2 py-1 h-9">
-                    <button
-                      onClick={() => setFontSizeScale(s => Math.max(0.5, parseFloat((s - 0.1).toFixed(1))))}
-                      className="text-zinc-400 hover:text-white px-1 font-mono"
-                      title="Decrease Font Size"
-                      disabled={isRendering}
-                    >
-                      -
-                    </button>
-                    <span className="text-xs text-zinc-300 w-8 text-center font-mono select-none">
+                    <span className="text-xs text-zinc-300 w-10 text-center font-mono select-none border-r border-white/10 pr-2 mr-1">
                       {Math.round(fontSizeScale * 100)}%
                     </span>
-                    <button
-                      onClick={() => setFontSizeScale(s => Math.min(3.0, parseFloat((s + 0.1).toFixed(1))))}
-                      className="text-zinc-400 hover:text-white px-1 font-mono"
-                      title="Increase Font Size"
-                      disabled={isRendering}
-                    >
-                      +
-                    </button>
+                    <div className="flex flex-col -my-1 h-full justify-center">
+                      <button
+                        onClick={() => setFontSizeScale(s => Math.min(3.0, parseFloat((s + 0.1).toFixed(1))))}
+                        className="text-zinc-400 hover:text-white flex items-center justify-center h-3.5 w-4 hover:bg-white/10 rounded-sm transition-colors"
+                        title="Increase Font Size"
+                        disabled={isRendering}
+                      >
+                        <ChevronUp size={12} />
+                      </button>
+                      <button
+                        onClick={() => setFontSizeScale(s => Math.max(0.5, parseFloat((s - 0.1).toFixed(1))))}
+                        className="text-zinc-400 hover:text-white flex items-center justify-center h-3.5 w-4 hover:bg-white/10 rounded-sm transition-colors"
+                        title="Decrease Font Size"
+                        disabled={isRendering}
+                      >
+                        <ChevronDown size={12} />
+                      </button>
+                    </div>
                   </div>
 
 
