@@ -38,6 +38,23 @@ const formatRulerTime = (seconds: number, interval: number): string => {
 const SNAP_THRESHOLD_PX = 10; // Pixels to snap
 const MAX_HISTORY_SIZE = 50; // Maximum number of undo steps
 
+const getMediaDuration = (file: File): Promise<number> => {
+  return new Promise((resolve) => {
+    const objectUrl = URL.createObjectURL(file);
+    const element = document.createElement(file.type.startsWith('audio/') ? 'audio' : 'video');
+    element.preload = 'metadata';
+    element.onloadedmetadata = () => {
+      resolve(element.duration);
+      URL.revokeObjectURL(objectUrl);
+    };
+    element.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve(0);
+    };
+    element.src = objectUrl;
+  });
+};
+
 const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentTime, duration, lyrics, onSeek }) => {
   const editorRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -123,6 +140,15 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
     setSelectedSlideIds([]);
   }, [selectedSlideIds, slides, setSlides]);
 
+  // Ref to access current slides in event listeners
+  const slidesRef = useRef(slides);
+  const pxPerSecRef = useRef(pxPerSec);
+
+  useEffect(() => {
+    slidesRef.current = slides;
+    pxPerSecRef.current = pxPerSec;
+  }, [slides, pxPerSec]);
+
   const handlePaste = useCallback(() => {
     if (clipboard.length === 0) return;
 
@@ -153,42 +179,69 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
   } | null>(null);
 
   const [isScrubbing, setIsScrubbing] = useState(false);
+  const [selectionBox, setSelectionBox] = useState<{ x: number, y: number, w: number, h: number } | null>(null);
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      const fileCount = e.target.files.length;
-
-      // Calculate start time based on current playback position
-      const startTime = currentTime;
-      // Calculate remaining duration
-      const remainingDuration = Math.max(0, duration - startTime);
-
-      // Determine duration per image
-      // Fill the remaining duration, but ensure at least 3s per image.
-      const calculatedDuration = remainingDuration / fileCount;
-      const durationPerImage = Math.max(3, calculatedDuration);
+      const files: File[] = Array.from(e.target.files);
+      const isAllImages = files.every(f => f.type.startsWith('image/'));
 
       const newSlides: VisualSlide[] = [];
 
-      Array.from(e.target.files).forEach((item, index) => {
-        const file = item as File;
-        const url = URL.createObjectURL(file);
-        const type = file.type.startsWith('image/') ? 'image' : file.type.startsWith('video/') ? 'video' : 'audio';
+      if (isAllImages) {
+        const fileCount = files.length;
+        // Calculate start time based on current playback position
+        const startTime = currentTime;
+        // Calculate remaining duration
+        const remainingDuration = Math.max(0, duration - startTime);
 
-        const start = startTime + (index * durationPerImage);
-        const end = start + durationPerImage;
+        // Determine duration per image
+        // Fill the remaining duration, but ensure at least 3s per image.
+        const calculatedDuration = remainingDuration / fileCount;
+        const durationPerImage = Math.max(3, calculatedDuration);
 
-        newSlides.push({
-          id: Math.random().toString(36).substr(2, 9),
-          url,
-          type,
-          startTime: start,
-          endTime: end,
-          name: file.name,
-          isMuted: type === 'video', // Default muted for video, but maybe unmuted for audio? Usually audio files are meant to be heard.
-          volume: type === 'video' || type === 'audio' ? 1 : undefined
+        files.forEach((file, index) => {
+          const url = URL.createObjectURL(file);
+          const start = startTime + (index * durationPerImage);
+          const end = start + durationPerImage;
+
+          newSlides.push({
+            id: Math.random().toString(36).substr(2, 9),
+            url,
+            type: 'image',
+            startTime: start,
+            endTime: end,
+            name: file.name
+          });
         });
-      });
+      } else {
+        // Mixed or Video/Audio Content: Use Real Duration
+        let currentStart = currentTime;
+
+        for (const file of files) {
+          const type = file.type.startsWith('image/') ? 'image' : file.type.startsWith('video/') ? 'video' : 'audio';
+          let itemDuration = 5; // Default for image in mixed mode
+
+          if (type !== 'image') {
+            const d = await getMediaDuration(file);
+            if (d > 0) itemDuration = d;
+          }
+
+          const url = URL.createObjectURL(file);
+          newSlides.push({
+            id: Math.random().toString(36).substr(2, 9),
+            url,
+            type,
+            startTime: currentStart,
+            endTime: currentStart + itemDuration,
+            name: file.name,
+            isMuted: type === 'video', // Default muted for video
+            volume: (type === 'video' || type === 'audio') ? 1 : undefined
+          });
+
+          currentStart += itemDuration;
+        }
+      }
 
       // Append slides instead of replace
       setSlides(prev => [...prev, ...newSlides].sort((a, b) => a.startTime - b.startTime));
@@ -258,13 +311,11 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
     window.addEventListener('mouseup', handleMouseUp);
   };
 
-  // Timeline Scrubbing Handlers
-  const handleTimelineMouseDown = (e: React.MouseEvent) => {
+  // Timeline Scrubbing Handlers (Ruler Only)
+  const handleRulerMouseDown = (e: React.MouseEvent) => {
     // Only trigger if left click
     if (e.button !== 0) return;
 
-    // Stop propagation to prevent conflicting drags if clicking specific elements
-    // But we want to allow this on Ruler/Track/Playhead
     e.stopPropagation();
     editorRef.current?.focus();
 
@@ -274,6 +325,99 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
 
     window.addEventListener('mousemove', handleScrubMouseMove);
     window.addEventListener('mouseup', handleScrubMouseUp);
+  };
+
+  // Track Background Handler (Click to Scrub, Drag to Select)
+  const handleTrackMouseDown = (e: React.MouseEvent) => {
+    if (e.button !== 0) return;
+
+    // If clicking a specific item, propagation is stopped there.
+    // So this fires on empty space.
+    editorRef.current?.focus();
+
+    const startClientX = e.clientX;
+    const startClientY = e.clientY;
+    const trackRect = trackRef.current?.getBoundingClientRect();
+
+    if (!trackRect) return;
+
+    // Relative start position for box calculation (pixels from time 0)
+    const startX = startClientX - trackRect.left;
+    const startY = startClientY - trackRect.top;
+
+    let isDragSelect = false;
+
+    const handleTrackMouseMove = (ev: MouseEvent) => {
+      const dist = Math.sqrt(Math.pow(ev.clientX - startClientX, 2) + Math.pow(ev.clientY - startClientY, 2));
+
+      if (!isDragSelect && dist > 5) {
+        isDragSelect = true;
+      }
+
+      if (isDragSelect && trackRef.current) {
+        const currentRect = trackRef.current.getBoundingClientRect();
+        const currentX = ev.clientX - currentRect.left;
+        const currentY = ev.clientY - currentRect.top;
+
+        const boxX = Math.min(startX, currentX);
+        const boxY = Math.min(startY, currentY);
+        const boxW = Math.abs(currentX - startX);
+        const boxH = Math.abs(currentY - startY);
+
+        setSelectionBox({ x: boxX, y: boxY, w: boxW, h: boxH });
+
+        // Intersection Logic
+        const newSelectedIds: string[] = [];
+        const currentSlides = slidesRef.current;
+        const currentPxPerSec = pxPerSecRef.current;
+
+        // Box Boundaries
+        const boxRight = boxX + boxW;
+        const boxBottom = boxY + boxH;
+
+        currentSlides.forEach(slide => {
+          const slideLeft = slide.startTime * currentPxPerSec;
+          const slideRight = slide.endTime * currentPxPerSec;
+          let slideTop = 0;
+          let slideBottom = 0;
+
+          // Determine Y range based on type
+          if (slide.type === 'audio') {
+            slideTop = 160; // top-40 (40 * 4px = 160px)
+            slideBottom = 160 + 32; // h-8 (8 * 4px = 32px)
+          } else {
+            // Image/Video
+            slideTop = 32; // top-8
+            slideBottom = 32 + 64; // h-16
+          }
+
+          // Check overlap
+          const overlapsX = (boxX < slideRight) && (boxRight > slideLeft);
+          const overlapsY = (boxY < slideBottom) && (boxBottom > slideTop);
+
+          if (overlapsX && overlapsY) {
+            newSelectedIds.push(slide.id);
+          }
+        });
+
+        setSelectedSlideIds(newSelectedIds);
+      }
+    };
+
+    const handleTrackMouseUp = (ev: MouseEvent) => {
+      if (!isDragSelect) {
+        // It was a simple click -> Scrub behavior
+        setSelectedSlideIds([]);
+        updateScrubPosition(ev.clientX);
+      }
+
+      setSelectionBox(null);
+      window.removeEventListener('mousemove', handleTrackMouseMove);
+      window.removeEventListener('mouseup', handleTrackMouseUp);
+    };
+
+    window.addEventListener('mousemove', handleTrackMouseMove);
+    window.addEventListener('mouseup', handleTrackMouseUp);
   };
 
   const updateScrubPosition = (clientX: number) => {
@@ -381,7 +525,12 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
     const snapThresholdSec = SNAP_THRESHOLD_PX / pxPerSec;
 
     // Snap points: 0, duration, and Start/End of ALL other slides
-    const snapPoints = [0, duration];
+    const snapPoints = [0, duration, currentTime];
+
+    // Add closest grid line
+    const rulerInterval = getRulerInterval(pxPerSec);
+    const closestGrid = Math.round(proposedTime / rulerInterval) * rulerInterval;
+    snapPoints.push(closestGrid);
 
     // Add slide boundaries
     slides.forEach(s => {
@@ -423,9 +572,24 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
         if (prev.type === 'move') {
           const durationLen = prev.initialEnd - prev.initialStart;
           let newStart = prev.initialStart + deltaSec;
+          let newEnd = newStart + durationLen;
 
-          // Apply snapping
-          newStart = getSnapTime(newStart, prev.id);
+          // Check snap for Start
+          const snappedStart = getSnapTime(newStart, prev.id);
+          const startDiff = Math.abs(snappedStart - newStart);
+
+          // Check snap for End
+          const snappedEnd = getSnapTime(newEnd, prev.id);
+          const endDiff = Math.abs(snappedEnd - newEnd);
+
+          const isStartSnapped = startDiff > 0.000001;
+          const isEndSnapped = endDiff > 0.000001;
+
+          if (isEndSnapped && (!isStartSnapped || endDiff < startDiff)) {
+            newStart = snappedEnd - durationLen;
+          } else {
+            newStart = snappedStart;
+          }
 
           // Clamp
           // Allow dragging past duration but clamp 0
@@ -569,7 +733,13 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
           {/* Selection Utilities */}
           <div className="flex items-center gap-2">
             <button
-              onClick={() => setSelectedSlideIds(slides.map(s => s.id))}
+              onClick={() => {
+                if (slides.length > 0 && selectedSlideIds.length === slides.length) {
+                  setSelectedSlideIds([]);
+                } else {
+                  setSelectedSlideIds(slides.map(s => s.id));
+                }
+              }}
               className="px-2 py-0.5 text-[10px] bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded text-zinc-300 transition-colors"
             >
               Select All
@@ -691,13 +861,26 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
           ref={trackRef}
           className="relative h-full"
           style={{ width: `${totalWidth}px`, minWidth: '100%' }}
-          onMouseDown={handleTimelineMouseDown}
+          onMouseDown={handleTrackMouseDown}
         >
+
+          {/* Selection Box */}
+          {selectionBox && (
+            <div
+              className="absolute border border-purple-500 bg-purple-500/20 z-50 pointer-events-none"
+              style={{
+                left: selectionBox.x,
+                top: selectionBox.y,
+                width: selectionBox.w,
+                height: selectionBox.h,
+              }}
+            />
+          )}
 
           {/* 1. Ruler (Top Strip) */}
           <div
             className="absolute top-0 left-0 right-0 h-6 border-b border-white/10 bg-zinc-900/50 select-none cursor-pointer z-40"
-            onMouseDown={handleTimelineMouseDown}
+            onMouseDown={handleRulerMouseDown}
           >
             {(() => {
               const rulerInterval = getRulerInterval(pxPerSec);
@@ -747,7 +930,7 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
               left: 0,
               transform: `translateX(${currentTime * pxPerSec}px)`
             }}
-            onMouseDown={handleTimelineMouseDown}
+            onMouseDown={handleRulerMouseDown}
           >
             <div className="absolute top-6 -ml-2.5 bg-red-500 text-white text-[9px] px-1 rounded font-mono shadow-md z-30 group-hover:scale-110 transition-transform">
               {formatTime(currentTime)}
