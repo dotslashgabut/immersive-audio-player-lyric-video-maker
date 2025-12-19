@@ -12,6 +12,8 @@
 - **Repeat Modes**: Cycle between **Off**, **Repeat All**, and **Repeat One**.
 - **Immersive Mode**: UI controls automatically fade out when idle for a distraction-free experience.
 
+![Playlist Management](screenshot-playlist.jpg)
+
 ### 📝 Synchronized Lyrics
 - **Dual Format Support**: Compatible with both `.lrc` (Karaoke style) and `.srt` (Subtitle style) files.
 - **Auto-Scroll & Centering**: Lyrics scroll automatically and active lines are perfectly centered.
@@ -55,6 +57,8 @@
   - **2:1** (Cinematic Landscape)
 - **Smart Overlays**: Automatically generates metadata overlays for "Now Playing" visuals.
 - **High-Fidelity Rendering**: Uses H.264 High Profile for crisp text and smooth 60fps video.
+
+![Export Interface](screenshot-render.jpg)
 
 ### 🛠 Technical Architecture
 - **Rendering Engine**: Highly optimized **Canvas 2D** pipeline. Text rendering is handled natively by the browser, ensuring perfect clarity and compatibility with all languages and writing systems.

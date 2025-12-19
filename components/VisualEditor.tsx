@@ -763,7 +763,7 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
                         return s;
                       }));
                     }}
-                    className="absolute top-1 right-6 p-0.5 bg-black/60 hover:bg-zinc-600 rounded text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer z-40"
+                    className="absolute top-1 right-10 p-0.5 bg-black/60 hover:bg-zinc-600 rounded text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer z-40"
                     title={slide.isMuted !== false ? "Unmute" : "Mute"}
                   >
                     {slide.isMuted !== false ? <VolumeX size={10} /> : <Volume2 size={10} />}
@@ -850,7 +850,7 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
                       return s;
                     }));
                   }}
-                  className="absolute top-1 right-6 p-0.5 bg-black/60 hover:bg-emerald-600 rounded text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer z-40"
+                  className="absolute top-1 right-10 p-0.5 bg-black/60 hover:bg-emerald-600 rounded text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer z-40"
                   title={slide.isMuted === true ? "Unmute" : "Mute"}
                 >
                   {slide.isMuted === true ? <VolumeX size={10} /> : <Volume2 size={10} />}

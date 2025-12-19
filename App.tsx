@@ -953,6 +953,7 @@ function App() {
         onTimeUpdate={handleTimeUpdate}
         onLoadedMetadata={handleLoadedMetadata}
         onEnded={() => {
+          if (isRendering) return;
           if (repeatMode === 'one') {
             // Native loop handles it, but safety fallback
           } else {
