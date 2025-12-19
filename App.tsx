@@ -1306,14 +1306,27 @@ function App() {
                   activeClass = `${activeSize} text-white tracking-wide text-center`;
                   inactiveClass = 'hidden';
                 } else if (preset === 'subtitle') {
-                  // Subtitle: Small, bottom-center (adjusts based on footer visibility)
+                  // Subtitle: Small, bottom-center (adjusts based on footer visibility and editor/playlist)
                   const activeSize = isPortraitPreview
                     ? (isEditor ? 'text-2xl' : 'text-3xl')
                     : (isEditor ? 'text-3xl' : 'text-4xl');
                   activeClass = `${activeSize} text-white tracking-wide text-center`;
                   inactiveClass = 'hidden';
-                  // Position higher when footer is visible (bottom-40), lower when hidden (bottom-16)
-                  const bottomClass = isFooterVisible ? 'bottom-40' : 'bottom-16';
+                  // Position based on visible panels:
+                  // - Editor/Playlist panel: ~280px
+                  // - Footer (audio controls): ~160px (bottom-40)
+                  // - Minimal (nothing visible): ~64px (bottom-16)
+                  let bottomClass = 'bottom-16';
+                  if (isEditor && isFooterVisible) {
+                    // Both editor/playlist AND footer visible
+                    bottomClass = 'bottom-[480px]';
+                  } else if (isEditor) {
+                    // Only editor/playlist visible
+                    bottomClass = 'bottom-[320px]';
+                  } else if (isFooterVisible) {
+                    // Only footer visible
+                    bottomClass = 'bottom-40';
+                  }
                   containerClass += `fixed ${bottomClass} left-1/2 -translate-x-1/2 w-full max-w-4xl px-4 `;
                 } else {
                   // Default
