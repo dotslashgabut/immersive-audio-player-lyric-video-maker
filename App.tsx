@@ -57,6 +57,21 @@ function App() {
   const [preset, setPreset] = useState<VideoPreset>('default');
   const [customFontName, setCustomFontName] = useState<string | null>(null);
   const [fontSizeScale, setFontSizeScale] = useState(1);
+  const [renderCodec, setRenderCodec] = useState<string>('auto');
+  const [renderFps, setRenderFps] = useState<number>(30);
+  const [renderQuality, setRenderQuality] = useState<'low' | 'med' | 'high'>('med');
+
+  const supportedCodecs = useMemo(() => {
+    const candidates = [
+      { label: 'VP9 (WebM)', value: 'video/webm; codecs=vp9,opus' },
+      { label: 'H.264 (MP4)', value: 'video/mp4; codecs="avc1.4D401E, mp4a.40.2"' },
+      { label: 'AV1 (MP4)', value: 'video/mp4; codecs="av01.0.05M.08"' },
+      { label: 'AV1 (WebM)', value: 'video/webm; codecs=av1' },
+      { label: 'H.264 High (MP4)', value: 'video/mp4; codecs="avc1.64001E, mp4a.40.2"' },
+    ];
+    return candidates.filter(c => MediaRecorder.isTypeSupported(c.value));
+  }, []);
+
   const [playlist, setPlaylist] = useState<PlaylistItem[]>([]);
   const [currentTrackIndex, setCurrentTrackIndex] = useState<number>(-1);
   const [isPlaylistMode, setIsPlaylistMode] = useState(false);
@@ -469,7 +484,7 @@ function App() {
     // 3. Setup Audio Mixing & Recording
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
-    const stream = canvas.captureStream(30); // Video Stream (30 FPS)
+    const stream = canvas.captureStream(renderFps); // Video Stream (Dynamic FPS)
 
     const audioEl = audioRef.current;
     let audioStream: MediaStream | null = null;
@@ -527,8 +542,11 @@ function App() {
       stream.addTrack(audioStream.getAudioTracks()[0]);
     }
 
-    // Attempt to use VP9 first as requested
+    // Attempt to use selected or VP9 first
     const getPreferredMimeType = () => {
+      if (renderCodec !== 'auto' && MediaRecorder.isTypeSupported(renderCodec)) {
+        return renderCodec;
+      }
       const types = [
         'video/webm; codecs=vp9,opus',               // VP9 + Opus (Best WebM Support)
         'video/webm; codecs=vp9',                     // VP9 (Fallback)
@@ -547,7 +565,15 @@ function App() {
     };
 
     const mimeType = getPreferredMimeType();
-    const bitrate = resolution === '1080p' ? 8000000 : 4000000;
+
+    // Calculated Bitrate based on Resolution, FPS, and Quality
+    // Base: 720p 30fps Med = 4Mbps, 1080p 30fps Med = 8Mbps
+    // Scale for FPS (60fps uses 1.5x) and Quality (Low 0.5x, High 2x)
+    const baseBitrate = resolution === '1080p' ? 8000000 : 4000000;
+    const fpsMultiplier = renderFps > 30 ? 1.5 : 1.0;
+    const qualityMultiplier = renderQuality === 'high' ? 2.0 : renderQuality === 'low' ? 0.5 : 1.0;
+    const bitrate = baseBitrate * fpsMultiplier * qualityMultiplier;
+
     const mediaRecorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: bitrate });
 
     mediaRecorderRef.current = mediaRecorder;
@@ -619,9 +645,9 @@ function App() {
       );
     }
 
-    // Throttle render loop to 30fps to match capture rate and reduce CPU load
+    // Throttle render loop based on selected FPS
     let lastRenderTime = 0;
-    const renderInterval = 1000 / 30; // ~33.33ms
+    const renderInterval = 1000 / renderFps;
 
     const renderLoop = (now: number) => {
       // Check for End
@@ -648,7 +674,7 @@ function App() {
         requestAnimationFrame(renderLoop);
       }
 
-      // Throttle actual rendering to 30fps
+      // Throttle actual rendering
       const elapsed = now - lastRenderTime;
       if (elapsed < renderInterval) {
         return;
@@ -735,13 +761,26 @@ function App() {
       }
     };
 
-    // Start Recording and Audio simultaneously for precise duration matching
-    if (!abortRenderRef.current) {
+    // Start Recording -> Wait -> Start Audio to ensure no frame drop at start
+    const startRender = async () => {
+      if (abortRenderRef.current) return;
+
+      // Start Recorder first
       mediaRecorder.start();
+
+      // IMPORTANT: Wait 50ms to let Recorder initialize and capture first 1-2 frames of silence/black
+      // This prevents the "cut off start" issue where audio starts before recorder writes the first frame.
+      await new Promise(r => setTimeout(r, 50));
+
+      if (abortRenderRef.current) {
+        mediaRecorder.stop();
+        return;
+      }
+
       setIsPlaying(true);
       requestAnimationFrame(renderLoop);
 
-      // Start audio immediately (no delay for precise duration)
+      // Start audio
       const startPromise = audioEl.play();
       if (startPromise !== undefined) {
         startPromise.catch(error => {
@@ -750,7 +789,9 @@ function App() {
           mediaRecorder.stop();
         });
       }
-    }
+    };
+
+    startRender();
   };
 
 
@@ -1666,6 +1707,38 @@ function App() {
                     </div>
                   </div>
 
+                  {/* Preset Dropdown (Moved here) */}
+                  <div className="relative group ml-1">
+                    <select
+                      value={preset}
+                      onChange={(e) => setPreset(e.target.value as any)}
+                      className="appearance-none bg-zinc-800/50 border border-white/5 text-zinc-300 text-xs rounded-lg px-3 pr-8 h-9 w-24 focus:outline-none focus:border-purple-500 cursor-pointer"
+                      disabled={isRendering}
+                      title="Select Visual Preset"
+                    >
+                      <option value="default" className="bg-zinc-900">Default</option>
+                      <option value="large" className="bg-zinc-900">Big Text</option>
+                      <option value="large_upper" className="bg-zinc-900">Big Text (UP)</option>
+                      <option value="big_center" className="bg-zinc-900">Big Center</option>
+                      <option value="metal" className="bg-zinc-900">Metal</option>
+                      <option value="kids" className="bg-zinc-900">Kids</option>
+                      <option value="sad" className="bg-zinc-900">Sad</option>
+                      <option value="romantic" className="bg-zinc-900">Romantic</option>
+                      <option value="tech" className="bg-zinc-900">Tech</option>
+                      <option value="gothic" className="bg-zinc-900">Gothic</option>
+                      <option value="classic" className="bg-zinc-900">Classic Serif</option>
+                      <option value="monospace" className="bg-zinc-900">Monospace</option>
+                      <option value="testing_up" className="bg-zinc-900">Testing (UP)</option>
+                      <option value="testing" className="bg-zinc-900">Testing</option>
+                      <option value="slideshow" className="bg-zinc-900">Slideshow</option>
+                      <option value="just_video" className="bg-zinc-900">Just Video</option>
+                      <option value="subtitle" className="bg-zinc-900">Subtitle</option>
+                    </select>
+                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-1 text-zinc-500">
+                      <svg className="fill-current h-3 w-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" /></svg>
+                    </div>
+                  </div>
+
 
                 </div>
 
@@ -1710,41 +1783,11 @@ function App() {
                 </div>
 
                 <div className="flex items-center gap-2 justify-center lg:justify-end group flex-wrap order-3 lg:order-none w-auto lg:w-full">
-                  {/* Preset Dropdown */}
-                  <div className="relative group mr-2">
-                    <select
-                      value={preset}
-                      onChange={(e) => setPreset(e.target.value as any)}
-                      className="appearance-none bg-zinc-900 border border-zinc-700 text-zinc-300 text-xs rounded px-2 pr-6 w-20 h-6 focus:outline-none focus:border-purple-500 cursor-pointer"
-                      disabled={isRendering}
-                    >
-                      <option value="default">Default</option>
-                      <option value="large">Big Text</option>
-                      <option value="large_upper">Big Text (UP)</option>
-                      <option value="big_center">Big Center</option>
-                      <option value="metal">Metal</option>
-                      <option value="kids">Kids</option>
-                      <option value="sad">Sad</option>
-                      <option value="romantic">Romantic</option>
-                      <option value="tech">Tech</option>
-                      <option value="gothic">Gothic</option>
-                      <option value="classic">Classic Serif</option>
-                      <option value="monospace">Monospace</option>
-                      <option value="testing_up">Testing (UP)</option>
-                      <option value="testing">Testing</option>
-                      <option value="slideshow">Slideshow</option>
-                      <option value="just_video">Just Video</option>
-                      <option value="subtitle">Subtitle</option>
-                    </select>
-                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-1 text-zinc-500">
-                      <svg className="fill-current h-3 w-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" /></svg>
-                    </div>
-                  </div>
 
                   {/* Resolution Toggle */}
                   <button
                     onClick={() => setResolution(prev => prev === '1080p' ? '720p' : '1080p')}
-                    className="text-[10px] font-mono text-zinc-500 hover:text-zinc-300 border border-zinc-700 rounded px-1 h-6 transition-colors disabled:opacity-30"
+                    className="bg-zinc-800/50 border border-white/5 text-[10px] font-mono text-zinc-300 hover:text-white rounded-lg px-2 h-9 transition-colors disabled:opacity-30"
                     title="Toggle Resolution (720p / 1080p)"
                     disabled={isRendering}
                   >
@@ -1762,20 +1805,77 @@ function App() {
                       if (prev === '2:3') return '3:2';
                       return '16:9';
                     })}
-                    className="text-[10px] font-mono text-zinc-500 hover:text-zinc-300 border border-zinc-700 rounded px-1 h-6 transition-colors disabled:opacity-30"
+                    className="bg-zinc-800/50 border border-white/5 text-[10px] font-mono text-zinc-300 hover:text-white rounded-lg px-2 h-9 transition-colors disabled:opacity-30"
                     title="Toggle Aspect Ratio (16:9 / 9:16 / 3:4 / 1:1 / 1:2 / 2:1 / 2:3 / 3:2)"
                     disabled={isRendering}
                   >
                     {aspectRatio}
                   </button>
+                  {/* Codec Selection */}
+                  <div className="relative group">
+                    <select
+                      value={renderCodec}
+                      onChange={(e) => setRenderCodec(e.target.value)}
+                      className="appearance-none bg-zinc-800/50 border border-white/5 text-zinc-300 text-xs rounded-lg px-3 pr-8 w-28 h-9 focus:outline-none focus:border-purple-500 cursor-pointer"
+                      disabled={isRendering}
+                      title="Select Video Codec"
+                    >
+                      <option value="auto" className="bg-zinc-900">Codec: Auto</option>
+                      {supportedCodecs.map(c => (
+                        <option key={c.value} value={c.value} className="bg-zinc-900">{c.label}</option>
+                      ))}
+                    </select>
+                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-1 text-zinc-500">
+                      <svg className="fill-current h-3 w-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" /></svg>
+                    </div>
+                  </div>
+
+                  {/* FPS Selection */}
+                  <div className="relative group">
+                    <select
+                      value={renderFps}
+                      onChange={(e) => setRenderFps(parseInt(e.target.value))}
+                      className="appearance-none bg-zinc-800/50 border border-white/5 text-zinc-300 text-xs rounded-lg px-3 pr-8 w-20 h-9 focus:outline-none focus:border-purple-500 cursor-pointer"
+                      disabled={isRendering}
+                      title="Select Frame Rate"
+                    >
+                      <option value="24" className="bg-zinc-900">24 FPS</option>
+                      <option value="25" className="bg-zinc-900">25 FPS</option>
+                      <option value="30" className="bg-zinc-900">30 FPS</option>
+                      <option value="50" className="bg-zinc-900">50 FPS</option>
+                      <option value="60" className="bg-zinc-900">60 FPS</option>
+                    </select>
+                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-1 text-zinc-500">
+                      <svg className="fill-current h-3 w-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" /></svg>
+                    </div>
+                  </div>
+
+                  {/* Quality/Bitrate Selection */}
+                  <div className="relative group">
+                    <select
+                      value={renderQuality}
+                      onChange={(e) => setRenderQuality(e.target.value as any)}
+                      className="appearance-none bg-zinc-800/50 border border-white/5 text-zinc-300 text-xs rounded-lg px-3 pr-8 w-16 h-9 focus:outline-none focus:border-purple-500 cursor-pointer"
+                      disabled={isRendering}
+                      title="Select Quality (Bitrate)"
+                    >
+                      <option value="low" className="bg-zinc-900">Low</option>
+                      <option value="med" className="bg-zinc-900">Med</option>
+                      <option value="high" className="bg-zinc-900">High</option>
+                    </select>
+                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-1 text-zinc-500">
+                      <svg className="fill-current h-3 w-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" /></svg>
+                    </div>
+                  </div>
+
                   {/* Export Button */}
                   <button
                     onClick={handleExportVideo}
                     disabled={isRendering || !audioSrc}
-                    className="text-zinc-400 hover:text-purple-400 transition-colors disabled:opacity-30 mr-2"
-                    title="Export as Video"
+                    className="p-2 rounded-lg hover:bg-white/10 text-zinc-400 hover:text-white cursor-pointer transition-colors"
+                    title="Export as Video (Alt+E)"
                   >
-                    <Video size={20} />
+                    <Video size={18} />
                   </button>
 
 

@@ -36,6 +36,7 @@
   - **Snapping**: Clips snap to each other, lyric timestamps, and grid lines for pixel-perfect timing.
 - **Multi-Track Capabilities**: Add Images, Videos, and Sound Effects overlaid on the main track.
 - **Advanced Selection**:
+  - **Drag Selection**: Click and drag on the timeline background to interpretively select multiple clips.
   - **Shift + Click** for range selection.
   - **Ctrl + Click** for multi-selection.
 - **Precise Control**:
@@ -45,7 +46,11 @@
 ![Timeline Editor](screenshot-timeline.jpg)
 
 ### 🎥 Content Creation & Export
-- **Resolutions**: 720p (Fast) / 1080p (High Quality).
+- **Flexible Render Settings**:
+  - **Resolution**: 720p / 1080p.
+  - **Frame Rate**: Support for **24, 25, 30, 50, and 60 FPS**.
+  - **Quality**: Adjustable bitrate presets (Low, Medium, High).
+  - **Codecs**: Full control over output format, supporting **H.264 (MP4)**, **VP9 (WebM)**, and **AV1** (where supported).
 - **Aspect Ratios**: 
   - **16:9** (Landscape - YouTube)
   - **9:16** (Vertical - TikTok/Reels)
@@ -56,7 +61,7 @@
   - **1:2** (Tall Vertical)
   - **2:1** (Cinematic Landscape)
 - **Smart Overlays**: Automatically generates metadata overlays for "Now Playing" visuals.
-- **High-Fidelity Rendering**: Uses H.264 High Profile for crisp text and smooth 60fps video.
+- **High-Fidelity Rendering**: Native **Canvas 2D** rendering allows for pixel-perfect text at any frame rate.
 
 ![Export Interface](screenshot-render.jpg)
 
@@ -125,7 +130,7 @@ This application is built with React + Vite and requires **Node.js** to run.
 - **Playlist Pintar**: Masukkan banyak file sekaligus. Aplikasi otomatis memasangkan lagu dengan lirik (`.lrc`/`.srt`) yang bernama sama.
 - **Sorting Fleksibel**: Urutkan playlist berdasarkan Artis, Judul, Album (Bolak-balik Ascending/Descending), atau acak.
 - **Kontrol Akurasi**: Atur offset lirik (maju/mundur 0.1s) jika teks kurang pas dengan suara.
-- **Timeline Canggih**: Sekarang dengan fitur **Undo/Redo**, **Copy-Paste** slide, dan **Snapping** otomatis agar visual pas dengan ketukan lirik.
+- **Timeline Canggih**: Sekarang dengan fitur **Undo/Redo**, **Copy-Paste** slide, **Drag Selection**, dan **Snapping** otomatis agar visual pas dengan ketukan lirik.
 - **Shortcut Baru**: Tekan **M** untuk Mute, **R** untuk Repeat, **L** untuk Playlist, dan **+/-** untuk ukuran huruf.
 
 ### Cara Install & Jalan
@@ -145,6 +150,6 @@ This application is built with React + Vite and requires **Node.js** to run.
     - Gunakan **Ctrl+Z** jika salah edit.
     - Shift+Klik untuk pilih banyak slide.
 3.  **Export**:
-    - Pilih rasio yang tersedia (**16:9, 9:16, 1:1, 3:4, 2:3, 3:2, 1:2, 2:1**).
+    - Pilih rasio, **FPS**, **Codec**, dan **Kualitas** yang diinginkan.
     - Klik tombol Video 🎥.
     - Jangan ganti tab browser sampai selesai.
