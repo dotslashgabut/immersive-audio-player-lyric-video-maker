@@ -1097,7 +1097,7 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
 
           {/* 3. Playhead (Vertical Cursor) */}
           <div
-            className="absolute top-0 bottom-0 border-l-2 border-red-500 z-50 cursor-ew-resize transition-transform duration-100 ease-linear group"
+            className="absolute top-0 bottom-0 border-l-2 border-red-500 z-50 cursor-ew-resize group"
             style={{
               left: 0,
               transform: `translateX(${currentTime * pxPerSec}px)`

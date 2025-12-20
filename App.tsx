@@ -458,24 +458,32 @@ function App() {
 
     // Audio Mixer (Web Audio API)
     // We mix the Song + Any Video Slide Audio into a single destination
+    // Pure audio - no filters or processing
     const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
     const mixerDest = audioContext.createMediaStreamDestination();
 
-    // Connect Main Song
+    // Connect Main Song directly to mixer (and NOT to destination)
     if (audioStream && audioStream.getAudioTracks().length > 0) {
       const source = audioContext.createMediaStreamSource(audioStream);
       source.connect(mixerDest);
     }
 
-    // Connect All Preloaded Videos
-    // We connect them all; we'll control their audibility via their .muted / .volume property in the loop
+    // Connect All Preloaded Videos directly to mixer
+    // We disconnect them from speakers by not calling .connect(audioContext.destination)
     videoMap.forEach((vidElement) => {
+      // Ensure the element itself is muted in DOM so it doesn't play to speakers directly
+      // (We already set muted=true on creation, but double check)
+      vidElement.muted = true;
+
       const source = audioContext.createMediaElementSource(vidElement);
       source.connect(mixerDest);
     });
 
-    // Connect All Preloaded Audios
+    // Connect All Preloaded Audios directly to mixer
     audioMap.forEach((audElement) => {
+      // Ensure element DOM mute
+      audElement.muted = true;
+
       const source = audioContext.createMediaElementSource(audElement);
       source.connect(mixerDest);
     });
@@ -488,15 +496,18 @@ function App() {
       stream.addTrack(audioStream.getAudioTracks()[0]);
     }
 
-    // Attempt to use social-media friendly codecs if supported (H.264/AAC)
+    // Attempt to use VP9 first as requested
     const getPreferredMimeType = () => {
       const types = [
-        'video/mp4; codecs="avc1.64001E, mp4a.40.2"', // H.264 High + AAC (Best Quality)
-        'video/mp4; codecs="avc1.4D401E, mp4a.40.2"', // H.264 Main + AAC
-        'video/mp4; codecs="avc1.42E01E, mp4a.40.2"', // H.264 Baseline + AAC (Best Compatibility)
+        'video/webm; codecs=vp9,opus',               // VP9 + Opus (Best WebM Support)
+        'video/webm; codecs=vp9',                     // VP9 (Fallback)
+        'video/webm; codecs=av1',                     // AV1 (WebM) - High Efficiency
+        'video/mp4; codecs="av01.0.05M.08"',          // AV1 (MP4)
+        'video/mp4; codecs="avc1.4D401E, mp4a.40.2"', // H.264 Main
+        'video/mp4; codecs="avc1.64001E, mp4a.40.2"', // H.264 High
+        'video/mp4; codecs="avc1.42E01E, mp4a.40.2"', // H.264 Baseline
         'video/mp4',                                  // Generic MP4
-        'video/webm; codecs=vp9',                     // WebM VP9
-        'video/webm'                                  // Generic WebM
+        'video/webm',                                 // Generic WebM
       ];
       for (const t of types) {
         if (MediaRecorder.isTypeSupported(t)) return t;
@@ -540,32 +551,80 @@ function App() {
       setIsRendering(false);
     };
 
-    // 4. Start Loop
-    mediaRecorder.start();
-    audioEl.play();
-    setIsPlaying(true); // Sync UI state
+    // 4. Start Sequence
+    // Strategy: Start Recorder -> Wait 100ms (Record Silence) -> Start Audio
+    // This ensures no cut at start and no audio glitch as the recorder is stable before signal hits.
 
-    const renderLoop = () => {
-      if (audioEl.paused || audioEl.ended) {
-        // If ended naturally
-        if (audioEl.ended && mediaRecorder.state === 'recording') {
-          mediaRecorder.stop();
-          setIsPlaying(false);
+    // Resume Audio Context
+    if (audioContext.state === 'suspended') {
+      await audioContext.resume();
+    }
+
+    // Warm up Canvas
+    if (ctx && audioEl) {
+      drawCanvasFrame(
+        ctx,
+        canvas.width,
+        canvas.height,
+        0,
+        adjustedLyrics,
+        metadata,
+        visualSlides,
+        imageMap,
+        videoMap,
+        currentPreset,
+        customFontName,
+        fontSizeScale
+      );
+    }
+
+    // Throttle render loop to 30fps to match capture rate and reduce CPU load
+    let lastRenderTime = 0;
+    const renderInterval = 1000 / 30; // ~33.33ms
+
+    const renderLoop = (now: number) => {
+      // Check for End
+      if (audioEl.ended) {
+        // Add 100ms tail buffer to ensure we catch the very end (reduced from 500ms for precise duration)
+        if (mediaRecorder.state === 'recording') {
+          setTimeout(() => {
+            if (mediaRecorder.state === 'recording') {
+              mediaRecorder.stop();
+              setIsPlaying(false);
+            }
+          }, 100);
         }
+        return; // Stop the loop logic immediately though
+      }
+
+      if (audioEl.paused && audioEl.currentTime > 0 && !audioEl.ended) {
+        // Paused but not ended? (User paused or lag). Just return, loop keeps running.
+        // If aborted, abort handler deals with it.
+      }
+
+      // Continue loop first to maintain stable timing
+      if (mediaRecorder.state === 'recording') {
+        requestAnimationFrame(renderLoop);
+      }
+
+      // Throttle actual rendering to 30fps
+      const elapsed = now - lastRenderTime;
+      if (elapsed < renderInterval) {
         return;
       }
+      lastRenderTime = now - (elapsed % renderInterval);
 
       const t = audioEl.currentTime;
 
-      // Sync Export Videos
+      // Sync Export Videos - Use larger tolerance to prevent audio glitches
       videoMap.forEach((v, id) => {
         if (id === 'background') {
           // Sync background (Modulo Loop for Deterministic Render)
           const vidDuration = v.duration || 1;
           const targetTime = t % vidDuration;
 
-          // Background tolerance 0.3s
-          if (Math.abs(v.currentTime - targetTime) > 0.3) v.currentTime = targetTime;
+          // Background tolerance 1s - only seek if severely out of sync
+          if (Math.abs(v.currentTime - targetTime) > 1.0) v.currentTime = targetTime;
           if (v.paused) v.play().catch(() => { });
         } else {
           // Sync slide
@@ -574,11 +633,10 @@ function App() {
             if (t >= s.startTime && t < s.endTime) {
               const rel = t - s.startTime;
 
-              // [FIX] Increased tolerance from 0.1 to 0.3 to prevent aggressive seeking (stutter)
-              if (Math.abs(v.currentTime - rel) > 0.3) v.currentTime = rel;
+              // Only seek if severely out of sync (>0.5s) to prevent audio glitches
+              if (Math.abs(v.currentTime - rel) > 0.5) v.currentTime = rel;
 
               // Handle Audio Muting & Volume for Export
-              // If slide is unmuted (isMuted === false), we unmute the video element so it feeds into the mixer
               const shouldMute = s.isMuted !== false;
               if (v.muted !== shouldMute) v.muted = shouldMute;
 
@@ -588,21 +646,20 @@ function App() {
               if (v.paused) v.play().catch(() => { });
             } else {
               if (!v.paused) v.pause();
-              // Ensure muted when not active just in case
               if (!v.muted) v.muted = true;
             }
           }
         }
       });
 
-      // Sync Export Audios
+      // Sync Export Audios - Use larger tolerance to prevent glitches
       audioMap.forEach((a, id) => {
         const s = visualSlides.find(sl => sl.id === id);
         if (s) {
           if (t >= s.startTime && t < s.endTime) {
             const rel = t - s.startTime;
-            // [FIX] Increased tolerance to 0.2 for audio
-            if (Math.abs(a.currentTime - rel) > 0.2) a.currentTime = rel;
+            // Only seek if severely out of sync (>0.5s) to prevent audio buffer glitches
+            if (Math.abs(a.currentTime - rel) > 0.5) a.currentTime = rel;
 
             // Handle Audio Muting & Volume for Export
             const shouldMute = s.isMuted === true;
@@ -635,13 +692,24 @@ function App() {
           fontSizeScale
         );
       }
-
-      if (mediaRecorder.state === 'recording') {
-        requestAnimationFrame(renderLoop);
-      }
     };
 
-    renderLoop();
+    // Start Recording and Audio simultaneously for precise duration matching
+    if (!abortRenderRef.current) {
+      mediaRecorder.start();
+      setIsPlaying(true);
+      requestAnimationFrame(renderLoop);
+
+      // Start audio immediately (no delay for precise duration)
+      const startPromise = audioEl.play();
+      if (startPromise !== undefined) {
+        startPromise.catch(error => {
+          console.error("Playback failed start:", error);
+          setIsRendering(false);
+          mediaRecorder.stop();
+        });
+      }
+    }
   };
 
 
@@ -847,6 +915,36 @@ function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isPlaying, repeatMode, activeTab, isRendering, resetIdleTimer, handleAbortRender, isPlaylistMode]);
 
+  // Smooth Playback Animation Loop (Throttled to ~30fps)
+  useEffect(() => {
+    let animationFrameId: number;
+    let lastFrameTime = 0;
+    const fpsInterval = 1000 / 30;
+
+    const animate = (now: number) => {
+      if (audioRef.current && !audioRef.current.paused && isPlaying) {
+        animationFrameId = requestAnimationFrame(animate);
+
+        const elapsed = now - lastFrameTime;
+
+        if (elapsed > fpsInterval) {
+          lastFrameTime = now - (elapsed % fpsInterval);
+          setCurrentTime(audioRef.current.currentTime);
+        }
+      }
+    };
+
+    if (isPlaying && !isRendering) {
+      animationFrameId = requestAnimationFrame(animate);
+    }
+
+    return () => {
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+      }
+    };
+  }, [isPlaying, isRendering]);
+
   // --- Render Helpers ---
 
   // Combine manual visibility with mouse idle state
@@ -972,8 +1070,7 @@ function App() {
             } else {
               // Normal Mode (Single)
               if (repeatMode === 'all') {
-                // Treat 'All' as 'One' for single file? or just stop? Usually stop or loop.
-                // Let's loop for continuity if user selected 'All' (implicitly meaning 'Repeat')
+                // Loop for continuity if user selected 'All'
                 if (audioRef.current) {
                   audioRef.current.currentTime = 0;
                   audioRef.current.play();
@@ -1186,7 +1283,7 @@ function App() {
                 if (preset === 'large' || preset === 'large_upper') {
                   // Large: Left aligned, huge text, bold
                   // Render Logic Equiv: Portrait=90, Landscape=120. (Approx 25% diff)
-                  // Web Logic: 7xl (4.5rem) vs 9xl (8rem via arbitrary? no 9xl in tailwind default but maybe user has it, or we stick to 8xl/7xl)
+
                   // Let's us 6xl(3.75) vs 8xl(6)
                   const portraitActive = isEditor ? 'text-4xl' : 'text-6xl';
                   const landscapeActive = isEditor ? 'text-6xl' : 'text-8xl';
@@ -1357,7 +1454,7 @@ function App() {
                     }}
                     onClick={() => {
                       if (audioRef.current && !isRendering) {
-                        audioRef.current.currentTime = line.time; // This is the adjusted time, which is what we want? 
+                        audioRef.current.currentTime = line.time;
                         // If we want to jump to the EXACT point in audio where this lyric is SUPPOSED to play now:
                         // line.time IS (originalTime + offset).
                         // So if we seek to line.time, we are seeking to the adjusted time.
@@ -1638,7 +1735,7 @@ function App() {
                     <Video size={20} />
                   </button>
 
-                  {/* Volume Control Removed from here */}
+
                 </div>
               </div>
             </div>
