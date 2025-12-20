@@ -10,6 +10,8 @@ import { formatTime, parseLRC, parseSRT } from './utils/parsers';
 import VisualEditor from './components/VisualEditor';
 import PlaylistEditor from './components/PlaylistEditor';
 import { drawCanvasFrame } from './utils/canvasRenderer';
+// @ts-ignore
+import fixWebmDuration from 'fix-webm-duration';
 
 function App() {
   // Refs
@@ -44,6 +46,7 @@ function App() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isMouseIdle, setIsMouseIdle] = useState(false);
   const [bypassAutoHide, setBypassAutoHide] = useState(false);
+  const [isBgVideoReady, setIsBgVideoReady] = useState(false);
 
 
   // State: Video Export
@@ -169,9 +172,12 @@ function App() {
     if (file) {
       const url = URL.createObjectURL(file);
       const isVideo = file.type.startsWith('video/');
+      // Reset video ready state when changing background
+      if (isVideo) setIsBgVideoReady(false);
       setMetadata(prev => ({ ...prev, coverUrl: url, backgroundType: isVideo ? 'video' : 'image' }));
     }
   };
+
 
   const handleLyricsUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -394,12 +400,37 @@ function App() {
         vid.crossOrigin = "anonymous";
         vid.muted = true;
         vid.playsInline = true;
-        vid.onloadedmetadata = () => {
-          videoMap.set(id, vid);
-          resolve();
+        vid.preload = "auto";
+
+        let resolved = false;
+        const safeResolve = () => {
+          if (!resolved) {
+            resolved = true;
+            videoMap.set(id, vid);
+            resolve();
+          }
         };
-        vid.onerror = () => resolve();
+
+        vid.oncanplay = () => {
+          if (!resolved) {
+            vid.currentTime = 0.001; // Force seek to ensure frame decode
+          }
+        };
+
+        vid.onseeked = () => {
+          safeResolve();
+        };
+
+        vid.onerror = () => {
+          console.warn("Failed to load video:", url);
+          safeResolve();
+        };
+
+        // Fallback timeout
+        setTimeout(() => safeResolve(), 5000);
+
         vid.src = url;
+        vid.load();
       });
     };
 
@@ -529,19 +560,29 @@ function App() {
     mediaRecorder.onstop = () => {
       // Only download if NOT aborted
       if (!abortRenderRef.current) {
-        // Note to user: MediaRecorder often produces Variable Frame Rate videos.
-        // The duration metadata might be missing in some players for WebM/MP4 recorded this way.
         const blob = new Blob(chunks, { type: mimeType });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        // Clean filename
-        const ext = mimeType.includes('mp4') ? 'mp4' : 'webm';
-        a.download = `${metadata.title || 'video'}_${aspectRatio.replace(':', '-')}_${resolution}.${ext}`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+
+        const downloadBlob = (blobToDownload: Blob) => {
+          const url = URL.createObjectURL(blobToDownload);
+          const a = document.createElement('a');
+          a.href = url;
+          // Clean filename
+          const ext = mimeType.includes('mp4') ? 'mp4' : 'webm';
+          a.download = `${metadata.title || 'video'}_${aspectRatio.replace(':', '-')}_${resolution}.${ext}`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        };
+
+        if (mimeType.includes('webm')) {
+          const durationMs = (audioRef.current?.duration || 0) * 1000;
+          fixWebmDuration(blob, durationMs, (fixedBlob: Blob) => {
+            downloadBlob(fixedBlob);
+          });
+        } else {
+          downloadBlob(blob);
+        }
       } else {
         console.log("Render aborted");
       }
@@ -1111,10 +1152,12 @@ function App() {
             <video
               ref={bgVideoRef}
               src={metadata.coverUrl}
-              className="absolute inset-0 w-full h-full object-cover opacity-60"
+              className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${isBgVideoReady ? 'opacity-60' : 'opacity-0'}`}
               muted
               loop
               playsInline
+              preload="auto"
+              onLoadedData={() => setIsBgVideoReady(true)}
             />
           ) : (
             <div
