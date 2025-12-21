@@ -180,6 +180,8 @@ function App() {
         audioRef.current.load();
       }
     }
+    // Allow re-upload
+    e.target.value = '';
   };
 
   const handleMetadataUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -191,6 +193,8 @@ function App() {
       if (isVideo) setIsBgVideoReady(false);
       setMetadata(prev => ({ ...prev, coverUrl: url, backgroundType: isVideo ? 'video' : 'image' }));
     }
+    // Allow re-upload
+    e.target.value = '';
   };
 
 
@@ -213,6 +217,8 @@ function App() {
         alert("Failed to parse lyric file.");
       }
     }
+    // Allow re-upload
+    e.target.value = '';
   };
 
   const handleFontUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -234,6 +240,8 @@ function App() {
         alert("Failed to load font file.");
       }
     }
+    // Allow re-upload
+    e.target.value = '';
   };
 
   const playTrack = useCallback(async (index: number) => {
@@ -382,8 +390,17 @@ function App() {
 
     // Stop and Reset
     stopPlayback();
-    stopPlayback();
     setRepeatMode('off');
+
+    // Stop auto-hide immediately and bypass it during render
+    if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
+    setIsMouseIdle(false);
+    setBypassAutoHide(true);
+
+    // Pause background video in web view to prevent interference with render
+    if (bgVideoRef.current) {
+      bgVideoRef.current.pause();
+    }
 
     // Capture current preset to use inside the loop (avoid closure staleness if any, though activePreset is const in this render)
     const currentPreset = preset;
@@ -686,12 +703,28 @@ function App() {
       // Sync Export Videos - Use larger tolerance to prevent audio glitches
       videoMap.forEach((v, id) => {
         if (id === 'background') {
-          // Sync background (Modulo Loop for Deterministic Render)
+          // Sync background (Looping)
           const vidDuration = v.duration || 1;
-          const targetTime = t % vidDuration;
+          let targetTime = t % vidDuration;
 
-          // Background tolerance 1s - only seek if severely out of sync
-          if (Math.abs(v.currentTime - targetTime) > 1.0) v.currentTime = targetTime;
+          // Handle loop wrap-around logic
+          // If the difference is large (e.g. video is near end, target is near start), just let it play or seek if needed.
+          // We use a simple drift check. If drift > 1s, we snap.
+          // Special case: if we just wrapped around (targetTime is small, v.currentTime is large), we force seek to start.
+
+          let drift = Math.abs(v.currentTime - targetTime);
+
+          // Handle wrap-around drift calculation (e.g. current=59s, target=1s, duration=60s -> drift is 2s, not 58s)
+          // Actually, simplest is: if targetTime < v.currentTime significanty (meaning new loop started), we seek.
+
+          if (targetTime < v.currentTime && (v.currentTime - targetTime) > vidDuration / 2) {
+            // We wrapped around in target, but video is still near end. Seek to start.
+            v.currentTime = targetTime;
+          } else if (drift > 1.0) {
+            // Normal drift correction
+            v.currentTime = targetTime;
+          }
+
           if (v.paused) v.play().catch(() => { });
         } else {
           // Sync slide
@@ -852,22 +885,25 @@ function App() {
   // ... (keep existing state)
 
   // Helper to reset idle timer
+  // Helper to reset idle timer
   const resetIdleTimer = useCallback(() => {
     setIsMouseIdle(false);
     if (controlsTimeoutRef.current) {
       clearTimeout(controlsTimeoutRef.current);
     }
 
-    // Auto-hide after 3s of inactivity
-    const timeout = window.setTimeout(() => {
-      // Only set idle if we aren't bypassing it
-      // Note: We check the ref/state inside the timeout or rely on the component state updates
-      // Since bypassAutoHide overrides the EFFECT of isMouseIdle in the render, we can just set isMouseIdle(true)
-      setIsMouseIdle(true);
-    }, 3000);
+    // Auto-hide after 3s of inactivity (only if not rendering)
+    if (!isRendering) {
+      const timeout = window.setTimeout(() => {
+        // Only set idle if we aren't bypassing it
+        // Note: We check the ref/state inside the timeout or rely on the component state updates
+        // Since bypassAutoHide overrides the EFFECT of isMouseIdle in the render, we can just set isMouseIdle(true)
+        setIsMouseIdle(true);
+      }, 3000);
 
-    controlsTimeoutRef.current = timeout;
-  }, []);
+      controlsTimeoutRef.current = timeout;
+    }
+  }, [isRendering]);
 
   // Handle idle mouse to hide controls
   const handleMouseMove = () => {
@@ -1048,25 +1084,29 @@ function App() {
     // 1. Active Slide Video
     if (activeSlide?.type === 'video' && activeVideoRef.current) {
       const vid = activeVideoRef.current;
-      const relTime = currentTime - activeSlide.startTime;
 
-      // Check if we need to sync timestamps (fix drift/seeks)
-      // Threshold 0.1s: Tight enough for smooth scrubbing, loose enough for playback drift
-      if (Math.abs(vid.currentTime - relTime) > 0.1) {
-        vid.currentTime = relTime;
-      }
+      if (isRendering) {
+        if (!vid.paused) vid.pause();
+      } else {
+        const relTime = currentTime - activeSlide.startTime;
 
-      // Sync Muted State & Volume
-      const shouldMute = activeSlide.isMuted !== false; // Default true (muted)
-      if (vid.muted !== shouldMute) vid.muted = shouldMute;
+        // Check if we need to sync timestamps (fix drift/seeks)
+        if (Math.abs(vid.currentTime - relTime) > 0.1) {
+          vid.currentTime = relTime;
+        }
 
-      const targetVolume = activeSlide.volume !== undefined ? activeSlide.volume : 1;
-      if (Math.abs(vid.volume - targetVolume) > 0.01) vid.volume = targetVolume;
+        // Sync Muted State & Volume
+        const shouldMute = activeSlide.isMuted !== false; // Default true (muted)
+        if (vid.muted !== shouldMute) vid.muted = shouldMute;
 
-      if (isPlaying && vid.paused) {
-        vid.play().catch(() => { }); // catch interrupt errors
-      } else if (!isPlaying && !vid.paused) {
-        vid.pause();
+        const targetVolume = activeSlide.volume !== undefined ? activeSlide.volume : 1;
+        if (Math.abs(vid.volume - targetVolume) > 0.01) vid.volume = targetVolume;
+
+        if (isPlaying && vid.paused) {
+          vid.play().catch(() => { }); // catch interrupt errors
+        } else if (!isPlaying && !vid.paused) {
+          vid.pause();
+        }
       }
     }
 
@@ -1077,19 +1117,23 @@ function App() {
     if (metadata.backgroundType === 'video' && bgVideoRef.current) {
       const vid = bgVideoRef.current;
 
-      // Sync with modulo for Looping
-      const vidDuration = vid.duration || 1;
-      const targetTime = currentTime % vidDuration;
+      if (isRendering) {
+        if (!vid.paused) vid.pause();
+      } else {
+        // Sync with modulo for Looping
+        const vidDuration = vid.duration || 1;
+        const targetTime = currentTime % vidDuration;
 
-      // Sync if drifted > 0.1s (Smoother scrubbing)
-      if (Math.abs(vid.currentTime - targetTime) > 0.1) {
-        vid.currentTime = targetTime;
-      }
+        // Sync if drifted > 0.1s (Smoother scrubbing)
+        if (Math.abs(vid.currentTime - targetTime) > 0.1) {
+          vid.currentTime = targetTime;
+        }
 
-      if (isPlaying && vid.paused) {
-        vid.play().catch(() => { });
-      } else if (!isPlaying && !vid.paused) {
-        vid.pause();
+        if (isPlaying && vid.paused) {
+          vid.play().catch(() => { });
+        } else if (!isPlaying && !vid.paused) {
+          vid.pause();
+        }
       }
     }
 
@@ -1195,7 +1239,7 @@ function App() {
               src={metadata.coverUrl}
               className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${isBgVideoReady ? 'opacity-60' : 'opacity-0'}`}
               muted
-              loop
+              loop={!isRendering}
               playsInline
               preload="auto"
               onLoadedData={() => setIsBgVideoReady(true)}

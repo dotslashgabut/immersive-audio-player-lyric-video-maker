@@ -246,6 +246,7 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
 
       // Append slides instead of replace
       setSlides(prev => [...prev, ...newSlides].sort((a, b) => a.startTime - b.startTime));
+      // Allow re-upload
       e.target.value = '';
     }
   };

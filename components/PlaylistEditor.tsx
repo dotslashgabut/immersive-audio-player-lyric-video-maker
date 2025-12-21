@@ -217,6 +217,7 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
                 setPlaylist(prev => [...prev, ...newItems]);
             }
 
+            // Allow re-upload
             e.target.value = '';
         }
     };
