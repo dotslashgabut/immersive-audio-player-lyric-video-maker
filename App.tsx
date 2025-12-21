@@ -941,6 +941,14 @@ function App() {
           e.preventDefault();
           stopPlayback();
           break;
+        case 'n':
+          e.preventDefault();
+          playNextSong();
+          break;
+        case 'b':
+          e.preventDefault();
+          playPreviousSong();
+          break;
         case 'r': // Loop (Repeat)
           e.preventDefault();
           toggleRepeat();
@@ -1031,7 +1039,7 @@ function App() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isPlaying, repeatMode, activeTab, isRendering, resetIdleTimer, handleAbortRender, isPlaylistMode]);
+  }, [isPlaying, repeatMode, activeTab, isRendering, resetIdleTimer, handleAbortRender, isPlaylistMode, playNextSong, playPreviousSong]);
 
   // Smooth Playback Animation Loop (Throttled to ~30fps)
   useEffect(() => {
@@ -1662,7 +1670,7 @@ function App() {
 
               {/* Main Buttons */}
               <div className="flex flex-wrap lg:grid lg:grid-cols-[1fr_auto_1fr] items-center justify-center gap-4">
-                <div className="flex gap-2 justify-center lg:justify-start flex-wrap order-2 lg:order-none w-auto lg:w-full">
+                <div className="flex gap-1 justify-center lg:justify-start flex-wrap order-2 lg:order-none w-auto lg:w-full">
                   <label className="p-2 rounded-lg hover:bg-white/10 text-zinc-400 hover:text-white cursor-pointer transition-colors" title="Load Audio">
                     <Music size={18} />
                     <input type="file" accept="audio/*" className="hidden" onChange={handleAudioUpload} disabled={isRendering} />
@@ -1727,7 +1735,7 @@ function App() {
                   </div>
 
                   {/* Font Size Control */}
-                  <div className="flex items-center gap-1 ml-1 bg-zinc-800/50 rounded-lg px-2 py-1 h-9">
+                  <div className="flex items-center gap-1 bg-zinc-800/50 rounded-lg px-2 py-1 h-9">
                     <span className="text-xs text-zinc-300 w-10 text-center font-mono select-none border-r border-white/10 pr-2 mr-1">
                       {Math.round(fontSizeScale * 100)}%
                     </span>
@@ -1752,7 +1760,7 @@ function App() {
                   </div>
 
                   {/* Preset Dropdown (Moved here) */}
-                  <div className="relative group ml-1">
+                  <div className="relative group">
                     <select
                       value={preset}
                       onChange={(e) => setPreset(e.target.value as any)}
@@ -1826,7 +1834,7 @@ function App() {
 
                 </div>
 
-                <div className="flex items-center gap-2 justify-center lg:justify-end group flex-wrap order-3 lg:order-none w-auto lg:w-full">
+                <div className="flex items-center gap-1 justify-center lg:justify-end group flex-wrap order-3 lg:order-none w-auto lg:w-full">
 
                   {/* Resolution Toggle */}
                   <button
