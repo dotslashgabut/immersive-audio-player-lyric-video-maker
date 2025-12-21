@@ -41,7 +41,7 @@
   - **Shift + Click** for range selection.
   - **Ctrl + Click** for multi-selection.
 - **Precise Control**:
-  - **Arrow Keys**: Nudge selected clips by 0.5s.
+  - **Arrow Keys**: Nudge selected clips by 0.1s.
   - **Volume Mixing**: Independent mute/volume control for every video and audio clip on the timeline.
 
 ![Timeline Editor](screenshot-timeline.jpg)
@@ -95,6 +95,7 @@
 | **Ctrl + Z / Y** | Undo / Redo (Editor) |
 | **Ctrl + C / V** | Copy / Paste (Editor) |
 | **Escape** | Abort Video Rendering |
+| **Ctrl/Cmd + Shift + E** | Export / Render Video |
 
 ## Installation
 
@@ -135,7 +136,7 @@ This application is built with React + Vite and requires **Node.js** to run.
 - **Sorting Fleksibel**: Urutkan playlist berdasarkan Artis, Judul, Album (Bolak-balik Ascending/Descending), atau acak.
 - **Kontrol Akurasi**: Atur offset lirik (maju/mundur 0.1s) jika teks kurang pas dengan suara.
 - **Timeline Canggih**: Sekarang dengan fitur **Undo/Redo**, **Copy-Paste** slide, **Drag Selection**, dan **Snapping** otomatis agar visual pas dengan ketukan lirik.
-- **Shortcut Baru**: Tekan **N**/**B** (Next/Prev), **M** (Mute), **R** (Repeat), **L** (Playlist), dan **+/-** (Font).
+- **Shortcut Baru**: Tekan **N**/**B** (Next/Prev), **M** (Mute), **R** (Repeat), **L** (Playlist), **+/-** (Font), dan **Ctrl/Cmd+Shift+E** (Export).
 
 ### Cara Install & Jalan
 1.  Pastikan sudah install **Node.js**.

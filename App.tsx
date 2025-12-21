@@ -21,6 +21,7 @@ function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const abortRenderRef = useRef(false);
+  const exportVideoRef = useRef<() => void>(() => { });
 
   // State: Media & Data
   const [audioSrc, setAudioSrc] = useState<string | null>(null);
@@ -827,6 +828,11 @@ function App() {
     startRender();
   };
 
+  // Keep export function ref up to date for shortcuts
+  useEffect(() => {
+    exportVideoRef.current = handleExportVideo;
+  });
+
 
 
   const handleAbortRender = useCallback(() => {
@@ -915,7 +921,7 @@ function App() {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Check if the key shoud trigger UI wake-up
       const key = e.key.toLowerCase();
-      const ignoredKeysForIdle = [' ', 'k', 's', 't', 'l', 'r', 'f', 'h', 'm', 'j', 'arrowleft', 'arrowright', 'arrowup', 'arrowdown', 'meta', 'control', 'shift', 'alt', 'printscreen', 'fn', '+', '-', '='];
+      const ignoredKeysForIdle = [' ', 'k', 's', 't', 'l', 'r', 'f', 'h', 'm', 'j', 'e', 'arrowleft', 'arrowright', 'arrowup', 'arrowdown', 'meta', 'control', 'shift', 'alt', 'printscreen', 'fn', '+', '-', '='];
 
       if (!ignoredKeysForIdle.includes(key)) {
         resetIdleTimer();
@@ -1033,6 +1039,12 @@ function App() {
         case '-':
           e.preventDefault();
           setFontSizeScale(prev => Math.max(prev - 0.1, 0.5)); // Min 50%
+          break;
+        case 'e':
+          if ((e.ctrlKey || e.metaKey) && e.shiftKey) {
+            e.preventDefault();
+            exportVideoRef.current();
+          }
           break;
       }
     };
@@ -1836,33 +1848,35 @@ function App() {
 
                 <div className="flex items-center gap-1 justify-center lg:justify-end group flex-wrap order-3 lg:order-none w-auto lg:w-full">
 
-                  {/* Resolution Toggle */}
-                  <button
-                    onClick={() => setResolution(prev => prev === '1080p' ? '720p' : '1080p')}
-                    className="bg-zinc-800/50 border border-white/5 text-[10px] font-mono text-zinc-300 hover:text-white rounded-lg px-2 h-9 transition-colors disabled:opacity-30"
-                    title="Toggle Resolution (720p / 1080p)"
-                    disabled={isRendering}
-                  >
-                    {resolution}
-                  </button>
-                  {/* Aspect Ratio Toggle */}
-                  <button
-                    onClick={() => setAspectRatio(prev => {
-                      if (prev === '16:9') return '9:16';
-                      if (prev === '9:16') return '3:4';
-                      if (prev === '3:4') return '1:1';
-                      if (prev === '1:1') return '1:2';
-                      if (prev === '1:2') return '2:1';
-                      if (prev === '2:1') return '2:3';
-                      if (prev === '2:3') return '3:2';
-                      return '16:9';
-                    })}
-                    className="bg-zinc-800/50 border border-white/5 text-[10px] font-mono text-zinc-300 hover:text-white rounded-lg px-2 h-9 transition-colors disabled:opacity-30"
-                    title="Toggle Aspect Ratio (16:9 / 9:16 / 3:4 / 1:1 / 1:2 / 2:1 / 2:3 / 3:2)"
-                    disabled={isRendering}
-                  >
-                    {aspectRatio}
-                  </button>
+                  <div className="flex items-center gap-1">
+                    {/* Resolution Toggle */}
+                    <button
+                      onClick={() => setResolution(prev => prev === '1080p' ? '720p' : '1080p')}
+                      className="bg-zinc-800/50 border border-white/5 text-[10px] font-mono text-zinc-300 hover:text-white rounded-lg px-2 h-9 transition-colors disabled:opacity-30"
+                      title="Toggle Resolution (720p / 1080p)"
+                      disabled={isRendering}
+                    >
+                      {resolution}
+                    </button>
+                    {/* Aspect Ratio Toggle */}
+                    <button
+                      onClick={() => setAspectRatio(prev => {
+                        if (prev === '16:9') return '9:16';
+                        if (prev === '9:16') return '3:4';
+                        if (prev === '3:4') return '1:1';
+                        if (prev === '1:1') return '1:2';
+                        if (prev === '1:2') return '2:1';
+                        if (prev === '2:1') return '2:3';
+                        if (prev === '2:3') return '3:2';
+                        return '16:9';
+                      })}
+                      className="bg-zinc-800/50 border border-white/5 text-[10px] font-mono text-zinc-300 hover:text-white rounded-lg px-2 h-9 transition-colors disabled:opacity-30"
+                      title="Toggle Aspect Ratio (16:9 / 9:16 / 3:4 / 1:1 / 1:2 / 2:1 / 2:3 / 3:2)"
+                      disabled={isRendering}
+                    >
+                      {aspectRatio}
+                    </button>
+                  </div>
                   {/* Codec Selection */}
                   <div className="relative group">
                     <select
@@ -1925,7 +1939,7 @@ function App() {
                     onClick={handleExportVideo}
                     disabled={isRendering || !audioSrc}
                     className="p-2 rounded-lg hover:bg-white/10 text-zinc-400 hover:text-white cursor-pointer transition-colors"
-                    title="Export as Video (Alt+E)"
+                    title="Export as Video"
                   >
                     <Video size={18} />
                   </button>
