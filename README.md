@@ -8,6 +8,7 @@
 
 ### 🎧 Advanced Audio Player & Playlist
 - **Smart Playlist**: Drag & drop multiple files. Automatically groups audio files with matching lyric files (`.lrc` or `.srt`) based on filename.
+- **Interactive Lyric Timeline**: Each playlist item shows a mini-timeline of lyrics. Click any line to play that specific track starting from that time.
 - **Sorting & Management**: Sort by Filename, Artist, Title, Album (Ascending/Descending), or Shuffle.
 - **Repeat Modes**: Cycle between **Off**, **Repeat All**, and **Repeat One**.
 - **Immersive Mode**: UI controls automatically fade out when idle for a distraction-free experience.
@@ -74,9 +75,11 @@
 
 | Key | Function |
 | :--- | :--- |
+| **N** | Play Next Song |
+| **B** | Play Previous Song |
 | **Space / K** | Play / Pause |
 | **Arrow Left / Right** | Rewind / Forward 5s (Player) OR Nudge Slide (Editor) |
-| **Arrow Up / Down**| Navigate Playlist Tracks |
+| **Arrow Up / Down**| Navigate Playlist Tracks (Playlist) OR Scroll Lyrics (Player) |
 | **M** | Toggle Mute |
 | **R** | Toggle Repeat Mode (Off -> All -> One) |
 | **J** | Next Visual Preset |
@@ -128,10 +131,11 @@ This application is built with React + Vite and requires **Node.js** to run.
 
 ### Fitur Utama Baru
 - **Playlist Pintar**: Masukkan banyak file sekaligus. Aplikasi otomatis memasangkan lagu dengan lirik (`.lrc`/`.srt`) yang bernama sama.
+- **Timeline Lirik Interaktif**: Lihat cuplikan lirik di playlist. Klik baris mana saja untuk langsung memutar lagu itu.
 - **Sorting Fleksibel**: Urutkan playlist berdasarkan Artis, Judul, Album (Bolak-balik Ascending/Descending), atau acak.
 - **Kontrol Akurasi**: Atur offset lirik (maju/mundur 0.1s) jika teks kurang pas dengan suara.
 - **Timeline Canggih**: Sekarang dengan fitur **Undo/Redo**, **Copy-Paste** slide, **Drag Selection**, dan **Snapping** otomatis agar visual pas dengan ketukan lirik.
-- **Shortcut Baru**: Tekan **M** untuk Mute, **R** untuk Repeat, **L** untuk Playlist, dan **+/-** untuk ukuran huruf.
+- **Shortcut Baru**: Tekan **N**/**B** (Next/Prev), **M** (Mute), **R** (Repeat), **L** (Playlist), dan **+/-** (Font).
 
 ### Cara Install & Jalan
 1.  Pastikan sudah install **Node.js**.

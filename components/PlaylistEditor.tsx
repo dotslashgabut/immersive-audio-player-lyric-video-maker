@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect, useCallback } from 'react';
+import React, { useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import { PlaylistItem, LyricLine } from '../types';
 import { Plus, Trash2, Play, Volume2, FileText, ListMusic, Shuffle, User, Disc, Music } from './Icons';
 import { formatTime, parseLRC, parseSRT } from '../utils/parsers';
@@ -11,12 +11,34 @@ interface PlaylistEditorProps {
     onPlayTrack: (index: number) => void;
     onSeek: (time: number) => void;
     onClearPlaylist: () => void;
+    currentTime: number;
 }
 
-const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, currentTrackIndex, setCurrentTrackIndex, onPlayTrack, onSeek, onClearPlaylist }) => {
+const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, currentTrackIndex, setCurrentTrackIndex, onPlayTrack, onSeek, onClearPlaylist, currentTime }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
     const [sortConfig, setSortConfig] = useState<{ key: string | null; direction: 'asc' | 'desc' }>({ key: null, direction: 'asc' });
+
+    // Auto-scroll active lyric
+    const currentItem = currentTrackIndex >= 0 ? playlist[currentTrackIndex] : null;
+    const currentLyrics = currentItem?.parsedLyrics || [];
+
+    const activeLyricIndex = useMemo(() => {
+        if (!currentItem) return -1;
+        return currentLyrics.findIndex((l, i) => {
+            const next = currentLyrics[i + 1];
+            return currentTime >= l.time && (!next || currentTime < next.time);
+        });
+    }, [currentTime, currentItem, currentLyrics]);
+
+    useEffect(() => {
+        if (activeLyricIndex !== -1) {
+            const activeEl = document.getElementById(`lyric-active-${currentTrackIndex}`);
+            if (activeEl) {
+                activeEl.scrollIntoView({ behavior: 'smooth', inline: 'nearest', block: 'nearest' });
+            }
+        }
+    }, [activeLyricIndex, currentTrackIndex]);
 
     const handleSort = (type: 'filename' | 'artist' | 'title' | 'album' | 'random') => {
         if (playlist.length === 0) return;
@@ -313,6 +335,13 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
                         const isCurrent = idx === currentTrackIndex;
                         const isSelected = idx === selectedIndex;
                         const lyrics = item.parsedLyrics || [];
+
+                        // Determine active lyric index if this is the current track
+                        const activeLyricIndex = isCurrent ? lyrics.findIndex((l, i) => {
+                            const next = lyrics[i + 1];
+                            return currentTime >= l.time && (!next || currentTime < next.time);
+                        }) : -1;
+
                         return (
                             <div
                                 key={item.id}
@@ -376,27 +405,35 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
                                 <div className="flex-1 min-w-0 h-12 bg-zinc-950/50 rounded border border-zinc-800/50 overflow-x-auto overflow-y-hidden custom-scrollbar">
                                     {lyrics.length > 0 ? (
                                         <div className="relative h-full min-w-max flex items-center px-1">
-                                            {lyrics.map((line, lIdx) => (
-                                                <div
-                                                    key={lIdx}
-                                                    className="flex items-center gap-1 px-1.5 py-0.5 mx-0.5 rounded text-[9px] bg-zinc-800/50 hover:bg-blue-900/50 border border-zinc-700/30 hover:border-blue-500/50 transition-colors whitespace-nowrap cursor-pointer"
-                                                    title={`${formatTime(line.time)} - ${line.text}`}
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        // If this track is not the current one, play it first
-                                                        if (idx !== currentTrackIndex) {
-                                                            onPlayTrack(idx);
-                                                            // Delay seek slightly to allow audio to load
-                                                            setTimeout(() => onSeek(line.time), 150);
-                                                        } else {
-                                                            onSeek(line.time);
-                                                        }
-                                                    }}
-                                                >
-                                                    <span className="text-zinc-500 font-mono text-[8px]">{formatTime(line.time)}</span>
-                                                    <span className="text-zinc-400 truncate max-w-[120px]">{line.text || '♪'}</span>
-                                                </div>
-                                            ))}
+                                            {lyrics.map((line, lIdx) => {
+                                                const isActive = lIdx === activeLyricIndex;
+                                                return (
+                                                    <div
+                                                        key={lIdx}
+                                                        id={isActive ? `lyric-active-${idx}` : undefined}
+                                                        className={`flex items-center gap-1 px-1.5 py-0.5 mx-0.5 rounded text-[9px] transition-colors whitespace-nowrap cursor-pointer
+                                                        ${isActive
+                                                                ? 'bg-orange-600 text-white border border-orange-400 shadow-[0_0_10px_rgba(234,88,12,0.3)]'
+                                                                : 'bg-zinc-800/50 hover:bg-blue-900/50 border border-zinc-700/30 hover:border-blue-500/50 text-zinc-400'}
+                                                    `}
+                                                        title={`${formatTime(line.time)} - ${line.text}`}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            // If this track is not the current one, play it first
+                                                            if (idx !== currentTrackIndex) {
+                                                                onPlayTrack(idx);
+                                                                // Delay seek slightly to allow audio to load
+                                                                setTimeout(() => onSeek(line.time), 150);
+                                                            } else {
+                                                                onSeek(line.time);
+                                                            }
+                                                        }}
+                                                    >
+                                                        <span className={`font-mono text-[8px] ${isActive ? 'text-orange-200' : 'text-zinc-500'}`}>{formatTime(line.time)}</span>
+                                                        <span className={`truncate max-w-[120px] ${isActive ? 'text-white font-medium' : 'text-zinc-400'}`}>{line.text || '♪'}</span>
+                                                    </div>
+                                                )
+                                            })}
                                         </div>
                                     ) : (
                                         <div className="h-full flex items-center justify-center text-zinc-700 text-[9px] italic">

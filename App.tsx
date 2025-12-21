@@ -1945,6 +1945,7 @@ function App() {
               currentTrackIndex={currentTrackIndex}
               setCurrentTrackIndex={setCurrentTrackIndex}
               onPlayTrack={playTrack}
+              currentTime={currentTime}
               onSeek={(time) => {
                 if (audioRef.current && !isRendering) {
                   audioRef.current.currentTime = time;
