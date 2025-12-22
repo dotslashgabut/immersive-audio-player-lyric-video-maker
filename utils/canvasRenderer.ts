@@ -147,13 +147,13 @@ export const drawCanvasFrame = (
         ctx.filter = 'none';
     }
 
-    if (activePreset !== 'just_video') {
+    if (activePreset !== 'just_video' && activePreset !== 'none') {
         ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
         if (currentSlide) ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
         ctx.fillRect(0, 0, width, height);
     }
 
-    if (activePreset === 'just_video') return;
+    if (activePreset === 'just_video' || activePreset === 'none') return;
 
     const activeIdx = lyrics.findIndex((line, index) => {
         if (line.endTime !== undefined) {

@@ -1005,7 +1005,7 @@ function App() {
           const presets: VideoPreset[] = [
             'default', 'large', 'classic', 'large_upper', 'monospace',
             'big_center', 'metal', 'kids', 'sad', 'romantic', 'tech',
-            'gothic', 'testing', 'testing_up', 'slideshow', 'just_video', 'subtitle'
+            'gothic', 'testing', 'testing_up', 'slideshow', 'just_video', 'subtitle', 'none'
           ];
           setPreset(prev => {
             const idx = presets.indexOf(prev);
@@ -1437,6 +1437,11 @@ function App() {
                   return <p key={idx} className="hidden" />;
                 }
 
+                // None Preset: Hide all
+                if (preset === 'none') {
+                  return <p key={idx} className="hidden" />;
+                }
+
                 // --- Dynamic Styling based on Preset ---
                 let activeClass = '';
                 let inactiveClass = '';
@@ -1656,7 +1661,7 @@ function App() {
             </div>
           ) : (
             <div className="text-center text-zinc-400/50 select-none pointer-events-none">
-              {!activeSlide && (
+              {!activeSlide && preset !== 'none' && (
                 <div className="flex flex-col items-center gap-4 animate-pulse">
                   <Music size={64} className="opacity-20" />
                   <p>Load audio & lyrics to start</p>
@@ -1833,6 +1838,7 @@ function App() {
                       <option value="slideshow" className="bg-zinc-900">Slideshow</option>
                       <option value="just_video" className="bg-zinc-900">Just Video</option>
                       <option value="subtitle" className="bg-zinc-900">Subtitle</option>
+                      <option value="none" className="bg-zinc-900">None</option>
                     </select>
                     <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-1 text-zinc-500">
                       <svg className="fill-current h-3 w-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" /></svg>

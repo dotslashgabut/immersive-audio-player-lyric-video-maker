@@ -49,7 +49,8 @@ export type VideoPreset =
   | 'one_line_up'
   | 'slideshow'
   | 'just_video'
-  | 'subtitle';
+  | 'subtitle'
+  | 'none';
 
 export interface PlaylistItem {
   id: string;

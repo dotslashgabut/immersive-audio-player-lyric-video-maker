@@ -25,9 +25,11 @@
   - **Standard**: Default, Big Text, Big Text (UP), Big Center (UP).
   - **Thematic**: Metal, Kids, Sad, Romantic, Tech, Gothic, Classic Serif, Monospace.
   - **Social**: 
-    - **Slideshow**: Minimalist line-by-line (Great for Reels).
+    - **One Line / One Line (UP)**: Minimalist single-line display (Modern TikTok/Reels style).
+    - **Slideshow**: Minimalist line-by-line.
     - **Subtitle**: Cinematic bottom-centered text (No song metadata).
-    - **Just Video**: Hides text completely.
+    - **Just Video**: Hides text content.
+    - **None**: Hides everything (Lyrics, Titles, and Metadata).
 
 ### 🎬 Professional Visual Timeline Editor
  Create complex visual stories synchronized to your music.
@@ -43,6 +45,8 @@
 - **Precise Control**:
   - **Arrow Keys**: Nudge selected clips by 0.1s.
   - **Volume Mixing**: Independent mute/volume control for every video and audio clip on the timeline.
+- **Visual Effects**:
+  - **Background Blur**: Toggle between 'Sharp' and 'Blur' for background media.
 
 ![Timeline Editor](screenshot-timeline.jpg)
 
@@ -50,7 +54,8 @@
 - **Flexible Render Settings**:
   - **Resolution**: 720p / 1080p.
   - **Frame Rate**: Support for **24, 25, 30, 50, and 60 FPS**.
-  - **Quality**: Adjustable bitrate presets (Low, Medium, High).
+  - **Quality**: Adjustable bitrate presets (**Low, Med, High**).
+  - **Visual Toggles**: Quick toggle for **Background Blur** (Sharp/Blur) directly in the export panel.
   - **Codecs**: Full control over output format, supporting **H.264 (MP4)**, **VP9 (WebM)**, and **AV1** (where supported).
 - **Aspect Ratios**: 
   - **16:9** (Landscape - YouTube)
@@ -62,6 +67,7 @@
   - **1:2** (Tall Vertical)
   - **2:1** (Cinematic Landscape)
 - **Smart Overlays**: Automatically generates metadata overlays for "Now Playing" visuals.
+- **Dynamic Blur**: Apply real-time Gaussian-style blur to background images or videos for better lyric readability.
 - **High-Fidelity Rendering**: Native **Canvas 2D** rendering allows for pixel-perfect text at any frame rate.
 
 ![Export Interface](screenshot-render.jpg)
@@ -135,6 +141,7 @@ This application is built with React + Vite and requires **Node.js** to run.
 - **Timeline Lirik Interaktif**: Lihat cuplikan lirik di playlist. Klik baris mana saja untuk langsung memutar lagu itu.
 - **Sorting Fleksibel**: Urutkan playlist berdasarkan Artis, Judul, Album (Bolak-balik Ascending/Descending), atau acak.
 - **Kontrol Akurasi**: Atur offset lirik (maju/mundur 0.1s) jika teks kurang pas dengan suara.
+- **Visual Efek**: Fitur **Background Blur** untuk memperlembut tampilan latar belakang agar lirik lebih terbaca.
 - **Timeline Canggih**: Sekarang dengan fitur **Undo/Redo**, **Copy-Paste** slide, **Drag Selection**, dan **Snapping** otomatis agar visual pas dengan ketukan lirik.
 - **Shortcut Baru**: Tekan **N**/**B** (Next/Prev), **M** (Mute), **R** (Repeat), **L** (Playlist), **+/-** (Font), dan **Ctrl/Cmd+Shift+E** (Export).
 
@@ -155,6 +162,6 @@ This application is built with React + Vite and requires **Node.js** to run.
     - Gunakan **Ctrl+Z** jika salah edit.
     - Shift+Klik untuk pilih banyak slide.
 3.  **Export**:
-    - Pilih rasio, **FPS**, **Codec**, dan **Kualitas** yang diinginkan.
+    - Pilih rasio, **FPS**, **Codec**, dan **Kualitas** (**Low, Med, High**) yang diinginkan.
     - Klik tombol Video 🎥.
     - Jangan ganti tab browser sampai selesai.
