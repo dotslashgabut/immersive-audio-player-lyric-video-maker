@@ -12,7 +12,8 @@ export const drawCanvasFrame = (
     videos: Map<string, ImageBitmap | HTMLVideoElement>,
     activePreset: VideoPreset,
     customFontName: string | null,
-    fontSizeScale: number
+    fontSizeScale: number,
+    isBlurEnabled: boolean
 ) => {
     // Helper for wrapping text
     const getWrappedLines = (ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D, text: string, maxWidth: number) => {
@@ -120,6 +121,10 @@ export const drawCanvasFrame = (
         }
     };
 
+    if (isBlurEnabled) {
+        ctx.filter = 'blur(12px)';
+    }
+
     if (currentSlide) {
         if (currentSlide.type === 'video' && videos.has(currentSlide.id)) {
             const vid = videos.get(currentSlide.id);
@@ -138,6 +143,10 @@ export const drawCanvasFrame = (
         }
     }
 
+    if (isBlurEnabled) {
+        ctx.filter = 'none';
+    }
+
     if (activePreset !== 'just_video') {
         ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
         if (currentSlide) ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
@@ -151,6 +160,12 @@ export const drawCanvasFrame = (
         return time >= line.time && (!nextLine || time < nextLine.time);
     });
 
+    // Intro Title Logic: Show title as a fake lyric in the first 5 seconds if no lyric is active
+    let showIntroTitle = false;
+    if (activeIdx === -1 && time < 5) {
+        showIntroTitle = true;
+    }
+
     let baseFontSize = (isPortrait ? 50 : 60) * scale;
     let secondaryFontSize = (isPortrait ? 25 : 30) * scale;
     let lineSpacing = (isPortrait ? 80 : 100) * scale;
@@ -159,7 +174,7 @@ export const drawCanvasFrame = (
         baseFontSize = (isPortrait ? 90 : 120) * scale;
         secondaryFontSize = (isPortrait ? 30 : 40) * scale;
         lineSpacing = (isPortrait ? 110 : 140) * scale;
-    } else if (activePreset === 'large_upper' || activePreset === 'big_center' || activePreset === 'metal' || activePreset === 'kids' || activePreset === 'tech' || activePreset === 'testing' || activePreset === 'testing_up') {
+    } else if (activePreset === 'large_upper' || activePreset === 'big_center' || activePreset === 'metal' || activePreset === 'kids' || activePreset === 'tech' || activePreset === 'testing' || activePreset === 'testing_up' || activePreset === 'one_line' || activePreset === 'one_line_up') {
         baseFontSize = (isPortrait ? 80 : 110) * scale;
         secondaryFontSize = (isPortrait ? 30 : 40) * scale;
         lineSpacing = (isPortrait ? 110 : 140) * scale;
@@ -180,18 +195,24 @@ export const drawCanvasFrame = (
     secondaryFontSize *= fontSizeScale;
     lineSpacing *= fontSizeScale;
 
-    if (activeIdx !== -1) {
+    if (activeIdx !== -1 || showIntroTitle) {
         const centerY = height / 2;
         let activeLineShift = 0;
-        const isBigLayout = ['large', 'large_upper', 'big_center', 'metal', 'kids', 'sad', 'romantic', 'tech', 'gothic', 'testing', 'testing_up'].includes(activePreset);
+        const isBigLayout = ['large', 'large_upper', 'big_center', 'metal', 'kids', 'sad', 'romantic', 'tech', 'gothic', 'testing', 'testing_up', 'one_line', 'one_line_up'].includes(activePreset);
 
         if (isBigLayout || activePreset === 'slideshow' || activePreset === 'subtitle') {
-            const activeLine = lyrics[activeIdx];
+            let activeLine: LyricLine;
+            if (showIntroTitle) {
+                activeLine = { time: 0, text: `${metadata.title}\n${metadata.artist}` };
+            } else {
+                activeLine = lyrics[activeIdx];
+            }
+
             const weight = '900';
             ctx.font = `${weight} ${baseFontSize}px ${fontFamily}`;
 
             const maxWidth = width * 0.9;
-            const textToCheck = (activePreset === 'large_upper' || activePreset === 'big_center' || activePreset === 'metal' || activePreset === 'tech' || activePreset === 'testing_up') ? activeLine.text.toUpperCase() : activeLine.text;
+            const textToCheck = (activePreset === 'large_upper' || activePreset === 'big_center' || activePreset === 'metal' || activePreset === 'tech' || activePreset === 'testing_up' || activePreset === 'one_line_up') ? activeLine.text.toUpperCase() : activeLine.text;
             const lines = getWrappedLines(ctx, textToCheck, maxWidth);
 
             if (lines.length > 1) {
@@ -203,12 +224,25 @@ export const drawCanvasFrame = (
         const range = isBigLayout ? 1 : 2;
 
         for (let i = -range; i <= range; i++) {
-            const idx = activeIdx + i;
-            if (idx >= 0 && idx < lyrics.length) {
-                if ((activePreset === 'testing' || activePreset === 'testing_up') && i < 0) continue;
+            let line: LyricLine | null = null;
+            let isCurrent = false;
 
-                const line = lyrics[idx];
-                const isCurrent = i === 0;
+            if (showIntroTitle) {
+                if (i === 0) {
+                    line = { time: 0, text: `${metadata.title}\n${metadata.artist}` };
+                    isCurrent = true;
+                }
+            } else {
+                const idx = activeIdx + i;
+                if (idx >= 0 && idx < lyrics.length) {
+                    line = lyrics[idx];
+                    isCurrent = i === 0;
+                }
+            }
+
+            if (line) {
+                if ((activePreset === 'testing' || activePreset === 'testing_up') && i < 0) continue;
+                if ((activePreset === 'one_line' || activePreset === 'one_line_up') && i !== 0) continue;
 
                 ctx.textAlign = (activePreset === 'large' || activePreset === 'large_upper') ? 'left' : 'center';
                 ctx.textBaseline = 'middle';
@@ -234,7 +268,7 @@ export const drawCanvasFrame = (
                 if (isCurrent) {
                     let weight = 'bold';
                     if (activePreset === 'large' || activePreset === 'large_upper' || activePreset === 'big_center' || activePreset === 'metal' || activePreset === 'tech') weight = '900';
-                    if (activePreset === 'slideshow' || activePreset === 'testing' || activePreset === 'testing_up') weight = '400';
+                    if (activePreset === 'slideshow' || activePreset === 'testing' || activePreset === 'testing_up' || activePreset === 'one_line' || activePreset === 'one_line_up') weight = '400';
                     if (activePreset === 'classic' || activePreset === 'romantic') weight = 'italic bold';
                     if (activePreset === 'sad' || activePreset === 'gothic' || activePreset === 'kids') weight = '400';
 
@@ -256,7 +290,7 @@ export const drawCanvasFrame = (
                         ctx.shadowBlur = 0;
                         ctx.shadowOffsetX = 3 * scale;
                         ctx.shadowOffsetY = 3 * scale;
-                    } else if (activePreset === 'testing' || activePreset === 'testing_up') {
+                    } else if (activePreset === 'testing' || activePreset === 'testing_up' || activePreset === 'one_line' || activePreset === 'one_line_up') {
                         ctx.shadowColor = 'transparent';
                     } else {
                         ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
@@ -288,7 +322,7 @@ export const drawCanvasFrame = (
                     const bottomY = height - (120 * scale);
                     drawWrappedText(ctx, line.text, xPos, bottomY, maxWidth, baseFontSize * 1.2);
                 } else if (isBigLayout && isCurrent) {
-                    const textToDraw = (activePreset === 'large_upper' || activePreset === 'big_center' || activePreset === 'metal' || activePreset === 'tech' || activePreset === 'testing_up') ? line.text.toUpperCase() : line.text;
+                    const textToDraw = (activePreset === 'large_upper' || activePreset === 'big_center' || activePreset === 'metal' || activePreset === 'tech' || activePreset === 'testing_up' || activePreset === 'one_line_up') ? line.text.toUpperCase() : line.text;
                     drawWrappedText(ctx, textToDraw, xPos, yPos, maxWidth, baseFontSize * 1.2);
                 } else {
                     const textToDraw = line.text;
@@ -315,12 +349,12 @@ export const drawCanvasFrame = (
     }
 
     if (activePreset !== 'subtitle') {
-        if (['big_center', 'metal', 'kids', 'sad', 'romantic', 'tech', 'gothic', 'testing', 'testing_up', 'slideshow'].includes(activePreset)) {
+        if (['big_center', 'metal', 'kids', 'sad', 'romantic', 'tech', 'gothic', 'testing', 'testing_up', 'one_line', 'one_line_up', 'slideshow'].includes(activePreset)) {
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
 
             let bottomMargin = 80 * scale;
-            if (activePreset === 'testing' || activePreset === 'testing_up') bottomMargin = 120 * scale;
+            if (activePreset === 'testing' || activePreset === 'testing_up' || activePreset === 'one_line' || activePreset === 'one_line_up') bottomMargin = 120 * scale;
             const centerX = width / 2;
 
             const titleSize = 20 * scale;
@@ -334,7 +368,7 @@ export const drawCanvasFrame = (
             ctx.fillText(titleText, centerX, titleY);
 
             let artistSize = 16 * scale;
-            if (activePreset === 'testing' || activePreset === 'testing_up') artistSize = 18 * scale;
+            if (activePreset === 'testing' || activePreset === 'testing_up' || activePreset === 'one_line' || activePreset === 'one_line_up') artistSize = 18 * scale;
             ctx.font = `${artistSize}px ${fontFamily}`;
             ctx.fillStyle = '#d4d4d8';
             const artistY = height - bottomMargin;

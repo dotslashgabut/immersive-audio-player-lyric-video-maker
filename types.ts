@@ -44,6 +44,8 @@ export type VideoPreset =
   | 'gothic'
   | 'testing'
   | 'testing_up'
+  | 'one_line'
+  | 'one_line_up'
   | 'slideshow'
   | 'just_video'
   | 'subtitle';

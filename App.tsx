@@ -61,6 +61,7 @@ function App() {
   const [renderCodec, setRenderCodec] = useState<string>('auto');
   const [renderFps, setRenderFps] = useState<number>(30);
   const [renderQuality, setRenderQuality] = useState<'low' | 'med' | 'high'>('med');
+  const [isBlurEnabled, setIsBlurEnabled] = useState(false);
 
   const supportedCodecs = useMemo(() => {
     const candidates = [
@@ -659,7 +660,8 @@ function App() {
         videoMap,
         currentPreset,
         customFontName,
-        fontSizeScale
+        fontSizeScale,
+        isBlurEnabled
       );
     }
 
@@ -790,7 +792,8 @@ function App() {
           videoMap,
           currentPreset,
           customFontName,
-          fontSizeScale
+          fontSizeScale,
+          isBlurEnabled
         );
       }
     };
@@ -1299,7 +1302,8 @@ function App() {
         </div>
 
         {/* Blur / Dim Overlay */}
-        <div className={`absolute inset-0 bg-black/30 backdrop-blur-sm transition-all duration-700 ${activeSlide ? 'bg-black/10 backdrop-blur-none' : ''}`}></div>
+        {/* Blur / Dim Overlay */}
+        <div className={`absolute inset-0 bg-black/30 transition-all duration-700 ${isBlurEnabled ? 'backdrop-blur-md bg-black/40' : 'backdrop-blur-none'}`}></div>
       </div>
 
       {/* --- Main Content Area --- */}
@@ -1406,13 +1410,18 @@ function App() {
                 const isPortraitPreview = ['9:16', '3:4', '1:1', '1:2', '2:3'].includes(aspectRatio);
 
                 // Handle Big Text preset visibility (show only current, prev, and next)
-                const isBigLayout = ['large', 'large_upper', 'big_center', 'metal', 'kids', 'sad', 'romantic', 'tech', 'gothic', 'testing', 'testing_up'].includes(preset);
+                const isBigLayout = ['large', 'large_upper', 'big_center', 'metal', 'kids', 'sad', 'romantic', 'tech', 'gothic', 'testing', 'testing_up', 'one_line', 'one_line_up'].includes(preset);
                 if (isBigLayout && Math.abs(idx - currentLyricIndex) > 1) {
                   return <p key={idx} className="hidden" />;
                 }
 
                 // Testing Preset: Hide previous lyrics explicitly (web view)
                 if ((preset === 'testing' || preset === 'testing_up') && idx < currentLyricIndex) {
+                  return <p key={idx} className="hidden" />;
+                }
+
+                // One Line Preset: Hide all except active
+                if ((preset === 'one_line' || preset === 'one_line_up') && idx !== currentLyricIndex) {
                   return <p key={idx} className="hidden" />;
                 }
 
@@ -1461,6 +1470,24 @@ function App() {
                   activeClass = `${activeSize} text-white uppercase tracking-tight text-center`;
                   inactiveClass = `${inactiveSize} text-zinc-600/40 hover:text-zinc-400 text-center`;
                 } else if (preset === 'testing') {
+                  const activeSize = isPortraitPreview
+                    ? (isEditor ? 'text-4xl' : 'text-5xl')
+                    : (isEditor ? 'text-6xl' : 'text-8xl');
+                  const inactiveSize = isPortraitPreview
+                    ? (isEditor ? 'text-xl' : 'text-2xl')
+                    : (isEditor ? 'text-2xl' : 'text-3xl');
+                  activeClass = `${activeSize} text-white tracking-tight text-center`;
+                  inactiveClass = `${inactiveSize} text-zinc-600/40 hover:text-zinc-400 text-center`;
+                } else if (preset === 'one_line_up') {
+                  const activeSize = isPortraitPreview
+                    ? (isEditor ? 'text-4xl' : 'text-5xl')
+                    : (isEditor ? 'text-6xl' : 'text-8xl');
+                  const inactiveSize = isPortraitPreview
+                    ? (isEditor ? 'text-xl' : 'text-2xl')
+                    : (isEditor ? 'text-2xl' : 'text-3xl');
+                  activeClass = `${activeSize} text-white uppercase tracking-tight text-center`;
+                  inactiveClass = `${inactiveSize} text-zinc-600/40 hover:text-zinc-400 text-center`;
+                } else if (preset === 'one_line') {
                   const activeSize = isPortraitPreview
                     ? (isEditor ? 'text-4xl' : 'text-5xl')
                     : (isEditor ? 'text-6xl' : 'text-8xl');
@@ -1794,6 +1821,8 @@ function App() {
                       <option value="monospace" className="bg-zinc-900">Monospace</option>
                       <option value="testing_up" className="bg-zinc-900">Testing (UP)</option>
                       <option value="testing" className="bg-zinc-900">Testing</option>
+                      <option value="one_line_up" className="bg-zinc-900">One Line (UP)</option>
+                      <option value="one_line" className="bg-zinc-900">One Line</option>
                       <option value="slideshow" className="bg-zinc-900">Slideshow</option>
                       <option value="just_video" className="bg-zinc-900">Just Video</option>
                       <option value="subtitle" className="bg-zinc-900">Subtitle</option>
@@ -1849,6 +1878,15 @@ function App() {
                 <div className="flex items-center gap-1 justify-center lg:justify-end group flex-wrap order-3 lg:order-none w-auto lg:w-full">
 
                   <div className="flex items-center gap-1">
+                    {/* Background Blur Toggle */}
+                    <button
+                      onClick={() => setIsBlurEnabled(prev => !prev)}
+                      className={`bg-zinc-800/50 border border-white/5 text-[10px] font-mono rounded-lg px-2 h-9 transition-colors disabled:opacity-30 ${isBlurEnabled ? 'text-purple-400 border-purple-500/50' : 'text-zinc-300 hover:text-white'}`}
+                      title={`Background Blur: ${isBlurEnabled ? 'Msg' : 'Off'}`}
+                      disabled={isRendering}
+                    >
+                      {isBlurEnabled ? 'BLUR' : 'SHARP'}
+                    </button>
                     {/* Resolution Toggle */}
                     <button
                       onClick={() => setResolution(prev => prev === '1080p' ? '720p' : '1080p')}
