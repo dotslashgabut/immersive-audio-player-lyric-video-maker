@@ -75,6 +75,18 @@ export const parseSRT = (srtContent: string): LyricLine[] => {
   // 00:00:20,000 --> 00:00:24,400
   const timeRegex = /(\d{2}):(\d{2}):(\d{2}),(\d{3})/;
 
+  const parseTime = (timeStr: string): number | null => {
+    const match = timeStr.match(timeRegex);
+    if (match) {
+      const hrs = parseInt(match[1], 10);
+      const mins = parseInt(match[2], 10);
+      const secs = parseInt(match[3], 10);
+      const ms = parseInt(match[4], 10);
+      return (hrs * 3600) + (mins * 60) + secs + (ms / 1000);
+    }
+    return null;
+  };
+
   blocks.forEach(block => {
     const lines = block.split('\n');
     if (lines.length >= 3) {
@@ -85,18 +97,16 @@ export const parseSRT = (srtContent: string): LyricLine[] => {
       const text = textLines.join(' ').trim();
 
       const times = timeLine.split(' --> ');
-      if (times.length > 0) {
-        const match = times[0].match(timeRegex);
-        if (match) {
-          const hrs = parseInt(match[1], 10);
-          const mins = parseInt(match[2], 10);
-          const secs = parseInt(match[3], 10);
-          const ms = parseInt(match[4], 10);
-          const totalSeconds = (hrs * 3600) + (mins * 60) + secs + (ms / 1000);
+      if (times.length >= 2) {
+        const startTime = parseTime(times[0]);
+        const endTime = parseTime(times[1]);
 
-          if (text) {
-            lyrics.push({ time: totalSeconds, text });
-          }
+        if (startTime !== null && text) {
+          lyrics.push({
+            time: startTime,
+            text,
+            endTime: endTime !== null ? endTime : undefined
+          });
         }
       }
     }

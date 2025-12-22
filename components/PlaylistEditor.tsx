@@ -26,6 +26,9 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
     const activeLyricIndex = useMemo(() => {
         if (!currentItem) return -1;
         return currentLyrics.findIndex((l, i) => {
+            if (l.endTime !== undefined) {
+                return currentTime >= l.time && currentTime < l.endTime;
+            }
             const next = currentLyrics[i + 1];
             return currentTime >= l.time && (!next || currentTime < next.time);
         });
@@ -338,6 +341,9 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
 
                         // Determine active lyric index if this is the current track
                         const activeLyricIndex = isCurrent ? lyrics.findIndex((l, i) => {
+                            if (l.endTime !== undefined) {
+                                return currentTime >= l.time && currentTime < l.endTime;
+                            }
                             const next = lyrics[i + 1];
                             return currentTime >= l.time && (!next || currentTime < next.time);
                         }) : -1;

@@ -2,6 +2,7 @@
 export interface LyricLine {
   time: number; // in seconds
   text: string;
+  endTime?: number; // Optional end time in seconds
 }
 
 export interface VisualSlide {

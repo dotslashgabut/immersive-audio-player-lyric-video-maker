@@ -122,10 +122,17 @@ function App() {
   // Adjusted lyrics based on offset
   const adjustedLyrics = useMemo(() => {
     if (lyricOffset === 0) return lyrics;
-    return lyrics.map(l => ({ ...l, time: l.time + lyricOffset }));
+    return lyrics.map(l => ({
+      ...l,
+      time: l.time + lyricOffset,
+      endTime: l.endTime !== undefined ? l.endTime + lyricOffset : undefined
+    }));
   }, [lyrics, lyricOffset]);
 
   const currentLyricIndex = adjustedLyrics.findIndex((line, index) => {
+    if (line.endTime !== undefined) {
+      return currentTime >= line.time && currentTime < line.endTime;
+    }
     const nextLine = adjustedLyrics[index + 1];
     return currentTime >= line.time && (!nextLine || currentTime < nextLine.time);
   });

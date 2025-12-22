@@ -156,6 +156,9 @@ export const drawCanvasFrame = (
     if (activePreset === 'just_video') return;
 
     const activeIdx = lyrics.findIndex((line, index) => {
+        if (line.endTime !== undefined) {
+            return time >= line.time && time < line.endTime;
+        }
         const nextLine = lyrics[index + 1];
         return time >= line.time && (!nextLine || time < nextLine.time);
     });
