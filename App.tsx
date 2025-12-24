@@ -60,7 +60,7 @@ function App() {
   // State: Video Export
   const [isRendering, setIsRendering] = useState(false);
   const [renderProgress, setRenderProgress] = useState(0);
-  const [aspectRatio, setAspectRatio] = useState<'16:9' | '9:16' | '3:4' | '1:1' | '1:2' | '2:1' | '2:3' | '3:2'>('16:9');
+  const [aspectRatio, setAspectRatio] = useState<'16:9' | '9:16' | '3:4' | '1:1' | '1:2' | '2:1' | '2:3' | '3:2' | '20:9' | '21:9' | '4:5' | '4:3'>('16:9');
   const [resolution, setResolution] = useState<'720p' | '1080p'>('1080p');
   const [preset, setPreset] = useState<VideoPreset>('default');
   const [customFontName, setCustomFontName] = useState<string | null>(null);
@@ -121,6 +121,8 @@ function App() {
         return is1080p ? { w: 1080, h: 1920 } : { w: 720, h: 1280 };
       case '3:4':
         return is1080p ? { w: 1080, h: 1440 } : { w: 720, h: 960 };
+      case '4:3':
+        return is1080p ? { w: 1440, h: 1080 } : { w: 960, h: 720 };
       case '1:1':
         return is1080p ? { w: 1080, h: 1080 } : { w: 720, h: 720 };
       case '1:2':
@@ -131,6 +133,12 @@ function App() {
         return is1080p ? { w: 1080, h: 1620 } : { w: 720, h: 1080 };
       case '3:2':
         return is1080p ? { w: 1620, h: 1080 } : { w: 1080, h: 720 };
+      case '4:5':
+        return is1080p ? { w: 1080, h: 1350 } : { w: 720, h: 900 };
+      case '20:9':
+        return is1080p ? { w: 2400, h: 1080 } : { w: 1600, h: 720 };
+      case '21:9':
+        return is1080p ? { w: 2560, h: 1080 } : { w: 1720, h: 720 };
       case '16:9':
       default:
         return is1080p ? { w: 1920, h: 1080 } : { w: 1280, h: 720 };
@@ -2341,6 +2349,17 @@ function App() {
           customFontName={customFontName}
           onFontUpload={handleFontUpload}
           onClearCustomFont={() => setCustomFontName(null)}
+          resolution={resolution}
+          setResolution={setResolution}
+          aspectRatio={aspectRatio}
+          setAspectRatio={setAspectRatio}
+          renderCodec={renderCodec}
+          setRenderCodec={setRenderCodec}
+          supportedCodecs={supportedCodecs}
+          renderQuality={renderQuality}
+          setRenderQuality={setRenderQuality}
+          renderFps={renderFps}
+          setRenderFps={setRenderFps}
         />
       )}
     </div >

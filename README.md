@@ -66,11 +66,15 @@
   - **16:9** (Landscape - YouTube)
   - **9:16** (Vertical - TikTok/Reels)
   - **1:1** (Square - Instagram)
-  - **3:4** (Portrait - Instagram)
+  - **4:5** (Portrait - Instagram Feed)
+  - **3:4** (Portrait - Standard)
+  - **4:3** (Landscape - Classic TV)
   - **2:3** (Portrait - Digital Photography)
   - **3:2** (Landscape - Classic Photo)
-  - **1:2** (Tall Vertical)
-  - **2:1** (Cinematic Landscape)
+  - **2:1** (Landscape - Panoramic)
+  - **20:9** (Landscape - Modern Mobile, Cinematic)
+  - **21:9** (Landscape - Ultra Widescreen)
+  - **1:2** (Vertical - Split Screen)
 - **Rendering Scope**: Batch export the entire playlist or just the current song.
 - **Advanced Backgrounds**:
   - **Timeline Media**: Use your custom images and videos from the timeline.
@@ -89,7 +93,7 @@
     - **Transitions**: Smooth Fade, Slide, Zoom, Flip, and Motion Blur.
 - **Song Info Customization**:
   - **Positioning**: 9-point grid automatic positioning (Top-Left to Bottom-Right).
-  - **Styles**: Classic (Detailed), Modern, Circle Art, Boxed, Minimal.
+  - **Styles**: Classic (Detailed), Modern + Cover, Circle Cover, Boxed Cover, Minimal (Text Only).
   - **Padding**: Fine-tune margin from screen edges.
 - **Smart Overlays**: Automatically generates metadata overlays for "Now Playing" visuals.
 - **Dynamic Blur**: Apply real-time Gaussian-style blur to background images or videos for better lyric readability.
@@ -103,6 +107,11 @@
 - **Rendering Engine**: Highly optimized **Canvas 2D** pipeline. Text rendering is handled natively by the browser, ensuring perfect clarity and compatibility with all languages and writing systems.
 - **OffscreenCanvas Ready**: The application structure decouples rendering logic from the UI thread (`utils/canvasRenderer.ts`). This architecture supports `OffscreenCanvas` and Web Workers, enabling potential future upgrades for background rendering or "lag-free" exports on lower-end devices.
 - **WebGPU Note**: While not currently used, the modular design allows for a hybrid approach in the future (e.g., using WebGPU for background visualizers while keeping Canvas 2D for crisp text overlays).
+
+## Related Tools
+Check out our other AI-powered tools for music and visuals:
+- **[LyricFlow](https://ai.studio/apps/drive/1M1VfxdBlNB_eOPQqQiHspvVwizaEs0aI?showPreview=true&fullscreenApplet=true&showAssistant=true)**: Advanced lyric synchronization and flow.
+- **[LyricalVision](https://aistudio.google.com/apps/drive/1WKA-bCxzIKD-DcI_pq0HznN3m1_oNEkg?fullscreenApplet=true&showPreview=true&showAssistant=true)**: AI-driven visual generation for your lyrics.
 
 ## Keyboard Shortcuts
 
@@ -193,6 +202,6 @@ This application is built with React + Vite and requires **Node.js** to run.
     - Gunakan **Ctrl+Z** jika salah edit.
     - Shift+Klik untuk pilih banyak slide.
 3.  **Export**:
-    - Pilih rasio, **FPS**, **Codec**, dan **Kualitas** (**Low, Med, High**) yang diinginkan.
+    - Pilih rasio (termasuk 20:9 & 21:9), **FPS**, **Codec**, dan **Kualitas** (**Low, Med, High**) yang diinginkan.
     - Klik tombol Video 🎥.
     - Jangan ganti tab browser sampai selesai.

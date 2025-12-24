@@ -352,6 +352,17 @@ interface RenderSettingsProps {
     customFontName: string | null;
     onFontUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
     onClearCustomFont: () => void;
+    resolution: '720p' | '1080p';
+    setResolution: (res: '720p' | '1080p') => void;
+    aspectRatio: '16:9' | '9:16' | '3:4' | '1:1' | '1:2' | '2:1' | '2:3' | '3:2' | '20:9' | '21:9' | '4:5' | '4:3';
+    setAspectRatio: (ratio: '16:9' | '9:16' | '3:4' | '1:1' | '1:2' | '2:1' | '2:3' | '3:2' | '20:9' | '21:9' | '4:5' | '4:3') => void;
+    renderCodec: string;
+    setRenderCodec: (codec: string) => void;
+    supportedCodecs: { label: string; value: string }[];
+    renderQuality: 'low' | 'med' | 'high';
+    setRenderQuality: (q: 'low' | 'med' | 'high') => void;
+    renderFps: number;
+    setRenderFps: (fps: number) => void;
 }
 
 const RenderSettings: React.FC<RenderSettingsProps> = ({
@@ -364,7 +375,18 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
     onRender,
     customFontName,
     onFontUpload,
-    onClearCustomFont
+    onClearCustomFont,
+    resolution,
+    setResolution,
+    aspectRatio,
+    setAspectRatio,
+    renderCodec,
+    setRenderCodec,
+    supportedCodecs,
+    renderQuality,
+    setRenderQuality,
+    renderFps,
+    setRenderFps
 }) => {
     const sidebarRef = useRef<HTMLDivElement>(null);
     const fontInputRef = useRef<HTMLInputElement>(null);
@@ -385,7 +407,15 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
     };
 
     const handleExportSettings = () => {
-        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(config, null, 2));
+        const exportData = {
+            ...config,
+            resolution,
+            aspectRatio,
+            renderCodec,
+            renderFps,
+            renderQuality
+        };
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportData, null, 2));
         const downloadAnchorNode = document.createElement('a');
         downloadAnchorNode.setAttribute("href", dataStr);
         downloadAnchorNode.setAttribute("download", "render_settings.json");
@@ -403,9 +433,27 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
             try {
                 const json = JSON.parse(e.target?.result as string);
                 if (json && typeof json === 'object') {
+                    // Extract new props separate from config
+                    const {
+                        resolution: importedResolution,
+                        aspectRatio: importedAspectRatio,
+                        renderCodec: importedRenderCodec,
+                        renderFps: importedRenderFps,
+                        renderQuality: importedRenderQuality,
+                        ...importedConfig
+                    } = json;
+
                     // Start with default config, overwrite with imported json, preserve validity
                     // In a real app we might want to validate schema using zod or similar
-                    setConfig({ ...DEFAULT_CONFIG, ...json });
+                    setConfig({ ...DEFAULT_CONFIG, ...importedConfig });
+
+                    // Update Output Settings if present
+                    if (importedResolution) setResolution(importedResolution as any);
+                    if (importedAspectRatio) setAspectRatio(importedAspectRatio as any);
+                    if (importedRenderCodec) setRenderCodec(importedRenderCodec);
+                    if (importedRenderFps) setRenderFps(importedRenderFps);
+                    if (importedRenderQuality) setRenderQuality(importedRenderQuality as any);
+
                     setPreset('custom');
                     alert('Settings loaded successfully!');
                 }
@@ -926,6 +974,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                             />
                         </div>
 
+
                         <div className="space-y-1.5">
                             <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Text Animation</label>
                             <GroupedSelection
@@ -937,8 +986,6 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
 
                     </div>
 
-
-
                     <div className="space-y-1.5">
                         <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Transition</label>
                         <GroupedSelection
@@ -946,6 +993,102 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                             onChange={(val) => handleChange('transitionEffect', val)}
                             groups={transitionGroups}
                         />
+                    </div>
+
+                    {/* Output Settings (New) */}
+                    <div className="pt-2 border-t border-white/5 space-y-3">
+                        <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-2">
+                            <Video size={14} /> Output Settings
+                        </h3>
+
+                        <div className="grid grid-cols-2 gap-2">
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Resolution</label>
+                                <div className="flex bg-zinc-800 rounded-lg p-1">
+                                    <button
+                                        onClick={() => setResolution('720p')}
+                                        className={`flex-1 py-1 px-2 rounded-md text-[10px] font-bold transition-all ${resolution === '720p' ? 'bg-zinc-600 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}
+                                    >
+                                        720p
+                                    </button>
+                                    <button
+                                        onClick={() => setResolution('1080p')}
+                                        className={`flex-1 py-1 px-2 rounded-md text-[10px] font-bold transition-all ${resolution === '1080p' ? 'bg-purple-600 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}
+                                    >
+                                        1080p
+                                    </button>
+                                </div>
+                            </div>
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">FPS</label>
+                                <select
+                                    value={renderFps}
+                                    onChange={(e) => setRenderFps(parseInt(e.target.value))}
+                                    className="w-full bg-zinc-800 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-zinc-200 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                                >
+                                    <option value="24">24 FPS</option>
+                                    <option value="30">30 FPS</option>
+                                    <option value="60">60 FPS</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div className="space-y-1.5">
+                            <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Aspect Ratio</label>
+                            <div className="grid grid-cols-4 gap-1">
+                                {['16:9', '9:16', '1:1', '4:5', '3:4', '4:3', '2:3', '3:2', '1:2', '2:1', '20:9', '21:9'].map((ratio) => (
+                                    <button
+                                        key={ratio}
+                                        onClick={() => setAspectRatio(ratio as any)}
+                                        className={`py-1.5 rounded-md text-[10px] font-mono transition-all border ${aspectRatio === ratio
+                                            ? 'bg-purple-600 border-purple-500 text-white'
+                                            : 'bg-zinc-800 border-white/5 text-zinc-500 hover:bg-zinc-700 hover:text-zinc-300'
+                                            }`}
+                                    >
+                                        {ratio}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="space-y-1.5">
+                            <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Video Codec</label>
+                            <select
+                                value={renderCodec}
+                                onChange={(e) => setRenderCodec(e.target.value)}
+                                className="w-full bg-zinc-800 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-zinc-200 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                            >
+                                <option value="auto">Auto Select (Best)</option>
+                                {supportedCodecs.map(c => (
+                                    <option key={c.value} value={c.value}>{c.label}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div className="space-y-1.5">
+                            <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Render Quality (Bitrate)</label>
+                            <div className="flex bg-zinc-800 rounded-lg p-1">
+                                <button
+                                    onClick={() => setRenderQuality('low')}
+                                    className={`flex-1 py-1.5 rounded-md text-[10px] font-bold uppercase transition-all ${renderQuality === 'low' ? 'bg-zinc-600 text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
+                                >
+                                    Low
+                                </button>
+                                <button
+                                    onClick={() => setRenderQuality('med')}
+                                    className={`flex-1 py-1.5 rounded-md text-[10px] font-bold uppercase transition-all ${renderQuality === 'med' ? 'bg-zinc-600 text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
+                                >
+                                    Medium
+                                </button>
+                                <button
+                                    onClick={() => setRenderQuality('high')}
+                                    className={`flex-1 py-1.5 rounded-md text-[10px] font-bold uppercase transition-all ${renderQuality === 'high' ? 'bg-purple-600 text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
+                                >
+                                    High
+                                </button>
+                            </div>
+                        </div>
+
                     </div>
 
                     <div className="pt-2 border-t border-white/5 space-y-2">
