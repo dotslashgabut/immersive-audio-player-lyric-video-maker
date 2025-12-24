@@ -101,7 +101,9 @@
 - **Dynamic Blur**: Apply real-time Gaussian-style blur to background images or videos for better lyric readability.
 - **High-Fidelity Rendering**: Native **Canvas 2D** rendering allows for pixel-perfect text at any frame rate.
 
-![Render Settings Panel](screenshot-render-settings.jpg)
+![Render Settings Panel](screenshot-render-settings1.jpg)
+
+![Render Settings Panel Output Settings](screenshot-render-settings2.jpg)
 
 ![Export Interface](screenshot-render.jpg)
 
