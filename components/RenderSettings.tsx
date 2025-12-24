@@ -28,6 +28,7 @@ const DEFAULT_CONFIG: RenderConfig = {
     infoPosition: 'top-left',
     infoStyle: 'classic',
     infoMarginScale: 1.0,
+    backgroundBlurStrength: 0,
 };
 
 const textEffectGroups = [
@@ -656,6 +657,55 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                             className="w-full bg-zinc-800 border border-white/10 rounded-lg px-3 py-2 text-xs font-mono text-zinc-300 focus:outline-none focus:ring-1 focus:ring-purple-500"
                         />
                     )}
+                </section>
+
+                {/* Background Blur */}
+                <section className="space-y-3">
+                    <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-2">
+                        <Palette size={14} /> Background Effects
+                    </h3>
+                    <div className="space-y-3">
+                        <div className="flex bg-zinc-800 p-1 rounded-lg border border-white/5">
+                            <button
+                                onClick={() => handleChange('backgroundBlurStrength', 0)}
+                                className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-all ${config.backgroundBlurStrength === 0
+                                    ? 'bg-zinc-600 text-white shadow-sm'
+                                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-white/5'
+                                    }`}
+                            >
+                                Sharp
+                            </button>
+                            <button
+                                onClick={() => handleChange('backgroundBlurStrength', 12)}
+                                className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-all ${config.backgroundBlurStrength > 0
+                                    ? 'bg-purple-600 text-white shadow-sm'
+                                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-white/5'
+                                    }`}
+                            >
+                                Blur
+                            </button>
+                        </div>
+
+                        {config.backgroundBlurStrength > 0 && (
+                            <div className="space-y-1.5 animate-in slide-in-from-top-2 fade-in duration-200">
+                                <div className="flex justify-between items-center">
+                                    <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Blur Intensity</label>
+                                    <span className="text-[10px] text-zinc-400 font-mono">{config.backgroundBlurStrength}px</span>
+                                </div>
+                                <div className="flex items-center gap-2 bg-zinc-800 border border-white/10 rounded-lg px-2 py-1.5">
+                                    <input
+                                        type="range"
+                                        min="1"
+                                        max="64"
+                                        step="1"
+                                        value={config.backgroundBlurStrength}
+                                        onChange={(e) => handleChange('backgroundBlurStrength', parseInt(e.target.value))}
+                                        className="w-full h-1 bg-zinc-600 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full hover:[&::-webkit-slider-thumb]:bg-purple-400 transition-all"
+                                    />
+                                </div>
+                            </div>
+                        )}
+                    </div>
                 </section>
 
                 {/* Lyric Display Mode */}

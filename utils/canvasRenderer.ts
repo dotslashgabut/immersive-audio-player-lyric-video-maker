@@ -13,7 +13,7 @@ export const drawCanvasFrame = (
     activePreset: VideoPreset,
     customFontName: string | null,
     fontSizeScale: number,
-    isBlurEnabled: boolean,
+    isBlurEnabled: boolean, // Deprecated, use renderConfig.backgroundBlurStrength
     renderConfig?: RenderConfig
 ) => {
     // Helper: HEX to RGB
@@ -283,7 +283,8 @@ export const drawCanvasFrame = (
         }
     };
 
-    if (isBlurEnabled) ctx.filter = 'blur(12px)';
+    if (renderConfig && renderConfig.backgroundBlurStrength > 0) ctx.filter = `blur(${renderConfig.backgroundBlurStrength}px)`;
+    else if (isBlurEnabled) ctx.filter = 'blur(12px)'; // Fallback for legacy
     if (renderConfig ? (renderConfig.backgroundSource === 'timeline' || renderConfig.backgroundSource === 'custom') : true) {
         const currentSlide = visualSlides.find(s => s.type !== 'audio' && time >= s.startTime && time < s.endTime);
         const useTimeline = renderConfig ? renderConfig.backgroundSource === 'timeline' : true;
@@ -297,7 +298,7 @@ export const drawCanvasFrame = (
             if (vid) drawScaled(vid); else if (img) drawScaled(img);
         }
     }
-    if (isBlurEnabled) ctx.filter = 'none';
+    if ((renderConfig && renderConfig.backgroundBlurStrength > 0) || isBlurEnabled) ctx.filter = 'none';
 
     if (!['just_video', 'none'].includes(activePreset)) {
         ctx.fillStyle = (renderConfig && (renderConfig.backgroundSource === 'color' || renderConfig.backgroundSource === 'gradient')) ? 'rgba(0, 0, 0, 0.2)' : 'rgba(0, 0, 0, 0.5)';

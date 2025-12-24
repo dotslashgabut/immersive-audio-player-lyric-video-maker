@@ -87,4 +87,5 @@ export interface RenderConfig {
   infoPosition?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'top-center' | 'bottom-center';
   infoStyle?: 'classic' | 'modern' | 'box' | 'minimal' | 'modern_art' | 'circle_art';
   infoMarginScale?: number;
+  backgroundBlurStrength: number; // 0 = sharp, >0 = blur px (default 0 or 12)
 }

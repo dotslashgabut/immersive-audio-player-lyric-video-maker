@@ -95,6 +95,7 @@ function App() {
     infoPosition: 'top-left',
     infoStyle: 'classic',
     infoMarginScale: 1.0,
+    backgroundBlurStrength: 0,
   });
 
   const supportedCodecs = useMemo(() => {
@@ -1409,7 +1410,13 @@ function App() {
 
         {/* Blur / Dim Overlay */}
         {/* Blur / Dim Overlay */}
-        <div className={`absolute inset-0 bg-black/30 transition-all duration-700 ${isBlurEnabled ? 'backdrop-blur-md bg-black/40' : 'backdrop-blur-none'}`}></div>
+        <div
+          className="absolute inset-0 bg-black/30 transition-all duration-700"
+          style={{
+            backdropFilter: (renderConfig.backgroundBlurStrength > 0) ? `blur(${renderConfig.backgroundBlurStrength}px)` : (isBlurEnabled ? 'blur(12px)' : 'none'),
+            backgroundColor: (renderConfig.backgroundBlurStrength > 0 || isBlurEnabled) ? 'rgba(0,0,0,0.4)' : undefined
+          }}
+        ></div>
       </div>
 
       {/* --- Main Content Area --- */}
