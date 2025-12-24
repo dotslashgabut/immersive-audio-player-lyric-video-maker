@@ -92,7 +92,7 @@
   - **Effects Library**: 
     - **Text Effects**: Shadow, Glow, Neon, 3D Pop, Glitch, Retro, and more.
     - **Animations**: Pulse, Bounce, Wave, Shake, Typewriter, etc.
-    - **Transitions**: Smooth Fade, Slide, Zoom, Flip, and Motion Blur.
+    - **Transitions**: Smooth Fade, Slide, Zoom, Flip, Motion Blur, and **None** (Instant Cut).
 - **Song Info Customization**:
   - **Positioning**: 9-point grid automatic positioning (Top-Left to Bottom-Right).
   - **Styles**: Classic (Detailed), Modern + Cover, Circle Cover, Boxed Cover, Minimal (Text Only).

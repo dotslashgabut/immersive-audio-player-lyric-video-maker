@@ -3,21 +3,27 @@
 # v2.0.9
 
 ## What's New
-- **Intro Customization**:
+- **Intro Enhancements**:
+    - **Refined Typography**: 'Auto' mode now elegantly displays Title and Artist on separate lines for better readability.
     - **Manual Control**: Toggle Intro text between 'Auto' (metadata) and 'Manual' custom text.
-    - **Playlist Behavior**: In 'Manual' mode, the intro text appears only on the first song of the playlist. In 'Auto' mode, it appears on every song.
-- **Visual Refinements**:
+    - **Playlist Logic**: In 'Manual' mode, intro triggers only on the first song; in 'Auto' mode, it triggers on every song.
+- **Visual & Rendering**:
     - **Blur Strength Slider**: Fine-tune the intensity of the background blur effect.
-    - **Solid Color Default**: 'Solid Color' background source now defaults to pure black for a cleaner start.
+    - **Default to Instant**: Transition effect now defaults to 'None' (Instant Cut) for a sharper editing start.
+    - **Solid Color Default**: 'Solid Color' background now defaults to pure black.
     - **Info Padding**: New slider to adjust the distance of Song Info text from the screen edges.
 - **Improved UX**:
     - **Shortcut**: Press **D** to quickly toggle the Render Settings panel.
     - **Reset Logic**: Improved 'Reset' button reliability in Render Settings.
 
 ## Bug Fixes
-- **Playlist Rendering**: Fixed an issue where the 'All Playlist' render scope was not clickable.
-- **Playback Stability**: Resolved an issue where songs would stop playing in the browser after a render cycle.
-- **Settings Sync**: Fixed synchronization issues between the main view blur settings and the render panel.
+- **Render Stability**: 
+    - Fixed a brief black screen flash (0.xx sec) at the start of rendered videos.
+    - Resolved vertical black line artifacts on default backgrounds.
+- **Playlist Rendering**: Fixed 'All Playlist' render scope clickability issues.
+- **Playback**: Resolved browser playback issues after a render cycle.
+- **Settings Sync**: Fixed synchronization of blur settings between main view and render panel.
+- **Dependencies**: Removed unused packages for a cleaner build.
 
 # v2.0.8
 

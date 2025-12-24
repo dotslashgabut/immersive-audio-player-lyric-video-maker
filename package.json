@@ -9,12 +9,10 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "fix-webm-duration": "^1.0.6",
     "jsmediatags": "^3.9.7",
     "lucide-react": "^0.561.0",
     "react": "^19.2.3",
-    "react-dom": "^19.2.3",
-    "server": "^0.0.3"
+    "react-dom": "^19.2.3"
   },
   "devDependencies": {
     "@types/jsmediatags": "^3.9.6",

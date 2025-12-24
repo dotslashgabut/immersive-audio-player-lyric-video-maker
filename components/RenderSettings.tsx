@@ -763,10 +763,10 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                     </div>
                 </section>
 
-                {/* Intro & Outro Settings */}
+                {/* Intro Settings */}
                 <section className="space-y-3">
                     <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-2">
-                        <Type size={14} /> Intro & Outro
+                        <Type size={14} /> Intro Settings
                     </h3>
 
                     {/* Intro Settings */}

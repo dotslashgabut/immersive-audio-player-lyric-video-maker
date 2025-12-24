@@ -555,7 +555,37 @@ export const drawCanvasFrame = (
 
                 const textEffect = isCurrent ? (renderConfig?.textEffect || 'preset') : 'none';
 
-                if (isCurrent && (isBigLayout || ['slideshow', 'subtitle'].includes(activePreset))) {
+                const isAutoIntro = showIntroTitle && i === 0 && renderConfig?.introMode !== 'manual';
+
+                if (isAutoIntro) {
+                    const parts = textToDraw.split('\n');
+                    const titleStr = parts[0];
+                    const artistStr = parts.slice(1).join('\n');
+                    
+                    const titleLH = baseFontSize * 1.2;
+                    const artistLH = secondaryFontSize * 1.2;
+                    
+                    // Center the block around yPos
+                    // If artist exists, shift title up and artist down
+                    let titleY = yPos;
+                    if (artistStr) {
+                        titleY = yPos - (artistLH / 2);
+                    }
+                    const artistY = yPos + (titleLH / 2);
+                    
+                    // Draw Title (Keep current weight)
+                    ctx.font = `${style} ${weight} ${baseFontSize}px ${fontFamily}`;
+                    drawWrappedText(ctx, titleStr, xPos, titleY, width * 0.9, titleLH, textEffect, decoration);
+                    
+                    // Draw Artist (Smaller/Normal weight)
+                    if (artistStr) {
+                         // Use '400' weight for artist to match "next line" look, unless explicitly custom
+                         const artistWeight = (activePreset === 'custom' && renderConfig?.fontWeight) ? renderConfig.fontWeight : '400';
+                         ctx.font = `${style} ${artistWeight} ${secondaryFontSize}px ${fontFamily}`;
+                         drawWrappedText(ctx, artistStr, xPos, artistY, width * 0.9, artistLH, textEffect, decoration);
+                    }
+
+                } else if (isCurrent && (isBigLayout || ['slideshow', 'subtitle'].includes(activePreset))) {
                     drawWrappedText(ctx, textToDraw, xPos, yPos, width * 0.9, baseFontSize * 1.2, textEffect, decoration);
                 } else {
                     drawLineWithEffects(ctx, textToDraw, xPos, yPos, textEffect, decoration);

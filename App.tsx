@@ -12,8 +12,7 @@ import PlaylistEditor from './components/PlaylistEditor';
 import RenderSettings from './components/RenderSettings';
 import { drawCanvasFrame } from './utils/canvasRenderer';
 import { loadGoogleFonts } from './utils/fonts';
-// @ts-ignore
-import fixWebmDuration from 'fix-webm-duration';
+
 
 function App() {
   // Refs
@@ -703,7 +702,7 @@ function App() {
     const renderFrameLoop = (now: number) => {
       if (abortRenderRef.current) return;
 
-      if (mediaRecorder.state === 'recording') {
+      if (mediaRecorder.state === 'recording' || mediaRecorder.state === 'paused') {
         requestAnimationFrame(renderFrameLoop);
       }
 
@@ -805,6 +804,11 @@ function App() {
 
       const track = queue[queueIndex];
 
+      // Pause recording while loading assets/buffering to avoid black frames/gaps
+      if (mediaRecorder.state === 'recording') {
+        mediaRecorder.pause();
+      }
+
       // 1. Update State
       currentRenderLyrics = track.lyrics;
       currentRenderMetadata = track.metadata; // Update local ref
@@ -846,6 +850,13 @@ function App() {
       currentRenderDuration = audioEl.duration;
 
       // 4. Play and Record
+      if (mediaRecorder.state === 'inactive') {
+        if (audioContext.state === 'suspended') await audioContext.resume();
+        mediaRecorder.start();
+        requestAnimationFrame(renderFrameLoop);
+      } else if (mediaRecorder.state === 'paused') {
+        mediaRecorder.resume();
+      }
       await audioEl.play();
 
       // Wait for end
@@ -863,12 +874,7 @@ function App() {
     };
 
 
-    // Start Recording
-    if (audioContext.state === 'suspended') await audioContext.resume();
-    mediaRecorder.start();
-
     // Start Processing Queue
-    requestAnimationFrame(renderFrameLoop);
     await processNextTrack();
 
   };
