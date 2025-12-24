@@ -24,5 +24,14 @@
     "typescript": "~5.8.2",
     "vite": "^6.4.1",
     "vite-plugin-pwa": "^1.2.0"
+  },
+  "overrides": {
+    "sourcemap-codec": "npm:@jridgewell/sourcemap-codec@^1.4.15",
+    "rollup": {
+      "source-map": "0.7.4"
+    },
+    "workbox-build": {
+      "source-map": "0.7.4"
+    }
   }
 }
