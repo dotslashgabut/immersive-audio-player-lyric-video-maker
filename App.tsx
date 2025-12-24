@@ -1243,7 +1243,7 @@ function App() {
       ref={containerRef}
       onMouseMove={handleMouseMove}
       onTouchStart={handleMouseMove}
-      className={`relative w-full h-screen bg-black overflow-hidden flex font-sans select-none ${isMouseIdle && !bypassAutoHide ? 'cursor-none' : ''}`}
+      className={`relative w-full h-[100dvh] bg-black overflow-hidden flex font-sans select-none ${isMouseIdle && !bypassAutoHide ? 'cursor-none' : ''}`}
     >
       <audio
         ref={audioRef}
@@ -1408,8 +1408,8 @@ function App() {
       <div className="relative z-10 flex-1 flex flex-col transition-all duration-500">
 
         {/* Top Bar (Song Info) */}
-        <div className={`transition-all duration-500 ease-in-out overflow-hidden ${isHeaderVisible ? 'max-h-40 opacity-100' : 'max-h-0 opacity-0'}`}>
-          <div className="p-6 flex justify-between items-start">
+        <div className={`transition-all duration-500 ease-in-out overflow-hidden ${isHeaderVisible ? 'max-h-80 md:max-h-40 opacity-100' : 'max-h-0 opacity-0'}`}>
+          <div className="p-4 md:p-6 flex flex-col md:flex-row justify-between items-start gap-4 md:gap-0">
             <div className="flex gap-4">
               <div className="flex gap-4 items-center">
                 <div className={`relative group w-16 h-16 rounded-md overflow-hidden bg-zinc-800 shadow-lg border border-white/10 shrink-0 transition-opacity duration-300 ${!renderConfig.showCover ? 'opacity-0 scale-75 pointer-events-none w-0 h-0 -ml-4' : 'opacity-100 scale-100'}`}>
@@ -1438,7 +1438,7 @@ function App() {
               </div>
             </div>
 
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
               <a
                 href="https://ai.studio/apps/drive/1M1VfxdBlNB_eOPQqQiHspvVwizaEs0aI?showPreview=true&fullscreenApplet=true&showAssistant=true"
                 target="_blank"
@@ -1511,7 +1511,7 @@ function App() {
           {lyrics.length > 0 ? (
             <div
               ref={lyricsContainerRef}
-              className={`w-full max-w-5xl max-h-full overflow-y-auto no-scrollbar px-6 space-y-6 transition-all duration-500 lyrics-root ${renderConfig.textAlign === 'left' ? 'text-left' : renderConfig.textAlign === 'right' ? 'text-right' : 'text-center'
+              className={`w-full max-w-5xl max-h-full overflow-y-auto no-scrollbar px-4 md:px-6 space-y-4 md:space-y-6 transition-all duration-500 lyrics-root ${renderConfig.textAlign === 'left' ? 'text-left' : renderConfig.textAlign === 'right' ? 'text-right' : 'text-center'
                 } ${!renderConfig.showLyrics ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
               style={{
                 maskImage: (isHeaderVisible || isFooterVisible)
@@ -2268,6 +2268,7 @@ function App() {
                 setCurrentTrackIndex(-1);
                 setMetadata({ title: 'No Audio Loaded', artist: 'Select a file', coverUrl: null, backgroundType: 'image' });
               }}
+              onClose={() => setIsPlaylistMode(false)}
             />
           </div>
         ) : (
@@ -2285,6 +2286,7 @@ function App() {
                     setCurrentTime(time);
                   }
                 }}
+                onClose={() => setActiveTab(TabView.PLAYER)}
               />
             </div>
           )

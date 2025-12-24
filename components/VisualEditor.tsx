@@ -10,6 +10,7 @@ interface VisualEditorProps {
   duration: number;
   lyrics: LyricLine[];
   onSeek: (time: number) => void;
+  onClose: () => void;
 }
 
 // Dynamic ruler interval based on zoom level
@@ -55,7 +56,7 @@ const getMediaDuration = (file: File): Promise<number> => {
   });
 };
 
-const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentTime, duration, lyrics, onSeek }) => {
+const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentTime, duration, lyrics, onSeek, onClose }) => {
   const editorRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
@@ -1006,16 +1007,24 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
         </div>
 
         <div className="flex gap-2 shrink-0">
-          <label className="flex items-center gap-2 px-3 py-1 bg-purple-600 hover:bg-purple-500 rounded text-xs font-medium cursor-pointer transition-colors text-white whitespace-nowrap">
-            <Plus size={14} /> Import Media
-            <input type="file" className="hidden" accept="image/*,video/*,audio/*" multiple onChange={handleFileUpload} />
-          </label>
           <button
             onClick={handleClearAll}
             className="p-1 hover:bg-red-900/50 text-zinc-500 hover:text-red-200 rounded transition-colors"
             title="Clear All Slides"
           >
             <Trash2 size={14} />
+          </button>
+          <label className="flex items-center gap-2 px-3 py-1 bg-purple-600 hover:bg-purple-500 rounded text-xs font-medium cursor-pointer transition-colors text-white whitespace-nowrap">
+            <Plus size={14} /> Import Media
+            <input type="file" className="hidden" accept="image/*,video/*,audio/*" multiple onChange={handleFileUpload} />
+          </label>
+          <div className="w-px h-4 bg-zinc-700 mx-1 self-center"></div>
+          <button
+            onClick={onClose}
+            className="p-1 hover:bg-zinc-700 text-zinc-400 hover:text-white rounded transition-colors"
+            title="Close Timeline"
+          >
+            <X size={14} />
           </button>
         </div>
       </div>

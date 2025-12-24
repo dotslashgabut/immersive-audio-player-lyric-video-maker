@@ -438,10 +438,10 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
         <div
             ref={sidebarRef}
             onMouseDown={(e) => e.stopPropagation()}
-            className="absolute right-0 top-0 bottom-0 w-80 bg-zinc-900/95 backdrop-blur-xl border-l border-white/10 z-50 flex flex-col shadow-2xl animate-in slide-in-from-right duration-300"
+            className="absolute right-0 top-0 bottom-0 w-full sm:w-80 bg-zinc-900/95 backdrop-blur-xl border-l border-white/10 z-50 flex flex-col shadow-2xl animate-in slide-in-from-right duration-300"
         >
             {/* Header */}
-            <div className="h-14 border-b border-white/10 flex items-center justify-between px-4 bg-zinc-900/50">
+            <div className="h-14 border-b border-white/10 flex items-center justify-between px-3 md:px-4 bg-zinc-900/50">
                 <div className="flex items-center gap-2">
                     <Settings size={18} className="text-purple-400" />
                     <h2 className="font-bold text-zinc-200">Render Settings</h2>
@@ -486,7 +486,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
             </div>
 
             {/* Content */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-6 custom-scrollbar">
+            <div className="flex-1 overflow-y-auto p-3 md:p-4 space-y-6 custom-scrollbar">
 
                 {/* Render Mode */}
                 <section className="space-y-3">

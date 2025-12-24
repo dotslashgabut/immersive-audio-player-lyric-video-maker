@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import { PlaylistItem, LyricLine } from '../types';
-import { Plus, Trash2, Play, Volume2, FileText, ListMusic, Shuffle, User, Disc, Music } from './Icons';
+import { Plus, Trash2, Play, Volume2, FileText, ListMusic, Shuffle, User, Disc, Music, X } from './Icons';
 import { formatTime, parseLRC, parseSRT } from '../utils/parsers';
 
 interface PlaylistEditorProps {
@@ -11,10 +11,12 @@ interface PlaylistEditorProps {
     onPlayTrack: (index: number) => void;
     onSeek: (time: number) => void;
     onClearPlaylist: () => void;
+
     currentTime: number;
+    onClose: () => void;
 }
 
-const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, currentTrackIndex, setCurrentTrackIndex, onPlayTrack, onSeek, onClearPlaylist, currentTime }) => {
+const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, currentTrackIndex, setCurrentTrackIndex, onPlayTrack, onSeek, onClearPlaylist, currentTime, onClose }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
     const [sortConfig, setSortConfig] = useState<{ key: string | null; direction: 'asc' | 'desc' }>({ key: null, direction: 'asc' });
@@ -306,10 +308,6 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
                 </div>
 
                 <div className="flex gap-2 shrink-0">
-                    <label className="flex items-center gap-2 px-3 py-1 bg-orange-600 hover:bg-orange-500 rounded text-xs font-medium cursor-pointer transition-colors text-white whitespace-nowrap">
-                        <Plus size={14} /> Add Audio & Lyrics
-                        <input type="file" className="hidden" accept="audio/*,.lrc,.srt" multiple onChange={handleFileUpload} />
-                    </label>
                     <button
                         onClick={() => {
                             if (playlist.length > 0 && window.confirm("Clear entire playlist?")) {
@@ -321,6 +319,18 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
                         title="Clear Playlist"
                     >
                         <Trash2 size={14} />
+                    </button>
+                    <label className="flex items-center gap-2 px-3 py-1 bg-orange-600 hover:bg-orange-500 rounded text-xs font-medium cursor-pointer transition-colors text-white whitespace-nowrap">
+                        <Plus size={14} /> Add Audio & Lyrics
+                        <input type="file" className="hidden" accept="audio/*,.lrc,.srt" multiple onChange={handleFileUpload} />
+                    </label>
+                    <div className="w-px h-4 bg-zinc-700 mx-1 self-center"></div>
+                    <button
+                        onClick={onClose}
+                        className="p-1 hover:bg-zinc-700 text-zinc-400 hover:text-white rounded transition-colors"
+                        title="Close Playlist"
+                    >
+                        <X size={14} />
                     </button>
                 </div>
             </div>
