@@ -14,7 +14,10 @@ export const drawCanvasFrame = (
     customFontName: string | null,
     fontSizeScale: number,
     isBlurEnabled: boolean, // Deprecated, use renderConfig.backgroundBlurStrength
-    renderConfig?: RenderConfig
+    duration: number,
+    renderConfig?: RenderConfig,
+    isLastSongInPlaylist: boolean = true,
+    isFirstSongInPlaylist: boolean = true
 ) => {
     // Helper: HEX to RGB
     const hexToRgb = (hex: string) => {
@@ -250,7 +253,12 @@ export const drawCanvasFrame = (
     const isPortrait = width <= height;
     const scale = (Math.max(width, height) === 1080 || Math.max(width, height) === 1920) ? 1 : 0.666;
 
-    ctx.fillStyle = renderConfig?.backgroundColor || '#000000';
+    // Set base background - default to black for timeline/custom to avoid color leaks
+    if (renderConfig && (renderConfig.backgroundSource === 'color' || renderConfig.backgroundSource === 'smart-gradient')) {
+        ctx.fillStyle = renderConfig.backgroundColor || '#000000';
+    } else {
+        ctx.fillStyle = '#000000';
+    }
     ctx.fillRect(0, 0, width, height);
     if (renderConfig?.backgroundSource === 'gradient' && renderConfig.backgroundGradient) {
         ctx.fillStyle = renderConfig.backgroundGradient;
@@ -324,7 +332,16 @@ export const drawCanvasFrame = (
         }
     }
 
-    let showIntroTitle = (activeIdx === -1 && time < 5 && (renderConfig?.showIntro ?? true));
+    const introContent = renderConfig?.introMode === 'manual' && renderConfig.introText
+        ? renderConfig.introText
+        : `${metadata.title}\n${metadata.artist}`;
+
+    let showIntroTitle = (
+        activeIdx === -1 &&
+        time < 5 &&
+        (renderConfig?.showIntro ?? true) &&
+        (renderConfig?.introMode !== 'manual' || isFirstSongInPlaylist)
+    );
 
     let baseFontSize = (isPortrait ? 50 : 60) * scale;
     let secondaryFontSize = (isPortrait ? 25 : 30) * scale;
@@ -350,7 +367,7 @@ export const drawCanvasFrame = (
         const isBigLayout = ['large', 'large_upper', 'big_center', 'metal', 'kids', 'sad', 'romantic', 'tech', 'gothic', 'testing', 'testing_up', 'one_line', 'one_line_up', 'custom'].includes(activePreset);
 
         if (isBigLayout || activePreset === 'slideshow' || activePreset === 'subtitle') {
-            const activeLine = showIntroTitle ? { time: 0, text: `${metadata.title}\n${metadata.artist}` } : (lyrics[activeIdx] || lyrics[virtualActiveIdx]);
+            const activeLine = showIntroTitle ? { time: 0, text: introContent } : (lyrics[activeIdx] || lyrics[virtualActiveIdx]);
             if (activeLine) {
                 ctx.font = `900 ${baseFontSize}px ${fontFamily}`;
                 const textToCheck = ['large_upper', 'big_center', 'metal', 'tech', 'testing_up', 'one_line_up'].includes(activePreset) ? activeLine.text.toUpperCase() : activeLine.text;
@@ -379,7 +396,7 @@ export const drawCanvasFrame = (
             let isCurrent = false;
 
             if (i === 0 && showIntroTitle) {
-                line = { time: 0, text: `${metadata.title}\n${metadata.artist}` };
+                line = { time: 0, text: introContent };
                 isCurrent = true;
             } else {
                 const idx = virtualActiveIdx + i;

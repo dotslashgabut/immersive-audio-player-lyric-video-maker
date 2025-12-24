@@ -15,7 +15,7 @@ const DEFAULT_CONFIG: RenderConfig = {
     fontColor: '#ffffff',
     textEffect: 'shadow',
     textAnimation: 'none',
-    transitionEffect: 'fade',
+    transitionEffect: 'none',
     lyricDisplayMode: 'all',
     fontWeight: 'bold',
     fontStyle: 'normal',
@@ -29,6 +29,8 @@ const DEFAULT_CONFIG: RenderConfig = {
     infoStyle: 'classic',
     infoMarginScale: 1.0,
     backgroundBlurStrength: 0,
+    introMode: 'auto',
+    introText: '',
 };
 
 const textEffectGroups = [
@@ -349,6 +351,7 @@ interface RenderSettingsProps {
     setPreset: (preset: VideoPreset) => void;
     onClose: () => void;
     isPlaylistMode: boolean;
+    hasPlaylist: boolean;
     onRender: () => void;
     customFontName: string | null;
     onFontUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
@@ -373,6 +376,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
     setPreset,
     onClose,
     isPlaylistMode,
+    hasPlaylist,
     onRender,
     customFontName,
     onFontUpload,
@@ -453,12 +457,12 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                     // In a real app we might want to validate schema using zod or similar
                     setConfig({ ...DEFAULT_CONFIG, ...importedConfig });
 
-                    // Update Output Settings if present
-                    if (importedResolution) setResolution(importedResolution as any);
-                    if (importedAspectRatio) setAspectRatio(importedAspectRatio as any);
-                    if (importedRenderCodec) setRenderCodec(importedRenderCodec);
-                    if (importedRenderFps) setRenderFps(importedRenderFps);
-                    if (importedRenderQuality) setRenderQuality(importedRenderQuality as any);
+                    // Update Output Settings if present, otherwise reset to defaults
+                    setResolution((importedResolution as any) || '1080p');
+                    setAspectRatio((importedAspectRatio as any) || '16:9');
+                    setRenderCodec((importedRenderCodec as string) || 'auto');
+                    setRenderFps((importedRenderFps as number) || 30);
+                    setRenderQuality((importedRenderQuality as any) || 'med');
 
                     setPreset('custom');
                     alert('Settings loaded successfully!');
@@ -559,7 +563,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                         </button>
                         <button
                             onClick={() => handleChange('renderMode', 'playlist')}
-                            disabled={!isPlaylistMode}
+                            disabled={!hasPlaylist}
                             className={`px-3 py-2 rounded-lg text-xs font-medium border transition-all ${config.renderMode === 'playlist'
                                 ? 'bg-purple-600 border-purple-500 text-white shadow-[0_0_10px_rgba(147,51,234,0.3)]'
                                 : 'bg-zinc-800/50 border-white/5 text-zinc-400 hover:border-white/20 disabled:opacity-30 disabled:cursor-not-allowed'
@@ -757,6 +761,47 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                             </label>
                         ))}
                     </div>
+                </section>
+
+                {/* Intro & Outro Settings */}
+                <section className="space-y-3">
+                    <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-2">
+                        <Type size={14} /> Intro & Outro
+                    </h3>
+
+                    {/* Intro Settings */}
+                    <div className="bg-zinc-800/30 border border-white/5 rounded-lg p-3 space-y-3">
+                        <div className="flex items-center justify-between">
+                            <span className="text-xs text-zinc-300 font-medium">Intro Text</span>
+                            <div className="flex items-center gap-2 bg-zinc-800 rounded-md p-1 border border-white/5">
+                                <button
+                                    onClick={() => handleChange('introMode', 'auto')}
+                                    className={`px-2 py-1 text-[10px] font-medium rounded transition-all ${config.introMode === 'auto' ? 'bg-zinc-600 text-white shadow-sm' : 'text-zinc-400 hover:text-zinc-200'}`}
+                                >
+                                    Auto
+                                </button>
+                                <button
+                                    onClick={() => handleChange('introMode', 'manual')}
+                                    className={`px-2 py-1 text-[10px] font-medium rounded transition-all ${config.introMode === 'manual' ? 'bg-purple-600 text-white shadow-sm' : 'text-zinc-400 hover:text-zinc-200'}`}
+                                >
+                                    Manual
+                                </button>
+                            </div>
+                        </div>
+
+                        {config.introMode === 'manual' && (
+                            <div className="space-y-1 animate-in slide-in-from-top-1 fade-in duration-200">
+                                <label className="text-[10px] text-zinc-500 uppercase font-bold">Custom Intro Content</label>
+                                <textarea
+                                    value={config.introText}
+                                    onChange={(e) => handleChange('introText', e.target.value)}
+                                    placeholder="Enter intro text..."
+                                    className="w-full bg-zinc-900 border border-white/10 rounded-md px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:ring-1 focus:ring-purple-500 min-h-[60px]"
+                                />
+                            </div>
+                        )}
+                    </div>
+
                 </section>
 
                 {/* Song Info Design */}

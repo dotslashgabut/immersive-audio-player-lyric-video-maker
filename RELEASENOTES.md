@@ -1,5 +1,24 @@
 # Release Notes
 
+# v2.0.9
+
+## What's New
+- **Intro Customization**:
+    - **Manual Control**: Toggle Intro text between 'Auto' (metadata) and 'Manual' custom text.
+    - **Playlist Behavior**: In 'Manual' mode, the intro text appears only on the first song of the playlist. In 'Auto' mode, it appears on every song.
+- **Visual Refinements**:
+    - **Blur Strength Slider**: Fine-tune the intensity of the background blur effect.
+    - **Solid Color Default**: 'Solid Color' background source now defaults to pure black for a cleaner start.
+    - **Info Padding**: New slider to adjust the distance of Song Info text from the screen edges.
+- **Improved UX**:
+    - **Shortcut**: Press **D** to quickly toggle the Render Settings panel.
+    - **Reset Logic**: Improved 'Reset' button reliability in Render Settings.
+
+## Bug Fixes
+- **Playlist Rendering**: Fixed an issue where the 'All Playlist' render scope was not clickable.
+- **Playback Stability**: Resolved an issue where songs would stop playing in the browser after a render cycle.
+- **Settings Sync**: Fixed synchronization issues between the main view blur settings and the render panel.
+
 # v2.0.8
 
 ## What's New

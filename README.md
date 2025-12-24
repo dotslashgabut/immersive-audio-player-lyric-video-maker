@@ -60,7 +60,7 @@
   - **Resolution**: 720p / 1080p.
   - **Frame Rate**: Support for **24, 25, 30, 50, and 60 FPS**.
   - **Quality**: Adjustable bitrate presets (**Low, Med, High**).
-  - **Visual Toggles**: Quick toggle for **Background Blur** (Sharp/Blur) directly in the export panel.
+  - **Visual Toggles**: Quick toggle for **Background Blur** with **Adjustable Blur Strength** directly in the export panel.
   - **Codecs**: Full control over output format, supporting **H.264 (MP4)**, **VP9 (WebM)**, and **AV1** (where supported).
 - **Aspect Ratios**: 
   - **16:9** (Landscape - YouTube)
@@ -84,6 +84,8 @@
 - **Lyric Display Control**:
   - **Modes**: Show All, Previous/Next, Next Only, or Active Line Only highlighting.
   - **Visibility**: Toggle Lyrics, Title, Artist, Cover Art, and Intro overlays independently.
+  - **Intro Overlay**: 
+    - **Modes**: Toggle 'Auto' (MetaData triggers on every song) or 'Manual' (Custom text triggers only on first playlist song).
 - **Typography & Visual Effects**:
   - **Font Freedom**: Huge library of built-in fonts (Sans, Serif, Display, Handwriting, etc.) plus **Custom Font Upload**.
   - **Text Styling**: Controls for alignment, vertical position, size, and color.
@@ -179,8 +181,8 @@ This application is built with React + Vite and requires **Node.js** to run.
 - **Timeline Lirik Interaktif**: Lihat cuplikan lirik di playlist. Klik baris mana saja untuk langsung memutar lagu itu.
 - **Sorting Fleksibel**: Urutkan playlist berdasarkan Artis, Judul, Album (Bolak-balik Ascending/Descending), atau acak.
 - **Kontrol Akurasi**: Atur offset lirik (maju/mundur 0.1s) jika teks kurang pas dengan suara.
-- **Visual Efek**: Fitur **Background Blur**, **Smart Gradient**, dan **Text Animation** (Bounce, Pulse, Glitch, dll).
-- **Kustomisasi Info Lagu**: Atur posisi (Kiri-Atas, Bawah-Tengah, dll), gaya tampilan, dan jarak tepi (padding).
+- **Visual Efek**: Fitur **Background Blur** (dengan **Slider Kekuatan Blur**), **Smart Gradient**, dan **Text Animation** (Bounce, Pulse, Glitch, dll).
+- **Kustomisasi Info Lagu**: Atur posisi, gaya tampilan, jarak tepi (padding), serta **Intro** teks (Auto/Manual).
 - **Mode Tampilan Lirik**: Pilih mau tampilkan semua baris, atau hanya aktif/berikutnya saja.
 - **Timeline Canggih**: Sekarang dengan fitur **Undo/Redo**, **Copy-Paste** slide, **Drag Selection**, dan **Snapping** otomatis agar visual pas dengan ketukan lirik.
 - **Shortcut Baru**: Tekan **D** (Render Settings), **N**/**B** (Next/Prev), **M** (Mute), **R** (Repeat), **L** (Playlist), **+/-** (Font), dan **Ctrl/Cmd+Shift+E** (Export).

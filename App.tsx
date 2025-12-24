@@ -32,6 +32,7 @@ function App() {
 
   // State: Media & Data
   const [audioSrc, setAudioSrc] = useState<string | null>(null);
+  const [audioElementKey, setAudioElementKey] = useState(0);
   const [metadata, setMetadata] = useState<AudioMetadata>({
     title: 'No Audio Loaded',
     artist: 'Select a file',
@@ -82,7 +83,7 @@ function App() {
     fontColor: '#ffffff',
     textEffect: 'shadow',
     textAnimation: 'none',
-    transitionEffect: 'fade',
+    transitionEffect: 'none',
     lyricDisplayMode: 'all',
     fontWeight: 'bold',
     fontStyle: 'normal',
@@ -96,6 +97,8 @@ function App() {
     infoStyle: 'classic',
     infoMarginScale: 1.0,
     backgroundBlurStrength: 0,
+    introMode: 'auto',
+    introText: '',
   });
 
   const isBlurEnabled = renderConfig.backgroundBlurStrength > 0;
@@ -433,13 +436,71 @@ function App() {
   // --- Video Export Logic ---
 
   const handleExportVideo = async () => {
-    if (!audioSrc || !audioRef.current || !canvasRef.current) return;
+    if (!audioRef.current || !canvasRef.current) return;
+
+    // Determine Render Scope
+    const isPlaylistRender = renderConfig.renderMode === 'playlist' && playlist.length > 0;
+    const queue: {
+      audioSrc: string;
+      lyrics: LyricLine[];
+      metadata: AudioMetadata;
+      duration?: number;
+      isFileSource?: boolean;
+    }[] = [];
+
+    if (isPlaylistRender) {
+      // Build Queue from Playlist
+      for (const item of playlist) {
+        // Prepare lyrics
+        let trackLyrics: LyricLine[] = [];
+        if (item.parsedLyrics && item.parsedLyrics.length > 0) {
+          trackLyrics = item.parsedLyrics;
+        } else if (item.lyricFile) {
+          try {
+            const text = await item.lyricFile.text();
+            const ext = item.lyricFile.name.split('.').pop()?.toLowerCase();
+            if (ext === 'lrc') trackLyrics = parseLRC(text);
+            else if (ext === 'srt') trackLyrics = parseSRT(text);
+          } catch (e) {
+            console.error("Failed to parse lyrics for playlist item", e);
+          }
+        }
+
+        // Prepare Audio URL
+        const url = URL.createObjectURL(item.audioFile);
+
+        queue.push({
+          audioSrc: url,
+          lyrics: trackLyrics,
+          metadata: item.metadata,
+          isFileSource: true // Mark to revoke later
+        });
+      }
+    } else {
+      // Single Track (Current)
+      if (!audioSrc) return;
+      queue.push({
+        audioSrc: audioSrc,
+        lyrics: adjustedLyrics, // Use currently adjusted lyrics (with offset)
+        metadata: metadata,
+        isFileSource: false
+      });
+    }
+
+    if (queue.length === 0) return;
 
     // Confirm
-    if (!window.confirm(`Start rendering ${aspectRatio} (${resolution}) video? This will play the song from start to finish. Please do not switch tabs.`)) return;
+    const confirmMsg = isPlaylistRender
+      ? `Start rendering ALL ${queue.length} songs from the playlist? This will result in one continuous video.`
+      : `Start rendering ${aspectRatio} (${resolution}) video? This will play the song from start to finish.`;
+
+    if (!window.confirm(`${confirmMsg} Please do not switch tabs during rendering.`)) {
+      // Cleanup generated URLs if aborted immediately
+      if (isPlaylistRender) queue.forEach(q => q.isFileSource && URL.revokeObjectURL(q.audioSrc));
+      return;
+    }
 
     setShowRenderSettings(false);
-
     setIsRendering(true);
     setRenderProgress(0);
     abortRenderRef.current = false;
@@ -458,30 +519,28 @@ function App() {
       bgVideoRef.current.pause();
     }
 
-    // Capture current preset to use inside the loop (avoid closure staleness if any, though activePreset is const in this render)
+    const audioEl = audioRef.current;
+
+    // Capture current preset to use inside the loop based on initial state
     const currentPreset = preset;
 
-    // 1. Preload Images & Videos & Audio
+    // 1. Preload Images & Videos (Global Resources)
     const imageMap = new Map<string, HTMLImageElement>();
     const videoMap = new Map<string, HTMLVideoElement>();
     const audioMap = new Map<string, HTMLAudioElement>();
     const loadPromises: Promise<void>[] = [];
 
-    // Helper Load Image
+    // Helper Loaders
     const loadImg = (id: string, url: string) => {
       return new Promise<void>((resolve) => {
         const img = new Image();
         img.crossOrigin = "anonymous";
-        img.onload = () => {
-          imageMap.set(id, img);
-          resolve();
-        };
-        img.onerror = () => resolve(); // Ignore errors
+        img.onload = () => { imageMap.set(id, img); resolve(); };
+        img.onerror = () => resolve();
         img.src = url;
       });
     };
 
-    // Helper Load Video
     const loadVid = (id: string, url: string) => {
       return new Promise<void>((resolve) => {
         const vid = document.createElement('video');
@@ -489,80 +548,48 @@ function App() {
         vid.muted = true;
         vid.playsInline = true;
         vid.preload = "auto";
-
         let resolved = false;
-        const safeResolve = () => {
-          if (!resolved) {
-            resolved = true;
-            videoMap.set(id, vid);
-            resolve();
-          }
-        };
-
-        vid.oncanplay = () => {
-          if (!resolved) {
-            vid.currentTime = 0.001; // Force seek to ensure frame decode
-          }
-        };
-
-        vid.onseeked = () => {
-          safeResolve();
-        };
-
-        vid.onerror = () => {
-          console.warn("Failed to load video:", url);
-          safeResolve();
-        };
-
-        // Fallback timeout
+        const safeResolve = () => { if (!resolved) { resolved = true; videoMap.set(id, vid); resolve(); } };
+        vid.oncanplay = () => { if (!resolved) { vid.currentTime = 0.001; } };
+        vid.onseeked = () => safeResolve();
+        vid.onerror = () => { console.warn("Failed to load video:", url); safeResolve(); };
         setTimeout(() => safeResolve(), 5000);
-
         vid.src = url;
         vid.load();
       });
     };
 
-    // Helper Load Audio
     const loadAudio = (id: string, url: string) => {
       return new Promise<void>((resolve) => {
         const aud = document.createElement('audio');
         aud.crossOrigin = "anonymous";
-        aud.onloadedmetadata = () => {
-          audioMap.set(id, aud);
-          resolve();
-        };
+        aud.onloadedmetadata = () => { audioMap.set(id, aud); resolve(); };
         aud.onerror = () => resolve();
         aud.src = url;
       });
     };
 
+    // Preload Visual Slides (Global)
     visualSlides.forEach(s => {
       if (s.type === 'video') loadPromises.push(loadVid(s.id, s.url));
       else if (s.type === 'audio') loadPromises.push(loadAudio(s.id, s.url));
       else loadPromises.push(loadImg(s.id, s.url));
     });
 
-    if (metadata.coverUrl) {
-      if (metadata.backgroundType === 'video') loadPromises.push(loadVid('background', metadata.coverUrl));
-      else loadPromises.push(loadImg('cover', metadata.coverUrl));
-    }
-
     await Promise.all(loadPromises);
 
     if (abortRenderRef.current) {
       setIsRendering(false);
+      if (isPlaylistRender) queue.forEach(q => q.isFileSource && URL.revokeObjectURL(q.audioSrc));
       return;
     }
 
     // 3. Setup Audio Mixing & Recording
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
-    const stream = canvas.captureStream(renderFps); // Video Stream (Dynamic FPS)
+    const stream = canvas.captureStream(renderFps);
 
-    const audioEl = audioRef.current;
     let audioStream: MediaStream | null = null;
-
-    // Get Main Audio Stream
     try {
       // @ts-ignore
       if (audioEl.captureStream) audioStream = audioEl.captureStream();
@@ -575,80 +602,50 @@ function App() {
       return;
     }
 
-    // Audio Mixer (Web Audio API)
-    // We mix the Song + Any Video Slide Audio into a single destination
-    // Pure audio - no filters or processing
     const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
     const mixerDest = audioContext.createMediaStreamDestination();
 
-    // Connect Main Song directly to mixer (and NOT to destination)
-    if (audioStream && audioStream.getAudioTracks().length > 0) {
-      const source = audioContext.createMediaStreamSource(audioStream);
-      source.connect(mixerDest);
-    }
+    // Connect Source to Mixer
+    const source = audioContext.createMediaElementSource(audioEl);
+    source.connect(mixerDest);
 
-    // Connect All Preloaded Videos directly to mixer
-    // We disconnect them from speakers by not calling .connect(audioContext.destination)
+    // Connect Preloads
     videoMap.forEach((vidElement) => {
-      // Ensure the element itself is muted in DOM so it doesn't play to speakers directly
-      // (We already set muted=true on creation, but double check)
       vidElement.muted = true;
-
-      const source = audioContext.createMediaElementSource(vidElement);
-      source.connect(mixerDest);
+      const src = audioContext.createMediaElementSource(vidElement);
+      src.connect(mixerDest);
     });
-
-    // Connect All Preloaded Audios directly to mixer
     audioMap.forEach((audElement) => {
-      // Ensure element DOM mute
       audElement.muted = true;
-
-      const source = audioContext.createMediaElementSource(audElement);
-      source.connect(mixerDest);
+      const src = audioContext.createMediaElementSource(audElement);
+      src.connect(mixerDest);
     });
 
-    // Add Mixed Audio Track to Recorder Stream
     if (mixerDest.stream.getAudioTracks().length > 0) {
       stream.addTrack(mixerDest.stream.getAudioTracks()[0]);
     } else if (audioStream) {
-      // Fallback if mixer failed for some reason
       stream.addTrack(audioStream.getAudioTracks()[0]);
     }
 
-    // Attempt to use selected or VP9 first
+    // Setup MediaRecorder
     const getPreferredMimeType = () => {
-      if (renderCodec !== 'auto' && MediaRecorder.isTypeSupported(renderCodec)) {
-        return renderCodec;
-      }
+      if (renderCodec !== 'auto' && MediaRecorder.isTypeSupported(renderCodec)) return renderCodec;
       const types = [
-        'video/webm; codecs=vp9,opus',               // VP9 + Opus (Best WebM Support)
-        'video/webm; codecs=vp9',                     // VP9 (Fallback)
-        'video/webm; codecs=av1',                     // AV1 (WebM) - High Efficiency
-        'video/mp4; codecs="av01.0.05M.08"',          // AV1 (MP4)
-        'video/mp4; codecs="avc1.4D401E, mp4a.40.2"', // H.264 Main
-        'video/mp4; codecs="avc1.64001E, mp4a.40.2"', // H.264 High
-        'video/mp4; codecs="avc1.42E01E, mp4a.40.2"', // H.264 Baseline
-        'video/mp4',                                  // Generic MP4
-        'video/webm',                                 // Generic WebM
+        'video/webm; codecs=vp9,opus', 'video/webm; codecs=vp9', 'video/webm; codecs=av1',
+        'video/mp4; codecs="av01.0.05M.08"', 'video/mp4; codecs="avc1.4D401E, mp4a.40.2"',
+        'video/mp4; codecs="avc1.64001E, mp4a.40.2"', 'video/mp4', 'video/webm'
       ];
-      for (const t of types) {
-        if (MediaRecorder.isTypeSupported(t)) return t;
-      }
+      for (const t of types) { if (MediaRecorder.isTypeSupported(t)) return t; }
       return 'video/webm';
     };
 
     const mimeType = getPreferredMimeType();
-
-    // Calculated Bitrate based on Resolution, FPS, and Quality
-    // Base: 720p 30fps Med = 4Mbps, 1080p 30fps Med = 8Mbps
-    // Scale for FPS (60fps uses 1.5x) and Quality (Low 0.5x, High 2x)
     const baseBitrate = resolution === '1080p' ? 8000000 : 4000000;
     const fpsMultiplier = renderFps > 30 ? 1.5 : 1.0;
     const qualityMultiplier = renderQuality === 'high' ? 2.0 : renderQuality === 'low' ? 0.5 : 1.0;
     const bitrate = baseBitrate * fpsMultiplier * qualityMultiplier;
 
     const mediaRecorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: bitrate });
-
     mediaRecorderRef.current = mediaRecorder;
 
     const chunks: Blob[] = [];
@@ -657,17 +654,18 @@ function App() {
     };
 
     mediaRecorder.onstop = () => {
-      // Only download if NOT aborted
       if (!abortRenderRef.current) {
         const blob = new Blob(chunks, { type: mimeType });
-
         const downloadBlob = (blobToDownload: Blob) => {
           const url = URL.createObjectURL(blobToDownload);
           const a = document.createElement('a');
           a.href = url;
-          // Clean filename
           const ext = mimeType.includes('mp4') ? 'mp4' : 'webm';
-          a.download = `${metadata.title || 'video'}_${aspectRatio.replace(':', '-')}_${resolution}.${ext}`;
+          const filename = isPlaylistRender
+            ? `Playlist_${queue.length}_Songs_${aspectRatio.replace(':', '-')}.${ext}`
+            : `${queue[0].metadata.title || 'video'}_${aspectRatio.replace(':', '-')}.${ext}`;
+
+          a.download = filename;
           document.body.appendChild(a);
           a.click();
           document.body.removeChild(a);
@@ -675,10 +673,7 @@ function App() {
         };
 
         if (mimeType.includes('webm')) {
-          const durationMs = (audioRef.current?.duration || 0) * 1000;
-          fixWebmDuration(blob, durationMs, (fixedBlob: Blob) => {
-            downloadBlob(fixedBlob);
-          });
+          downloadBlob(blob);
         } else {
           downloadBlob(blob);
         }
@@ -689,118 +684,62 @@ function App() {
       // Cleanup
       audioContext.close();
       setIsRendering(false);
+      setAudioElementKey(prev => prev + 1);
+      if (isPlaylistRender) queue.forEach(q => q.isFileSource && URL.revokeObjectURL(q.audioSrc));
     };
 
-    // 4. Start Sequence
-    // Strategy: Start Recorder -> Wait 100ms (Record Silence) -> Start Audio
-    // This ensures no cut at start and no audio glitch as the recorder is stable before signal hits.
+    // --- RENDER ORCHESTRATION ---
 
-    // Resume Audio Context
-    if (audioContext.state === 'suspended') {
-      await audioContext.resume();
-    }
+    let queueIndex = 0;
+    // Mutable Rendering State
+    let currentRenderLyrics: LyricLine[] = [];
+    let currentRenderMetadata: AudioMetadata = metadata;
+    let currentRenderDuration = 0;
 
-    // Warm up Canvas
-    if (ctx && audioEl) {
-      drawCanvasFrame(
-        ctx,
-        canvas.width,
-        canvas.height,
-        0,
-        adjustedLyrics,
-        metadata,
-        visualSlides,
-        imageMap,
-        videoMap,
-        currentPreset,
-        customFontName,
-        renderConfig.fontSizeScale,
-        isBlurEnabled,
-        renderConfig
-      );
-    }
-
-    // Throttle render loop based on selected FPS
+    // Render Loop (Frame Drawer)
     let lastRenderTime = 0;
     const renderInterval = 1000 / renderFps;
 
-    const renderLoop = (now: number) => {
-      // Check for End
-      if (audioEl.ended) {
-        // Add 100ms tail buffer to ensure we catch the very end (reduced from 500ms for precise duration)
-        if (mediaRecorder.state === 'recording') {
-          setTimeout(() => {
-            if (mediaRecorder.state === 'recording') {
-              mediaRecorder.stop();
-              setIsPlaying(false);
-            }
-          }, 100);
-        }
-        return; // Stop the loop logic immediately though
-      }
+    const renderFrameLoop = (now: number) => {
+      if (abortRenderRef.current) return;
 
-      if (audioEl.paused && audioEl.currentTime > 0 && !audioEl.ended) {
-        // Paused but not ended? (User paused or lag). Just return, loop keeps running.
-        // If aborted, abort handler deals with it.
-      }
-
-      // Continue loop first to maintain stable timing
       if (mediaRecorder.state === 'recording') {
-        requestAnimationFrame(renderLoop);
+        requestAnimationFrame(renderFrameLoop);
       }
 
-      // Throttle actual rendering
       const elapsed = now - lastRenderTime;
-      if (elapsed < renderInterval) {
-        return;
-      }
+      if (elapsed < renderInterval) return;
       lastRenderTime = now - (elapsed % renderInterval);
 
       const t = audioEl.currentTime;
 
-      // Sync Export Videos - Use larger tolerance to prevent audio glitches
+      // Current Song Progress for UI (Partial)
+      // We could also show Total Progress queueIndex / queue.length
+      if (currentRenderDuration > 0) {
+        setRenderProgress(((t / currentRenderDuration) * 100));
+      }
+
+      // Sync Backgrounds/Videos
       videoMap.forEach((v, id) => {
         if (id === 'background') {
-          // Sync background (Looping)
           const vidDuration = v.duration || 1;
-          let targetTime = t % vidDuration;
-
-          // Handle loop wrap-around logic
-          // If the difference is large (e.g. video is near end, target is near start), just let it play or seek if needed.
-          // We use a simple drift check. If drift > 1s, we snap.
-          // Special case: if we just wrapped around (targetTime is small, v.currentTime is large), we force seek to start.
-
+          const targetTime = t % vidDuration;
+          // Handle Loop Wrap-around and Drift
           let drift = Math.abs(v.currentTime - targetTime);
-
-          // Handle wrap-around drift calculation (e.g. current=59s, target=1s, duration=60s -> drift is 2s, not 58s)
-          // Actually, simplest is: if targetTime < v.currentTime significanty (meaning new loop started), we seek.
-
           if (targetTime < v.currentTime && (v.currentTime - targetTime) > vidDuration / 2) {
-            // We wrapped around in target, but video is still near end. Seek to start.
             v.currentTime = targetTime;
-          } else if (drift > 1.0) {
-            // Normal drift correction
+          } else if (drift > 0.5) { // Increased tolerance
             v.currentTime = targetTime;
           }
-
           if (v.paused) v.play().catch(() => { });
         } else {
-          // Sync slide
           const s = visualSlides.find(sl => sl.id === id);
           if (s) {
             if (t >= s.startTime && t < s.endTime) {
               const rel = t - s.startTime;
-
-              // Only seek if severely out of sync (>0.5s) to prevent audio glitches
               if (Math.abs(v.currentTime - rel) > 0.5) v.currentTime = rel;
-
-              // Handle Audio Muting & Volume for Export
               const shouldMute = s.isMuted !== false;
               if (v.muted !== shouldMute) v.muted = shouldMute;
-
-              const targetVol = s.volume !== undefined ? s.volume : 1;
-              if (Math.abs(v.volume - targetVol) > 0.01) v.volume = targetVol;
-
               if (v.paused) v.play().catch(() => { });
             } else {
               if (!v.paused) v.pause();
@@ -810,22 +749,15 @@ function App() {
         }
       });
 
-      // Sync Export Audios - Use larger tolerance to prevent glitches
+      // Sync Audio Slides
       audioMap.forEach((a, id) => {
         const s = visualSlides.find(sl => sl.id === id);
         if (s) {
           if (t >= s.startTime && t < s.endTime) {
             const rel = t - s.startTime;
-            // Only seek if severely out of sync (>0.5s) to prevent audio buffer glitches
             if (Math.abs(a.currentTime - rel) > 0.5) a.currentTime = rel;
-
-            // Handle Audio Muting & Volume for Export
             const shouldMute = s.isMuted === true;
             if (a.muted !== shouldMute) a.muted = shouldMute;
-
-            const targetVol = s.volume !== undefined ? s.volume : 1;
-            if (Math.abs(a.volume - targetVol) > 0.01) a.volume = targetVol;
-
             if (a.paused) a.play().catch(() => { });
           } else {
             if (!a.paused) a.pause();
@@ -839,52 +771,106 @@ function App() {
           ctx,
           canvas.width,
           canvas.height,
-          audioEl.currentTime,
-          adjustedLyrics,
-          metadata,
+          t,
+          currentRenderLyrics,
+          currentRenderMetadata,
           visualSlides,
-          imageMap,
+          imageMap, // Must contain cover!
           videoMap,
           currentPreset,
           customFontName,
           renderConfig.fontSizeScale,
-          isBlurEnabled,
-          renderConfig
+          renderConfig.backgroundBlurStrength > 0, // Should be isBlurEnabled
+          currentRenderDuration,
+          renderConfig,
+          renderConfig.renderMode === 'current' || (queueIndex === queue.length - 1),
+          renderConfig.renderMode === 'current' || (queueIndex === 0)
         );
       }
     };
 
-    // Start Recording -> Wait -> Start Audio to ensure no frame drop at start
-    const startRender = async () => {
-      if (abortRenderRef.current) return;
 
-      // Start Recorder first
-      mediaRecorder.start();
-
-      // IMPORTANT: Wait 50ms to let Recorder initialize and capture first 1-2 frames of silence/black
-      // This prevents the "cut off start" issue where audio starts before recorder writes the first frame.
-      await new Promise(r => setTimeout(r, 50));
-
+    const processNextTrack = async () => {
       if (abortRenderRef.current) {
         mediaRecorder.stop();
         return;
       }
 
-      setIsPlaying(true);
-      requestAnimationFrame(renderLoop);
-
-      // Start audio
-      const startPromise = audioEl.play();
-      if (startPromise !== undefined) {
-        startPromise.catch(error => {
-          console.error("Playback failed start:", error);
-          setIsRendering(false);
-          mediaRecorder.stop();
-        });
+      if (queueIndex >= queue.length) {
+        // Add a small tail of silence/freeze
+        await new Promise(r => setTimeout(r, 500));
+        mediaRecorder.stop();
+        return;
       }
+
+      const track = queue[queueIndex];
+
+      // 1. Update State
+      currentRenderLyrics = track.lyrics;
+      currentRenderMetadata = track.metadata; // Update local ref
+      currentRenderDuration = 0;
+
+      // Update Metadata in Background if possible to show progress in UI?
+      // Setting state might be risky if unmounted, but we are in App.
+      // setMetadata(track.metadata); 
+
+      // 2. Load Cover Art into imageMap
+      if (track.metadata.coverUrl) {
+        if (track.metadata.backgroundType === 'video') {
+          // Ensure background video is loaded in videoMap
+          // Note: if queue has different videos, we might overwrite 'background' key.
+          // This is fine as we process sequentially.
+          await loadVid('background', track.metadata.coverUrl);
+        } else {
+          await loadImg('cover', track.metadata.coverUrl);
+        }
+      }
+
+      // 3. Load Audio
+      // We pause first to be safe
+      audioEl.pause();
+      audioEl.src = track.audioSrc;
+      audioEl.load();
+
+      // Wait for ready
+      await new Promise<void>((resolve) => {
+        const onCanPlay = () => {
+          audioEl.removeEventListener('canplay', onCanPlay);
+          resolve();
+        };
+        audioEl.addEventListener('canplay', onCanPlay);
+        // Fallback if cached
+        if (audioEl.readyState >= 3) onCanPlay();
+      });
+
+      currentRenderDuration = audioEl.duration;
+
+      // 4. Play and Record
+      await audioEl.play();
+
+      // Wait for end
+      await new Promise<void>((resolve) => {
+        const onEnded = () => {
+          audioEl.removeEventListener('ended', onEnded);
+          resolve();
+        };
+        audioEl.addEventListener('ended', onEnded);
+      });
+
+      // 5. Next
+      queueIndex++;
+      processNextTrack();
     };
 
-    startRender();
+
+    // Start Recording
+    if (audioContext.state === 'suspended') await audioContext.resume();
+    mediaRecorder.start();
+
+    // Start Processing Queue
+    requestAnimationFrame(renderFrameLoop);
+    await processNextTrack();
+
   };
 
   // Keep export function ref up to date for shortcuts
@@ -1257,6 +1243,7 @@ function App() {
       className={`relative w-full h-[100dvh] bg-black overflow-hidden flex font-sans select-none ${isMouseIdle && !bypassAutoHide ? 'cursor-none' : ''}`}
     >
       <audio
+        key={audioElementKey}
         ref={audioRef}
         src={audioSrc || undefined}
         loop={repeatMode === 'one'}
@@ -2354,6 +2341,7 @@ function App() {
           setPreset={setPreset}
           onClose={() => setShowRenderSettings(false)}
           isPlaylistMode={isPlaylistMode}
+          hasPlaylist={playlist.length > 0}
           onRender={handleExportVideo}
           customFontName={customFontName}
           onFontUpload={handleFontUpload}
