@@ -469,7 +469,28 @@ export const drawCanvasFrame = (
                 if (blurVal > 0) ctx.filter = `blur(${blurVal}px)`;
 
                 const textAnim = isCurrent ? (renderConfig?.textAnimation || 'none') : 'none';
-                let textToDraw = (isCurrent && ['large_upper', 'big_center', 'metal', 'tech', 'testing_up', 'one_line_up'].includes(activePreset)) ? line.text.toUpperCase() : line.text;
+                let textToDraw = line.text;
+
+                // Determine casing
+                let casing = renderConfig?.textCase || 'none';
+
+                // Fallback to preset defaults if 'none'
+                if (casing === 'none' && isCurrent && ['large_upper', 'big_center', 'metal', 'tech', 'testing_up', 'one_line_up'].includes(activePreset)) {
+                    casing = 'upper';
+                }
+
+                // Apply casing
+                if (casing === 'upper') textToDraw = textToDraw.toUpperCase();
+                else if (casing === 'lower') textToDraw = textToDraw.toLowerCase();
+                else if (casing === 'title') {
+                    textToDraw = textToDraw.replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase());
+                }
+                else if (casing === 'sentence') {
+                    textToDraw = textToDraw.charAt(0).toUpperCase() + textToDraw.slice(1).toLowerCase();
+                }
+                else if (casing === 'invert') {
+                    textToDraw = textToDraw.replace(/\w\S*/g, (txt) => txt.charAt(0).toLowerCase() + txt.slice(1).toUpperCase());
+                }
 
                 // Text Animation Logic
                 let animOffsetX = 0;
@@ -561,10 +582,10 @@ export const drawCanvasFrame = (
                     const parts = textToDraw.split('\n');
                     const titleStr = parts[0];
                     const artistStr = parts.slice(1).join('\n');
-                    
+
                     const titleLH = baseFontSize * 1.2;
                     const artistLH = secondaryFontSize * 1.2;
-                    
+
                     // Center the block around yPos
                     // If artist exists, shift title up and artist down
                     let titleY = yPos;
@@ -572,17 +593,17 @@ export const drawCanvasFrame = (
                         titleY = yPos - (artistLH / 2);
                     }
                     const artistY = yPos + (titleLH / 2);
-                    
+
                     // Draw Title (Keep current weight)
                     ctx.font = `${style} ${weight} ${baseFontSize}px ${fontFamily}`;
                     drawWrappedText(ctx, titleStr, xPos, titleY, width * 0.9, titleLH, textEffect, decoration);
-                    
+
                     // Draw Artist (Smaller/Normal weight)
                     if (artistStr) {
-                         // Use '400' weight for artist to match "next line" look, unless explicitly custom
-                         const artistWeight = (activePreset === 'custom' && renderConfig?.fontWeight) ? renderConfig.fontWeight : '400';
-                         ctx.font = `${style} ${artistWeight} ${secondaryFontSize}px ${fontFamily}`;
-                         drawWrappedText(ctx, artistStr, xPos, artistY, width * 0.9, artistLH, textEffect, decoration);
+                        // Use '400' weight for artist to match "next line" look, unless explicitly custom
+                        const artistWeight = (activePreset === 'custom' && renderConfig?.fontWeight) ? renderConfig.fontWeight : '400';
+                        ctx.font = `${style} ${artistWeight} ${secondaryFontSize}px ${fontFamily}`;
+                        drawWrappedText(ctx, artistStr, xPos, artistY, width * 0.9, artistLH, textEffect, decoration);
                     }
 
                 } else if (isCurrent && (isBigLayout || ['slideshow', 'subtitle'].includes(activePreset))) {

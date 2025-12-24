@@ -3,6 +3,9 @@
 # v2.0.9
 
 ## What's New
+- **Typography Enhancements**:
+    - **Text Case Control**: New options to transform lyric and song info text: **Normal**, **Uppercase**, **Lowercase**, **Title Case**, **Sentence Case**, and **Invert Case**.
+    - **Smart Fallback**: 'Normal' case respects the default aesthetic of the selected preset (e.g., 'Metal' preset will still default to Uppercase unless overridden).
 - **Intro Enhancements**:
     - **Refined Typography**: 'Auto' mode now elegantly displays Title and Artist on separate lines for better readability.
     - **Manual Control**: Toggle Intro text between 'Auto' (metadata) and 'Manual' custom text.
@@ -12,6 +15,7 @@
     - **Default to Instant**: Transition effect now defaults to 'None' (Instant Cut) for a sharper editing start.
     - **Solid Color Default**: 'Solid Color' background now defaults to pure black.
     - **Info Padding**: New slider to adjust the distance of Song Info text from the screen edges.
+    - **JSON Settings**: Render Settings export/import now includes all new typography and text case preferences.
 - **Improved UX**:
     - **Shortcut**: Press **D** to quickly toggle the Render Settings panel.
     - **Reset Logic**: Improved 'Reset' button reliability in Render Settings.

@@ -90,4 +90,5 @@ export interface RenderConfig {
   backgroundBlurStrength: number; // 0 = sharp, >0 = blur px (default 0 or 12)
   introMode: 'auto' | 'manual';
   introText: string;
+  textCase: 'none' | 'upper' | 'lower' | 'title' | 'sentence' | 'invert';
 }

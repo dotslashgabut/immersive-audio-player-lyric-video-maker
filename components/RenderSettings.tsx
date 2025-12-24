@@ -31,6 +31,7 @@ const DEFAULT_CONFIG: RenderConfig = {
     backgroundBlurStrength: 0,
     introMode: 'auto',
     introText: '',
+    textCase: 'none',
 };
 
 const textEffectGroups = [
@@ -455,13 +456,20 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
 
                     // Start with default config, overwrite with imported json, preserve validity
                     // In a real app we might want to validate schema using zod or similar
-                    setConfig({ ...DEFAULT_CONFIG, ...importedConfig });
+                    const newConfig = { ...DEFAULT_CONFIG, ...importedConfig };
+
+                    // Ensure numeric values are numbers
+                    if (newConfig.backgroundBlurStrength) newConfig.backgroundBlurStrength = Number(newConfig.backgroundBlurStrength);
+                    if (newConfig.fontSizeScale) newConfig.fontSizeScale = Number(newConfig.fontSizeScale);
+                    if (newConfig.infoMarginScale) newConfig.infoMarginScale = Number(newConfig.infoMarginScale);
+
+                    setConfig(newConfig);
 
                     // Update Output Settings if present, otherwise reset to defaults
                     setResolution((importedResolution as any) || '1080p');
                     setAspectRatio((importedAspectRatio as any) || '16:9');
                     setRenderCodec((importedRenderCodec as string) || 'auto');
-                    setRenderFps((importedRenderFps as number) || 30);
+                    setRenderFps(Number(importedRenderFps) || 30);
                     setRenderQuality((importedRenderQuality as any) || 'med');
 
                     setPreset('custom');
@@ -973,6 +981,48 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                                     title="Strikethrough"
                                 >
                                     <Strikethrough size={14} />
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="space-y-1.5">
+                            <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Text Case</label>
+                            <div className="grid grid-cols-3 gap-1 bg-zinc-800 rounded-lg p-1">
+                                <button
+                                    onClick={() => handleChange('textCase', 'none')}
+                                    className={`py-1.5 rounded-md text-[10px] transition-all ${config.textCase === 'none' ? 'bg-zinc-600 text-white shadow-sm font-bold' : 'text-zinc-500 hover:text-zinc-300'}`}
+                                >
+                                    Normal
+                                </button>
+                                <button
+                                    onClick={() => handleChange('textCase', 'upper')}
+                                    className={`py-1.5 rounded-md text-[10px] uppercase transition-all ${config.textCase === 'upper' ? 'bg-zinc-600 text-white shadow-sm font-bold' : 'text-zinc-500 hover:text-zinc-300'}`}
+                                >
+                                    Upper
+                                </button>
+                                <button
+                                    onClick={() => handleChange('textCase', 'lower')}
+                                    className={`py-1.5 rounded-md text-[10px] lowercase transition-all ${config.textCase === 'lower' ? 'bg-zinc-600 text-white shadow-sm font-bold' : 'text-zinc-500 hover:text-zinc-300'}`}
+                                >
+                                    Lower
+                                </button>
+                                <button
+                                    onClick={() => handleChange('textCase', 'title')}
+                                    className={`py-1.5 rounded-md text-[10px] capitalize transition-all ${config.textCase === 'title' ? 'bg-zinc-600 text-white shadow-sm font-bold' : 'text-zinc-500 hover:text-zinc-300'}`}
+                                >
+                                    Title Case
+                                </button>
+                                <button
+                                    onClick={() => handleChange('textCase', 'sentence')}
+                                    className={`py-1.5 rounded-md text-[10px] transition-all ${config.textCase === 'sentence' ? 'bg-zinc-600 text-white shadow-sm font-bold' : 'text-zinc-500 hover:text-zinc-300'}`}
+                                >
+                                    Sentence case
+                                </button>
+                                <button
+                                    onClick={() => handleChange('textCase', 'invert')}
+                                    className={`py-1.5 rounded-md text-[10px] transition-all ${config.textCase === 'invert' ? 'bg-zinc-600 text-white shadow-sm font-bold' : 'text-zinc-500 hover:text-zinc-300'}`}
+                                >
+                                    Invert Case
                                 </button>
                             </div>
                         </div>

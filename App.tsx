@@ -98,6 +98,7 @@ function App() {
     backgroundBlurStrength: 0,
     introMode: 'auto',
     introText: '',
+    textCase: 'none',
   });
 
   const isBlurEnabled = renderConfig.backgroundBlurStrength > 0;
@@ -1883,6 +1884,27 @@ function App() {
                   }
                 }
 
+                // Calculate text content with casing logic
+                let textContent = line.text;
+                const casing = renderConfig.textCase;
+
+                if (casing === 'upper') {
+                  textContent = textContent.toUpperCase();
+                } else if (casing === 'lower') {
+                  textContent = textContent.toLowerCase();
+                } else if (casing === 'title') {
+                  textContent = textContent.replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase());
+                } else if (casing === 'sentence') {
+                  textContent = textContent.charAt(0).toUpperCase() + textContent.slice(1).toLowerCase();
+                } else if (casing === 'invert') {
+                  textContent = textContent.replace(/\w\S*/g, (txt) => txt.charAt(0).toLowerCase() + txt.slice(1).toUpperCase());
+                }
+
+                // Apply Typewriter effect if active
+                if (isActive && renderConfig.textAnimation === 'typewriter') {
+                  textContent = textContent.substring(0, Math.max(0, Math.floor((currentTime - line.time) * 35)));
+                }
+
                 return (
                   <p
                     key={idx}
@@ -1903,9 +1925,7 @@ function App() {
                       }
                     }}
                   >
-                    {isActive && renderConfig.textAnimation === 'typewriter'
-                      ? line.text.substring(0, Math.max(0, Math.floor((currentTime - line.time) * 35)))
-                      : line.text}
+                    {textContent}
                   </p>
                 );
               })}

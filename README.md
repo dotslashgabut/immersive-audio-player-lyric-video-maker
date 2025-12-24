@@ -89,6 +89,7 @@
 - **Typography & Visual Effects**:
   - **Font Freedom**: Huge library of built-in fonts (Sans, Serif, Display, Handwriting, etc.) plus **Custom Font Upload**.
   - **Text Styling**: Controls for alignment, vertical position, size, and color.
+  - **Text Transformations**: **Uppercase**, **Lowercase**, **Title Case**, **Sentence Case**, and **Invert Case** overrides.
   - **Effects Library**: 
     - **Text Effects**: Shadow, Glow, Neon, 3D Pop, Glitch, Retro, and more.
     - **Animations**: Pulse, Bounce, Wave, Shake, Typewriter, etc.
