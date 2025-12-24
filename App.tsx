@@ -5,11 +5,13 @@ import {
   Repeat, Repeat1, Square, Eye, EyeOff, Video, Download, Film, Type, X, ListMusic, Rewind, FastForward,
   ChevronUp, ChevronDown
 } from './components/Icons';
-import { AudioMetadata, LyricLine, TabView, VisualSlide, VideoPreset, PlaylistItem } from './types';
+import { AudioMetadata, LyricLine, TabView, VisualSlide, VideoPreset, PlaylistItem, RenderConfig } from './types';
 import { formatTime, parseLRC, parseSRT } from './utils/parsers';
 import VisualEditor from './components/VisualEditor';
 import PlaylistEditor from './components/PlaylistEditor';
+import RenderSettings from './components/RenderSettings';
 import { drawCanvasFrame } from './utils/canvasRenderer';
+import { loadGoogleFonts } from './utils/fonts';
 // @ts-ignore
 import fixWebmDuration from 'fix-webm-duration';
 
@@ -22,6 +24,11 @@ function App() {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const abortRenderRef = useRef(false);
   const exportVideoRef = useRef<() => void>(() => { });
+
+  // Load fonts
+  useEffect(() => {
+    loadGoogleFonts();
+  }, []);
 
   // State: Media & Data
   const [audioSrc, setAudioSrc] = useState<string | null>(null);
@@ -57,11 +64,38 @@ function App() {
   const [resolution, setResolution] = useState<'720p' | '1080p'>('1080p');
   const [preset, setPreset] = useState<VideoPreset>('default');
   const [customFontName, setCustomFontName] = useState<string | null>(null);
-  const [fontSizeScale, setFontSizeScale] = useState(1);
+  // const [fontSizeScale, setFontSizeScale] = useState(1); // Migrated to renderConfig
   const [renderCodec, setRenderCodec] = useState<string>('auto');
   const [renderFps, setRenderFps] = useState<number>(30);
   const [renderQuality, setRenderQuality] = useState<'low' | 'med' | 'high'>('med');
   const [isBlurEnabled, setIsBlurEnabled] = useState(false);
+  const [showRenderSettings, setShowRenderSettings] = useState(false);
+  const [renderConfig, setRenderConfig] = useState<RenderConfig>({
+    backgroundSource: 'timeline',
+    backgroundColor: '#581c87',
+    backgroundGradient: 'linear-gradient(to bottom right, #312e81, #581c87, #000000)',
+    renderMode: 'current',
+    textAlign: 'center',
+    contentPosition: 'center',
+    fontFamily: 'sans-serif',
+    fontSizeScale: 1.0,
+    fontColor: '#ffffff',
+    textEffect: 'shadow',
+    textAnimation: 'none',
+    transitionEffect: 'fade',
+    lyricDisplayMode: 'all',
+    fontWeight: 'bold',
+    fontStyle: 'normal',
+    textDecoration: 'none',
+    showTitle: true,
+    showArtist: true,
+    showCover: true,
+    showIntro: true,
+    showLyrics: true,
+    infoPosition: 'top-left',
+    infoStyle: 'classic',
+    infoMarginScale: 1.0,
+  });
 
   const supportedCodecs = useMemo(() => {
     const candidates = [
@@ -393,6 +427,8 @@ function App() {
     // Confirm
     if (!window.confirm(`Start rendering ${aspectRatio} (${resolution}) video? This will play the song from start to finish. Please do not switch tabs.`)) return;
 
+    setShowRenderSettings(false);
+
     setIsRendering(true);
     setRenderProgress(0);
     abortRenderRef.current = false;
@@ -667,8 +703,9 @@ function App() {
         videoMap,
         currentPreset,
         customFontName,
-        fontSizeScale,
-        isBlurEnabled
+        renderConfig.fontSizeScale,
+        isBlurEnabled,
+        renderConfig
       );
     }
 
@@ -799,8 +836,9 @@ function App() {
           videoMap,
           currentPreset,
           customFontName,
-          fontSizeScale,
-          isBlurEnabled
+          renderConfig.fontSizeScale,
+          isBlurEnabled,
+          renderConfig
         );
       }
     };
@@ -872,8 +910,12 @@ function App() {
         const elHeight = activeEl.offsetHeight;
         const containerHeight = container.clientHeight;
 
-        // Target: center the element in the container
-        const targetScrollTop = elOffsetTop - (containerHeight / 2) + (elHeight / 2);
+        // Target: Position based on contentPosition preference
+        let positionRatio = 0.5; // Center default
+        if (renderConfig.contentPosition === 'top') positionRatio = 0.25;
+        if (renderConfig.contentPosition === 'bottom') positionRatio = 0.75;
+
+        const targetScrollTop = elOffsetTop - (containerHeight * positionRatio) + (elHeight / 2);
 
         container.scrollTo({
           top: targetScrollTop,
@@ -881,7 +923,7 @@ function App() {
         });
       }
     }
-  }, [currentLyricIndex, preset]);
+  }, [currentLyricIndex, preset, renderConfig.contentPosition]);
 
   // Trigger scroll on lyric change
   useEffect(() => {
@@ -931,7 +973,7 @@ function App() {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Check if the key shoud trigger UI wake-up
       const key = e.key.toLowerCase();
-      const ignoredKeysForIdle = [' ', 'k', 's', 't', 'l', 'r', 'f', 'h', 'm', 'j', 'e', 'arrowleft', 'arrowright', 'arrowup', 'arrowdown', 'meta', 'control', 'shift', 'alt', 'printscreen', 'fn', '+', '-', '='];
+      const ignoredKeysForIdle = [' ', 'k', 's', 't', 'l', 'r', 'f', 'h', 'm', 'j', 'd', 'e', 'arrowleft', 'arrowright', 'arrowup', 'arrowdown', 'meta', 'control', 'shift', 'alt', 'printscreen', 'fn', '+', '-', '='];
 
       if (!ignoredKeysForIdle.includes(key)) {
         resetIdleTimer();
@@ -987,6 +1029,10 @@ function App() {
           break;
         case 'p': // Toggle Player (Bottom)
           setShowPlayer(prev => !prev);
+          break;
+        case 'd': // Toggle Render Settings
+          e.preventDefault();
+          setShowRenderSettings(prev => !prev);
           break;
         case 't': // Toggle Timeline (Editor)
           if (isPlaylistMode) {
@@ -1044,11 +1090,11 @@ function App() {
         case '+':
         case '=': // For keyboards where + is Shift+=
           e.preventDefault();
-          setFontSizeScale(prev => Math.min(prev + 0.1, 2)); // Max 200%
+          setRenderConfig(prev => ({ ...prev, fontSizeScale: Math.min(prev.fontSizeScale + 0.1, 3.0) })); // Max 300%
           break;
         case '-':
           e.preventDefault();
-          setFontSizeScale(prev => Math.max(prev - 0.1, 0.5)); // Min 50%
+          setRenderConfig(prev => ({ ...prev, fontSizeScale: Math.max(prev.fontSizeScale - 0.1, 0.1) })); // Min 10%
           break;
         case 'e':
           if ((e.ctrlKey || e.metaKey) && e.shiftKey) {
@@ -1261,8 +1307,29 @@ function App() {
 
       {/* --- Visual Layer --- */}
       <div className="absolute inset-0 bg-black overflow-hidden pointer-events-none">
-        {/* 1. Base Background (Metadata) */}
-        {metadata.coverUrl && (
+        {/* 1. Base Background */}
+        {renderConfig.backgroundSource === 'color' && (
+          <div className="absolute inset-0" style={{ backgroundColor: renderConfig.backgroundColor }} />
+        )}
+        {renderConfig.backgroundSource === 'gradient' && (
+          <div className="absolute inset-0" style={{ background: renderConfig.backgroundGradient }} />
+        )}
+        {renderConfig.backgroundSource === 'smart-gradient' && (
+          <div className="absolute inset-0"
+            style={{
+              background: (() => {
+                const hex = renderConfig.backgroundColor || '#312e81';
+                const r = parseInt(hex.slice(1, 3), 16);
+                const g = parseInt(hex.slice(3, 5), 16);
+                const b = parseInt(hex.slice(5, 7), 16);
+                const color = `${r},${g},${b}`;
+                const darker = `${Math.floor(r * 0.6)},${Math.floor(g * 0.6)},${Math.floor(b * 0.6)}`;
+                return `linear-gradient(to bottom right, rgb(${color}), rgb(${darker}) 50%, #000000)`;
+              })()
+            }}
+          />
+        )}
+        {(renderConfig.backgroundSource === 'timeline' || renderConfig.backgroundSource === 'custom') && metadata.coverUrl && (
           metadata.backgroundType === 'video' ? (
             <video
               ref={bgVideoRef}
@@ -1276,20 +1343,44 @@ function App() {
             />
           ) : (
             <div
-              className="absolute inset-0 bg-cover bg-center transition-all duration-700 ease-in-out opacity-60"
+              className={`absolute inset-0 bg-cover bg-center transition-all duration-700 ease-in-out ${renderConfig.backgroundSource === 'custom' || !activeSlide ? 'opacity-60' : 'opacity-0'}`}
               style={{ backgroundImage: `url(${metadata.coverUrl})` }}
             />
           )
         )}
 
+        {/* Solid Color / Gradient / Smart Gradient Background */}
+        {renderConfig.backgroundSource === 'color' && (
+          <div className="absolute inset-0 transition-all duration-500" style={{ backgroundColor: renderConfig.backgroundColor }}></div>
+        )}
+        {renderConfig.backgroundSource === 'gradient' && (
+          <div className="absolute inset-0 transition-all duration-500" style={{ background: renderConfig.backgroundGradient }}></div>
+        )}
+        {renderConfig.backgroundSource === 'smart-gradient' && (
+          <div className="absolute inset-0 transition-all duration-500"
+            style={{
+              background: (() => {
+                const hex = renderConfig.backgroundColor || '#312e81';
+                const r = parseInt(hex.slice(1, 3), 16);
+                const g = parseInt(hex.slice(3, 5), 16);
+                const b = parseInt(hex.slice(5, 7), 16);
+                const color = `${r},${g},${b}`;
+                // Darker: 60%
+                const darker = `${Math.floor(r * 0.6)},${Math.floor(g * 0.6)},${Math.floor(b * 0.6)}`;
+                return `linear-gradient(to bottom right, rgb(${color}), rgb(${darker}) 50%, #000000)`;
+              })()
+            }}
+          ></div>
+        )}
+
         {/* Default Gradient if nothing */}
-        {!metadata.coverUrl && !activeSlide && (
+        {!metadata.coverUrl && !activeSlide && (renderConfig.backgroundSource === 'timeline' || renderConfig.backgroundSource === 'custom') && (
           <div className="absolute inset-0 bg-gradient-to-br from-indigo-900 via-purple-900 to-black opacity-80"></div>
         )}
 
         {/* 2. Slide Overlay */}
-        <div className={`absolute inset-0 transition-opacity duration-500 ${activeSlide ? 'opacity-100' : 'opacity-0'}`}>
-          {activeSlide && (
+        <div className={`absolute inset-0 transition-opacity duration-500 ${activeSlide && renderConfig.backgroundSource === 'timeline' ? 'opacity-100' : 'opacity-0'}`}>
+          {activeSlide && renderConfig.backgroundSource === 'timeline' && (
             activeSlide.type === 'video' ? (
               <video
                 key={activeSlide.id}
@@ -1321,7 +1412,7 @@ function App() {
           <div className="p-6 flex justify-between items-start">
             <div className="flex gap-4">
               <div className="flex gap-4 items-center">
-                <div className="relative group w-16 h-16 rounded-md overflow-hidden bg-zinc-800 shadow-lg border border-white/10 shrink-0">
+                <div className={`relative group w-16 h-16 rounded-md overflow-hidden bg-zinc-800 shadow-lg border border-white/10 shrink-0 transition-opacity duration-300 ${!renderConfig.showCover ? 'opacity-0 scale-75 pointer-events-none w-0 h-0 -ml-4' : 'opacity-100 scale-100'}`}>
                   {metadata.coverUrl ? (
                     metadata.backgroundType === 'video' ? (
                       <video src={metadata.coverUrl} className="w-full h-full object-cover" muted loop onMouseOver={e => e.currentTarget.play()} onMouseOut={e => e.currentTarget.pause()} />
@@ -1339,8 +1430,8 @@ function App() {
                   </label>
                 </div>
                 <div>
-                  <h1 className="text-xl font-bold text-white drop-shadow-md line-clamp-1">{metadata.title}</h1>
-                  <div className="flex items-center gap-2">
+                  <h1 className={`text-xl font-bold text-white drop-shadow-md line-clamp-1 transition-opacity duration-300 ${!renderConfig.showTitle ? 'opacity-0' : 'opacity-100'}`}>{metadata.title}</h1>
+                  <div className={`flex items-center gap-2 transition-opacity duration-300 ${!renderConfig.showArtist ? 'opacity-0' : 'opacity-100'}`}>
                     <p className="text-zinc-300 text-sm drop-shadow-md">{metadata.artist}</p>
                   </div>
                 </div>
@@ -1357,6 +1448,17 @@ function App() {
               </button>
               <button
                 onClick={() => {
+                  const newMode = !isPlaylistMode;
+                  setIsPlaylistMode(newMode);
+                  if (newMode) setActiveTab(TabView.PLAYER);
+                }}
+                className={`p-2 rounded-full transition-colors ${isPlaylistMode ? 'bg-orange-600 text-white' : 'bg-black/30 text-zinc-300 hover:bg-white/10'}`}
+                title="Toggle Playlist (L)"
+              >
+                <ListMusic size={20} />
+              </button>
+              <button
+                onClick={() => {
                   if (isPlaylistMode) setIsPlaylistMode(false);
                   setActiveTab(activeTab === TabView.PLAYER ? TabView.EDITOR : TabView.PLAYER);
                 }}
@@ -1366,15 +1468,14 @@ function App() {
                 <Film size={20} />
               </button>
               <button
-                onClick={() => {
-                  const newMode = !isPlaylistMode;
-                  setIsPlaylistMode(newMode);
-                  if (newMode) setActiveTab(TabView.PLAYER);
+                onMouseDown={(e) => {
+                  e.stopPropagation();
+                  setShowRenderSettings(!showRenderSettings);
                 }}
-                className={`p-2 rounded-full transition-colors ${isPlaylistMode ? 'bg-orange-600 text-white' : 'bg-black/30 text-zinc-300 hover:bg-white/10'}`}
-                title="Toggle Playlist (L)"
+                className={`p-2 rounded-full transition-colors ${showRenderSettings ? 'bg-purple-600 text-white' : 'bg-black/30 text-zinc-300 hover:bg-white/10'}`}
+                title="Render Settings"
               >
-                <ListMusic size={20} />
+                <Settings size={20} />
               </button>
               <button
                 onClick={toggleFullscreen}
@@ -1388,11 +1489,12 @@ function App() {
         </div>
 
         {/* Center Stage: Lyrics */}
-        <div className="flex-1 flex items-center justify-center overflow-hidden relative">
+        <div className={`flex-1 flex justify-center overflow-hidden relative ${renderConfig.contentPosition === 'top' ? 'items-start pt-[10vh]' : renderConfig.contentPosition === 'bottom' ? 'items-end pb-[10vh]' : 'items-center'}`}>
           {lyrics.length > 0 ? (
             <div
               ref={lyricsContainerRef}
-              className={`w-full max-w-5xl max-h-full overflow-y-auto no-scrollbar px-6 text-center space-y-6 transition-all duration-500 lyrics-root`}
+              className={`w-full max-w-5xl max-h-full overflow-y-auto no-scrollbar px-6 space-y-6 transition-all duration-500 lyrics-root ${renderConfig.textAlign === 'left' ? 'text-left' : renderConfig.textAlign === 'right' ? 'text-right' : 'text-center'
+                } ${!renderConfig.showLyrics ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
               style={{
                 maskImage: (isHeaderVisible || isFooterVisible)
                   ? 'linear-gradient(to bottom, transparent, black 10%, black 90%, transparent)'
@@ -1400,46 +1502,39 @@ function App() {
               }}
             >
               <style>{`
-                .lyrics-root .text-lg { font-size: calc(1.125rem * ${fontSizeScale}); line-height: calc(1.75rem * ${fontSizeScale}); }
-                .lyrics-root .text-xl { font-size: calc(1.25rem * ${fontSizeScale}); line-height: calc(1.75rem * ${fontSizeScale}); }
-                .lyrics-root .text-2xl { font-size: calc(1.5rem * ${fontSizeScale}); line-height: calc(2rem * ${fontSizeScale}); }
-                .lyrics-root .text-3xl { font-size: calc(1.875rem * ${fontSizeScale}); line-height: calc(2.25rem * ${fontSizeScale}); }
-                .lyrics-root .text-4xl { font-size: calc(2.25rem * ${fontSizeScale}); line-height: calc(2.5rem * ${fontSizeScale}); }
-                .lyrics-root .text-5xl { font-size: calc(3rem * ${fontSizeScale}); }
-                .lyrics-root .text-6xl { font-size: calc(3.75rem * ${fontSizeScale}); }
-                .lyrics-root .text-7xl { font-size: calc(4.5rem * ${fontSizeScale}); }
-                .lyrics-root .text-8xl { font-size: calc(6rem * ${fontSizeScale}); }
+                .lyrics-root .text-lg { font-size: calc(1.125rem * ${renderConfig.fontSizeScale}); line-height: calc(1.75rem * ${renderConfig.fontSizeScale}); }
+                .lyrics-root .text-xl { font-size: calc(1.25rem * ${renderConfig.fontSizeScale}); line-height: calc(1.75rem * ${renderConfig.fontSizeScale}); }
+                .lyrics-root .text-2xl { font-size: calc(1.5rem * ${renderConfig.fontSizeScale}); line-height: calc(2rem * ${renderConfig.fontSizeScale}); }
+                .lyrics-root .text-3xl { font-size: calc(1.875rem * ${renderConfig.fontSizeScale}); line-height: calc(2.25rem * ${renderConfig.fontSizeScale}); }
+                .lyrics-root .text-4xl { font-size: calc(2.25rem * ${renderConfig.fontSizeScale}); line-height: calc(2.5rem * ${renderConfig.fontSizeScale}); }
+                .lyrics-root .text-5xl { font-size: calc(3rem * ${renderConfig.fontSizeScale}); }
+                .lyrics-root .text-6xl { font-size: calc(3.75rem * ${renderConfig.fontSizeScale}); }
+                .lyrics-root .text-7xl { font-size: calc(4.5rem * ${renderConfig.fontSizeScale}); }
+                .lyrics-root .text-8xl { font-size: calc(6rem * ${renderConfig.fontSizeScale}); }
               `}</style>
-              <div className={`transition-all duration-500 ${(activeTab === TabView.EDITOR || isPlaylistMode) ? 'h-[25vh]' : (!isHeaderVisible && !isFooterVisible) ? 'h-[50vh]' : 'h-[40vh]'}`}></div>
+              <div className={`transition-all duration-500 ${renderConfig.contentPosition === 'center' ? ((activeTab === TabView.EDITOR || isPlaylistMode) ? 'h-[25vh]' : (!isHeaderVisible && !isFooterVisible) ? 'h-[50vh]' : 'h-[40vh]') : 'h-0'}`}></div>
               {adjustedLyrics.map((line, idx) => {
                 const isActive = idx === currentLyricIndex;
                 const isEditor = activeTab === TabView.EDITOR || isPlaylistMode;
                 const isPortraitPreview = ['9:16', '3:4', '1:1', '1:2', '2:3'].includes(aspectRatio);
 
-                // Handle Big Text preset visibility (show only current, prev, and next)
-                const isBigLayout = ['large', 'large_upper', 'big_center', 'metal', 'kids', 'sad', 'romantic', 'tech', 'gothic', 'testing', 'testing_up', 'one_line', 'one_line_up'].includes(preset);
-                if (isBigLayout && Math.abs(idx - currentLyricIndex) > 1) {
-                  return <p key={idx} className="hidden" />;
-                }
+                const isBigLayout = ['large', 'large_upper', 'big_center', 'metal', 'kids', 'sad', 'romantic', 'tech', 'gothic', 'testing', 'testing_up', 'one_line', 'one_line_up', 'custom'].includes(preset);
 
-                // Testing Preset: Hide previous lyrics explicitly (web view)
-                if ((preset === 'testing' || preset === 'testing_up') && idx < currentLyricIndex) {
-                  return <p key={idx} className="hidden" />;
-                }
+                // --- Render Config Display Mode Filter ---
+                if (renderConfig.lyricDisplayMode !== 'all') {
+                  if (renderConfig.lyricDisplayMode === 'active-only' && idx !== currentLyricIndex) return <p key={idx} className="hidden" />;
+                  if (renderConfig.lyricDisplayMode === 'next-only' && (idx < currentLyricIndex || idx > currentLyricIndex + 1)) return <p key={idx} className="hidden" />;
+                  if (renderConfig.lyricDisplayMode === 'previous-next' && Math.abs(idx - currentLyricIndex) > 1) return <p key={idx} className="hidden" />;
+                } else {
+                  // Fallback to Preset Defaults
+                  // If mode is 'all', we generally want to show everything.
+                  // BUT we still respect 'none' or 'just_video' as "no lyric" presets generally, 
+                  // though showLyrics toggle handles visibility. 
+                  if (preset === 'none' || preset === 'just_video') return <p key={idx} className="hidden" />;
 
-                // One Line Preset: Hide all except active
-                if ((preset === 'one_line' || preset === 'one_line_up') && idx !== currentLyricIndex) {
-                  return <p key={idx} className="hidden" />;
-                }
-
-                // Slideshow / Just Video / Subtitle: Hide neighbours
-                if ((preset === 'slideshow' || preset === 'just_video' || preset === 'subtitle') && idx !== currentLyricIndex) {
-                  return <p key={idx} className="hidden" />;
-                }
-
-                // None Preset: Hide all
-                if (preset === 'none') {
-                  return <p key={idx} className="hidden" />;
+                  // Previously we restricted isBigLayout to +/- 1 line. 
+                  // User requested "Show All" to actually show all lines.
+                  // So we removed the lines that returned 'hidden' for isBigLayout, one_line, etc.
                 }
 
                 // --- Dynamic Styling based on Preset ---
@@ -1447,7 +1542,39 @@ function App() {
                 let inactiveClass = '';
                 // [FIX] Use specific transitions instead of transition-all to prevent font-size/height animation
                 // animating dimensions causes layout shifts during scroll calculation, leading to "jumps".
-                let containerClass = 'transition-colors transition-opacity transition-transform duration-500 cursor-pointer whitespace-pre-wrap ';
+                const transEffect = renderConfig.transitionEffect;
+                let containerClass = 'transition-all duration-500 cursor-pointer whitespace-pre-wrap ';
+
+                // Handle Transitions
+                if (isActive) {
+                  // Active State
+                  if (transEffect === 'slide') containerClass += 'translate-y-0 opacity-100 ';
+                  else if (transEffect === 'zoom') containerClass += 'scale-100 opacity-100 ';
+                  else if (transEffect === 'float') containerClass += 'translate-y-0 opacity-100 ';
+                  else if (transEffect === 'blur') containerClass += 'blur-0 opacity-100 ';
+                  else if (transEffect === 'fade') containerClass += 'opacity-100 ';
+                  else if (transEffect === 'drop') containerClass += 'trans-drop-enter opacity-100 ';
+                  else if (transEffect === 'lightspeed') containerClass += 'trans-lightspeed-enter opacity-100 ';
+                  else if (transEffect === 'roll') containerClass += 'trans-roll-enter opacity-100 ';
+                  else if (transEffect === 'elastic') containerClass += 'trans-elastic-enter opacity-100 ';
+                  else if (transEffect === 'flip') containerClass += 'trans-flip-enter opacity-100 ';
+                  else if (transEffect === 'rotate-in') containerClass += 'trans-rotate-in-enter opacity-100 ';
+                  else if (transEffect === 'spiral') containerClass += 'trans-spiral-enter opacity-100 ';
+                  else if (transEffect === 'shatter') containerClass += 'trans-shatter-enter opacity-100 ';
+                  else containerClass += 'opacity-100 ';
+                } else {
+                  // Inactive State
+                  if (transEffect === 'slide') containerClass += 'translate-y-4 opacity-0 ';
+                  else if (transEffect === 'zoom') containerClass += 'scale-75 opacity-0 ';
+                  else if (transEffect === 'float') containerClass += 'translate-y-8 opacity-0 ';
+                  else if (transEffect === 'blur') containerClass += 'blur-md opacity-0 ';
+                  else if (transEffect === 'fade') containerClass += 'opacity-50 ';
+                  else if (transEffect === 'drop') containerClass += 'trans-drop-exit opacity-0 ';
+                  else if (transEffect === 'roll') containerClass += 'trans-roll-exit opacity-0 ';
+                  else containerClass += 'opacity-0 '; // Default hide for other effects when not active
+
+                  if (transEffect === 'none') containerClass = containerClass.replace('opacity-0', 'opacity-50');
+                }
 
                 if (preset === 'large' || preset === 'large_upper') {
                   // Large: Left aligned, huge text, bold
@@ -1612,6 +1739,20 @@ function App() {
                     bottomClass = 'bottom-40';
                   }
                   containerClass += `fixed ${bottomClass} left-1/2 -translate-x-1/2 w-full max-w-4xl px-4 `;
+                } else if (preset === 'custom') {
+                  const activeSize = isPortraitPreview
+                    ? (isEditor ? 'text-4xl' : 'text-5xl')
+                    : (isEditor ? 'text-6xl' : 'text-8xl');
+                  const inactiveSize = isPortraitPreview
+                    ? (isEditor ? 'text-xl' : 'text-2xl')
+                    : (isEditor ? 'text-2xl' : 'text-3xl');
+
+                  const alignClass = renderConfig.textAlign === 'center' ? 'text-center' : renderConfig.textAlign === 'right' ? 'text-right' : 'text-left';
+
+                  activeClass = `${activeSize} tracking-tight ${alignClass}`;
+                  inactiveClass = `${inactiveSize} opacity-40 hover:opacity-100 ${alignClass}`;
+
+                  // We'll apply color and effects via inline style for 'custom'
                 } else {
                   // Default
                   const activeSize = isPortraitPreview
@@ -1624,21 +1765,102 @@ function App() {
                   inactiveClass = `${inactiveSize} text-zinc-500/60 hover:text-zinc-300 drop-shadow-sm`;
                 }
 
+                // Dynamic Styles for Custom Preset options
+                let textEffectStyles: React.CSSProperties = {
+                  color: (preset === 'custom') ? renderConfig.fontColor : undefined,
+                  fontWeight: (preset === 'custom') ? renderConfig.fontWeight : undefined,
+                  fontStyle: (preset === 'custom') ? renderConfig.fontStyle : undefined,
+                  textDecoration: (preset === 'custom') ? renderConfig.textDecoration : undefined,
+                  fontFamily: customFontName ? `"${customFontName}", sans-serif` :
+                    (preset === 'custom' && renderConfig.fontFamily !== 'sans-serif') ? renderConfig.fontFamily :
+                      preset === 'metal' ? '"Metal Mania", cursive'
+                        : preset === 'kids' ? '"Fredoka One", cursive'
+                          : preset === 'sad' ? '"Shadows Into Light", cursive'
+                            : preset === 'romantic' ? '"Dancing Script", cursive'
+                              : preset === 'tech' ? '"Orbitron", sans-serif'
+                                : preset === 'gothic' ? '"UnifrakturMaguntia", cursive'
+                                  : undefined,
+                };
+
+                // Advanced Text Effects
+                if (preset === 'custom' && isActive && renderConfig.textEffect !== 'none') {
+                  const textEf = renderConfig.textEffect;
+
+                  if (textEf === 'glow') textEffectStyles.textShadow = `0 0 10px ${renderConfig.fontColor}, 0 0 20px ${renderConfig.fontColor}`;
+                  else if (textEf === 'neon') textEffectStyles.textShadow = `0 0 5px #fff, 0 0 10px #fff, 0 0 20px ${renderConfig.fontColor}, 0 0 40px ${renderConfig.fontColor}, 0 0 80px ${renderConfig.fontColor}`;
+                  else if (textEf === 'neon-multi') textEffectStyles.textShadow = `0 0 5px #fff, 0 0 10px #fff, 0 0 20px #ff00de, 0 0 35px #00ffff, 0 0 40px #ff00de, 0 0 50px #00ffff`;
+                  else if (textEf === 'shadow') textEffectStyles.textShadow = '3px 3px 6px rgba(0,0,0,0.7)';
+                  else if (textEf === 'outline') textEffectStyles.textShadow = '-1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000';
+                  else if (textEf === '3d') textEffectStyles.textShadow = '1px 1px 0px #ccc, 2px 2px 0px #bbb, 3px 3px 0px #aaa, 4px 4px 0px rgba(0,0,0,0.5)';
+                  else if (textEf === 'emboss') { textEffectStyles.color = '#ebebeb'; textEffectStyles.textShadow = '1px 2px 3px rgba(255,255,255,0.8), -1px -2px 3px rgba(0,0,0,0.8)'; }
+                  else if (textEf === 'gold') {
+                    textEffectStyles.background = 'linear-gradient(to bottom, #d4af37, #C5A028)';
+                    (textEffectStyles as any).WebkitBackgroundClip = 'text';
+                    textEffectStyles.color = 'transparent';
+                  }
+                  else if (textEf === 'chrome') {
+                    textEffectStyles.background = 'linear-gradient(to bottom, #ebebeb 50%, #616161 50%, #ebebeb)';
+                    (textEffectStyles as any).WebkitBackgroundClip = 'text';
+                    textEffectStyles.color = 'transparent';
+                  }
+                  else if (textEf === 'fire') {
+                    textEffectStyles.color = '#fff';
+                    textEffectStyles.textShadow = '0 -5px 4px #FFC107, 2px -10px 6px #FF9800, -2px -15px 11px #FF5722, 2px -25px 18px #795548';
+                  }
+                  else if (textEf === 'frozen') {
+                    textEffectStyles.color = '#fff';
+                    textEffectStyles.textShadow = '0 0 5px rgba(255,255,255,0.8), 0 0 10px rgba(255,255,255,0.5), 0 0 20px #03A9F4, 0 0 30px #03A9F4, 0 0 40px #03A9F4';
+                  }
+                  else if (textEf === 'vhs') {
+                    textEffectStyles.textShadow = '2px 0 0 rgba(255,0,0,0.7), -2px 0 0 rgba(0,0,255,0.7)';
+                  }
+                  else if (textEf === 'gradient') {
+                    textEffectStyles.background = `linear-gradient(to right, ${renderConfig.fontColor}, #ffffff)`;
+                    (textEffectStyles as any).WebkitBackgroundClip = 'text';
+                    textEffectStyles.color = 'transparent';
+                  }
+                  else if (textEf === 'rainbow') {
+                    textEffectStyles.background = 'linear-gradient(to left, violet, indigo, blue, green, yellow, orange, red)';
+                    (textEffectStyles as any).WebkitBackgroundClip = 'text';
+                    textEffectStyles.color = 'transparent';
+                  }
+                  else if (textEf === 'glass') {
+                    textEffectStyles.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+                    textEffectStyles.backdropFilter = 'blur(8px)';
+                    textEffectStyles.padding = '0.5rem 1rem';
+                    textEffectStyles.borderRadius = '0.75rem';
+                    textEffectStyles.border = '1px solid rgba(255, 255, 255, 0.2)';
+                    textEffectStyles.display = 'inline-block';
+                  }
+                  else if (textEf === 'mirror') {
+                    textEffectStyles.transform = 'scaleY(1.3) perspective(500px) rotateX(-10deg)';
+                    textEffectStyles.textShadow = '0 15px 5px rgba(0,0,0,0.1), 0 -1px 3px rgba(0,0,0,0.3)';
+                  }
+                  else if (textEf === 'retro') {
+                    textEffectStyles.fontFamily = "'Press Start 2P', cursive";
+                    textEffectStyles.color = '#ff00ff';
+                    textEffectStyles.textShadow = '4px 4px 0px #00ffff';
+                  }
+                  else if (textEf === 'hologram') {
+                    textEffectStyles.color = 'rgba(0, 255, 255, 0.7)';
+                    textEffectStyles.textShadow = '0 0 5px rgba(0,255,255,0.5), 0 0 10px rgba(0,255,255,0.5)';
+                    textEffectStyles.backgroundImage = 'repeating-linear-gradient(0deg, transparent, transparent 2px, #00ffff 3px)';
+                    (textEffectStyles as any).WebkitBackgroundClip = 'text';
+                  }
+                  else if (textEf === 'comic') {
+                    textEffectStyles.fontFamily = "'Bangers', cursive";
+                    textEffectStyles.color = '#ffcc00';
+                    textEffectStyles.textShadow = '2px 2px 0px #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000';
+                    textEffectStyles.letterSpacing = '1px';
+                  }
+                }
+
                 return (
                   <p
                     key={idx}
                     data-lyric-active={isActive ? "true" : "false"}
-                    className={`${containerClass} ${isActive ? activeClass : inactiveClass}`}
-                    style={{
-                      fontFamily: customFontName ? `"${customFontName}", sans-serif` :
-                        preset === 'metal' ? '"Metal Mania", cursive'
-                          : preset === 'kids' ? '"Fredoka One", cursive'
-                            : preset === 'sad' ? '"Shadows Into Light", cursive'
-                              : preset === 'romantic' ? '"Dancing Script", cursive'
-                                : preset === 'tech' ? '"Orbitron", sans-serif'
-                                  : preset === 'gothic' ? '"UnifrakturMaguntia", cursive'
-                                    : undefined
-                    }}
+                    className={`${containerClass} ${isActive ? activeClass : inactiveClass} ${isActive && renderConfig.textAnimation !== 'none' && renderConfig.textAnimation !== 'typewriter' ? `text-anim-${renderConfig.textAnimation}` : ''}`}
+                    style={textEffectStyles}
                     onClick={() => {
                       if (audioRef.current && !isRendering) {
                         audioRef.current.currentTime = line.time;
@@ -1653,11 +1875,13 @@ function App() {
                       }
                     }}
                   >
-                    {line.text}
+                    {isActive && renderConfig.textAnimation === 'typewriter'
+                      ? line.text.substring(0, Math.max(0, Math.floor((currentTime - line.time) * 35)))
+                      : line.text}
                   </p>
                 );
               })}
-              <div className={`transition-all duration-500 ${(activeTab === TabView.EDITOR || isPlaylistMode) ? 'h-[25vh]' : (!isHeaderVisible && !isFooterVisible) ? 'h-[50vh]' : 'h-[40vh]'}`}></div>
+              <div className={`transition-all duration-500 ${renderConfig.contentPosition === 'center' ? ((activeTab === TabView.EDITOR || isPlaylistMode) ? 'h-[25vh]' : (!isHeaderVisible && !isFooterVisible) ? 'h-[50vh]' : 'h-[40vh]') : 'h-0'}`}></div>
             </div>
           ) : (
             <div className="text-center text-zinc-400/50 select-none pointer-events-none">
@@ -1788,11 +2012,11 @@ function App() {
                   {/* Font Size Control */}
                   <div className="flex items-center gap-1 bg-zinc-800/50 rounded-lg px-2 py-1 h-9">
                     <span className="text-xs text-zinc-300 w-10 text-center font-mono select-none border-r border-white/10 pr-2 mr-1">
-                      {Math.round(fontSizeScale * 100)}%
+                      {Math.round(renderConfig.fontSizeScale * 100)}%
                     </span>
                     <div className="flex flex-col -my-1 h-full justify-center">
                       <button
-                        onClick={() => setFontSizeScale(s => Math.min(3.0, parseFloat((s + 0.1).toFixed(1))))}
+                        onClick={() => setRenderConfig(prev => ({ ...prev, fontSizeScale: Math.min(prev.fontSizeScale + 0.1, 3.0) }))}
                         className="text-zinc-400 hover:text-white flex items-center justify-center h-3.5 w-4 hover:bg-white/10 rounded-sm transition-colors"
                         title="Increase Font Size"
                         disabled={isRendering}
@@ -1800,7 +2024,7 @@ function App() {
                         <ChevronUp size={12} />
                       </button>
                       <button
-                        onClick={() => setFontSizeScale(s => Math.max(0.5, parseFloat((s - 0.1).toFixed(1))))}
+                        onClick={() => setRenderConfig(prev => ({ ...prev, fontSizeScale: Math.max(prev.fontSizeScale - 0.1, 0.1) }))}
                         className="text-zinc-400 hover:text-white flex items-center justify-center h-3.5 w-4 hover:bg-white/10 rounded-sm transition-colors"
                         title="Decrease Font Size"
                         disabled={isRendering}
@@ -1819,6 +2043,7 @@ function App() {
                       disabled={isRendering}
                       title="Select Visual Preset"
                     >
+                      <option value="custom" className="bg-zinc-900 font-bold text-purple-400">Custom ✨</option>
                       <option value="default" className="bg-zinc-900">Default</option>
                       <option value="large" className="bg-zinc-900">Big Text</option>
                       <option value="large_upper" className="bg-zinc-900">Big Text (UP)</option>
@@ -2084,6 +2309,20 @@ function App() {
         )
       }
 
+      {showRenderSettings && (
+        <RenderSettings
+          config={renderConfig}
+          setConfig={setRenderConfig}
+          preset={preset}
+          setPreset={setPreset}
+          onClose={() => setShowRenderSettings(false)}
+          isPlaylistMode={isPlaylistMode}
+          onRender={handleExportVideo}
+          customFontName={customFontName}
+          onFontUpload={handleFontUpload}
+          onClearCustomFont={() => setCustomFontName(null)}
+        />
+      )}
     </div >
   );
 }

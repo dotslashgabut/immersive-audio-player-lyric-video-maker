@@ -40,7 +40,19 @@ import {
   User,
   Disc,
   ChevronUp,
-  ChevronDown
+  ChevronDown,
+  Layout,
+  Palette,
+  Check,
+  Bold,
+  Italic,
+  Underline,
+  Strikethrough,
+  AlignVerticalJustifyCenter,
+  AlignVerticalJustifyStart,
+  AlignVerticalJustifyEnd,
+  RotateCcw,
+  Keyboard
 } from 'lucide-react';
 
 export {
@@ -86,5 +98,17 @@ export {
   User,
   Disc,
   ChevronUp,
-  ChevronDown
+  ChevronDown,
+  Layout,
+  Palette,
+  Check,
+  Bold,
+  Italic,
+  Underline,
+  Strikethrough,
+  AlignVerticalJustifyCenter,
+  AlignVerticalJustifyStart,
+  AlignVerticalJustifyEnd,
+  RotateCcw,
+  Keyboard
 };

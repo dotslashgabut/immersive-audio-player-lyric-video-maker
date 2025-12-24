@@ -1,4 +1,7 @@
-# Immersive Audio Player & Lyric Video Maker
+<div align="center">
+  <img src="public/icon.svg" width="100" />
+  <h1>Immersive Audio Player & Lyric Video Maker</h1>
+</div>
 
 **Immersive Audio Player & Lyric Video Maker** is a powerful all-in-one web tool designed for music lovers and content creators. It combines a distraction-free audio player with a professional-grade timeline editor, allowing you to create stunning, synchronized lyric videos directly in your browser. Whether you want to enjoy your local music library with beautiful visuals or create viral content for TikTok, Instagram, and YouTube, this app delivers high-quality results without watermarks or server uploads.
 
@@ -30,6 +33,8 @@
     - **Subtitle**: Cinematic bottom-centered text (No song metadata).
     - **Just Video**: Hides text content.
     - **None**: Hides everything (Lyrics, Titles, and Metadata).
+  - **Text Animations**: Bounce, Pulse, Wave, Glitch, Shake, and Typewriter effects.
+  - **Display Modes**: Control lyric visibility (Show All, Previous-Active-Next, Next Only, Active Only).
 
 ### 🎬 Professional Visual Timeline Editor
  Create complex visual stories synchronized to your music.
@@ -66,9 +71,31 @@
   - **3:2** (Landscape - Classic Photo)
   - **1:2** (Tall Vertical)
   - **2:1** (Cinematic Landscape)
+- **Rendering Scope**: Batch export the entire playlist or just the current song.
+- **Advanced Backgrounds**:
+  - **Timeline Media**: Use your custom images and videos from the timeline.
+  - **Smart Gradient**: Generate beautiful gradients from a single color.
+  - **Custom Gradient**: Manually define complex linear gradients.
+  - **Solid Color**: Simple, clean backgrounds.
+- **Lyric Display Control**:
+  - **Modes**: Show All, Previous/Next, Next Only, or Active Line Only highlighting.
+  - **Visibility**: Toggle Lyrics, Title, Artist, Cover Art, and Intro overlays independently.
+- **Typography & Visual Effects**:
+  - **Font Freedom**: Huge library of built-in fonts (Sans, Serif, Display, Handwriting, etc.) plus **Custom Font Upload**.
+  - **Text Styling**: Controls for alignment, vertical position, size, and color.
+  - **Effects Library**: 
+    - **Text Effects**: Shadow, Glow, Neon, 3D Pop, Glitch, Retro, and more.
+    - **Animations**: Pulse, Bounce, Wave, Shake, Typewriter, etc.
+    - **Transitions**: Smooth Fade, Slide, Zoom, Flip, and Motion Blur.
+- **Song Info Customization**:
+  - **Positioning**: 9-point grid automatic positioning (Top-Left to Bottom-Right).
+  - **Styles**: Classic (Detailed), Modern, Circle Art, Boxed, Minimal.
+  - **Padding**: Fine-tune margin from screen edges.
 - **Smart Overlays**: Automatically generates metadata overlays for "Now Playing" visuals.
 - **Dynamic Blur**: Apply real-time Gaussian-style blur to background images or videos for better lyric readability.
 - **High-Fidelity Rendering**: Native **Canvas 2D** rendering allows for pixel-perfect text at any frame rate.
+
+![Render Settings Panel](screenshot-render-settings.jpg)
 
 ![Export Interface](screenshot-render.jpg)
 
@@ -91,9 +118,10 @@
 | **J** | Next Visual Preset |
 | **+ / -**| Increase / Decrease Lyric Font Size |
 | **S** | Stop & Reset |
-| **L** | Toggle Playlist View |
 | **H** | Toggle UI Auto-Hide Inhibit |
+| **L** | Toggle Playlist View |
 | **T** | Open/Close Timeline Editor |
+| **D** | Toggle Render Settings Panel |
 | **I** | Toggle Info Header |
 | **P** | Toggle Player Controls |
 | **F** | Toggle Fullscreen |
@@ -101,6 +129,7 @@
 | **Ctrl + Z / Y** | Undo / Redo (Editor) |
 | **Ctrl + C / V** | Copy / Paste (Editor) |
 | **Escape** | Abort Video Rendering |
+
 | **Ctrl/Cmd + Shift + E** | Export / Render Video |
 
 ## Installation
@@ -141,9 +170,11 @@ This application is built with React + Vite and requires **Node.js** to run.
 - **Timeline Lirik Interaktif**: Lihat cuplikan lirik di playlist. Klik baris mana saja untuk langsung memutar lagu itu.
 - **Sorting Fleksibel**: Urutkan playlist berdasarkan Artis, Judul, Album (Bolak-balik Ascending/Descending), atau acak.
 - **Kontrol Akurasi**: Atur offset lirik (maju/mundur 0.1s) jika teks kurang pas dengan suara.
-- **Visual Efek**: Fitur **Background Blur** untuk memperlembut tampilan latar belakang agar lirik lebih terbaca.
+- **Visual Efek**: Fitur **Background Blur**, **Smart Gradient**, dan **Text Animation** (Bounce, Pulse, Glitch, dll).
+- **Kustomisasi Info Lagu**: Atur posisi (Kiri-Atas, Bawah-Tengah, dll), gaya tampilan, dan jarak tepi (padding).
+- **Mode Tampilan Lirik**: Pilih mau tampilkan semua baris, atau hanya aktif/berikutnya saja.
 - **Timeline Canggih**: Sekarang dengan fitur **Undo/Redo**, **Copy-Paste** slide, **Drag Selection**, dan **Snapping** otomatis agar visual pas dengan ketukan lirik.
-- **Shortcut Baru**: Tekan **N**/**B** (Next/Prev), **M** (Mute), **R** (Repeat), **L** (Playlist), **+/-** (Font), dan **Ctrl/Cmd+Shift+E** (Export).
+- **Shortcut Baru**: Tekan **D** (Render Settings), **N**/**B** (Next/Prev), **M** (Mute), **R** (Repeat), **L** (Playlist), **+/-** (Font), dan **Ctrl/Cmd+Shift+E** (Export).
 
 ### Cara Install & Jalan
 1.  Pastikan sudah install **Node.js**.
