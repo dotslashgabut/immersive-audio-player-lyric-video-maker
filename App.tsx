@@ -1439,6 +1439,24 @@ function App() {
             </div>
 
             <div className="flex gap-2">
+              <a
+                href="https://ai.studio/apps/drive/1M1VfxdBlNB_eOPQqQiHspvVwizaEs0aI?showPreview=true&fullscreenApplet=true&showAssistant=true"
+                target="_blank"
+                rel="noopener noreferrer"
+                title="LyricFlow - Turn Audio into Subtitles"
+                className="px-3 py-2 rounded-full transition-colors bg-black/30 text-zinc-300 hover:bg-white/10 text-xs font-bold flex items-center"
+              >
+                LyricFlow
+              </a>
+              <a
+                href="https://aistudio.google.com/apps/drive/1WKA-bCxzIKD-DcI_pq0HzxN3m1_oNEkg?fullscreenApplet=true&showPreview=true&showAssistant=true"
+                target="_blank"
+                rel="noopener noreferrer"
+                title="LyricalVision - Visualize lyrics with Gemini AI"
+                className="px-3 py-2 rounded-full transition-colors bg-black/30 text-zinc-300 hover:bg-white/10 text-xs font-bold flex items-center"
+              >
+                LyricalVision
+              </a>
               <button
                 onClick={() => setBypassAutoHide(!bypassAutoHide)}
                 className={`p-2 rounded-full transition-colors ${bypassAutoHide ? 'bg-purple-600/50 text-white' : 'bg-black/30 text-zinc-300 hover:bg-white/10'}`}
