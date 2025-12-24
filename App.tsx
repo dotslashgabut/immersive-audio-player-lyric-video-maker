@@ -68,7 +68,7 @@ function App() {
   const [renderCodec, setRenderCodec] = useState<string>('auto');
   const [renderFps, setRenderFps] = useState<number>(30);
   const [renderQuality, setRenderQuality] = useState<'low' | 'med' | 'high'>('med');
-  const [isBlurEnabled, setIsBlurEnabled] = useState(false);
+
   const [showRenderSettings, setShowRenderSettings] = useState(false);
   const [renderConfig, setRenderConfig] = useState<RenderConfig>({
     backgroundSource: 'timeline',
@@ -97,6 +97,8 @@ function App() {
     infoMarginScale: 1.0,
     backgroundBlurStrength: 0,
   });
+
+  const isBlurEnabled = renderConfig.backgroundBlurStrength > 0;
 
   const supportedCodecs = useMemo(() => {
     const candidates = [
@@ -2151,9 +2153,9 @@ function App() {
                   <div className="flex items-center gap-1">
                     {/* Background Blur Toggle */}
                     <button
-                      onClick={() => setIsBlurEnabled(prev => !prev)}
+                      onClick={() => setRenderConfig(prev => ({ ...prev, backgroundBlurStrength: prev.backgroundBlurStrength > 0 ? 0 : 12 }))}
                       className={`bg-zinc-800/50 border border-white/5 text-[10px] font-mono rounded-lg px-2 h-9 transition-colors disabled:opacity-30 ${isBlurEnabled ? 'text-purple-400 border-purple-500/50' : 'text-zinc-300 hover:text-white'}`}
-                      title={`Background Blur: ${isBlurEnabled ? 'Msg' : 'Off'}`}
+                      title={`Background Blur: ${isBlurEnabled ? 'On' : 'Off'}`}
                       disabled={isRendering}
                     >
                       {isBlurEnabled ? 'BLUR' : 'SHARP'}

@@ -404,6 +404,11 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
         if (window.confirm('Reset all render settings to default?')) {
             setConfig(DEFAULT_CONFIG);
             setPreset('default');
+            setResolution('1080p');
+            setAspectRatio('16:9');
+            setRenderCodec('auto');
+            setRenderFps(30);
+            setRenderQuality('med');
         }
     };
 
