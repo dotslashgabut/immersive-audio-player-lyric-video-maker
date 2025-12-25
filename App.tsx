@@ -1571,8 +1571,9 @@ function App() {
                 let inactiveClass = '';
                 // [FIX] Use specific transitions instead of transition-all to prevent font-size/height animation
                 // animating dimensions causes layout shifts during scroll calculation, leading to "jumps".
+                // We exclude font-size, line-height, margin, padding, width, height.
                 const transEffect = renderConfig.transitionEffect;
-                let containerClass = 'transition-all duration-500 cursor-pointer whitespace-pre-wrap ';
+                let containerClass = 'transition-[color,background-color,border-color,text-decoration-color,fill,stroke,opacity,box-shadow,transform,filter,backdrop-filter,text-shadow] duration-500 cursor-pointer whitespace-pre-wrap ';
 
                 // Handle Transitions
                 if (isActive) {
