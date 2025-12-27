@@ -1467,7 +1467,7 @@ function App() {
 
             <div className="flex gap-2 flex-wrap">
               <a
-                href="https://ai.studio/apps/drive/1M1VfxdBlNB_eOPQqQiHspvVwizaEs0aI?showPreview=true&fullscreenApplet=true&showAssistant=true"
+                href="https://ai.studio/apps/drive/1M1VfxdBlNB_eOPQqQiHspvVwizaEs0aI?fullscreenApplet=true"
                 target="_blank"
                 rel="noopener noreferrer"
                 title="LyricFlow - Turn Audio into Subtitles"
@@ -1476,7 +1476,7 @@ function App() {
                 LyricFlow
               </a>
               <a
-                href="https://aistudio.google.com/apps/drive/1WKA-bCxzIKD-DcI_pq0HzxN3m1_oNEkg?fullscreenApplet=true&showPreview=true&showAssistant=true"
+                href="https://ai.studio/apps/drive/1WKA-bCxzIKD-DcI_pq0HzxN3m1_oNEkg?fullscreenApplet=true"
                 target="_blank"
                 rel="noopener noreferrer"
                 title="LyricalVision - Visualize lyrics with Gemini AI"
