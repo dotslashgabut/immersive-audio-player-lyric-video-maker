@@ -35,6 +35,8 @@
     - **None**: Hides everything (Lyrics, Titles, and Metadata).
   - **Text Animations**: Bounce, Pulse, Wave, Glitch, Shake, and Typewriter effects.
   - **Display Modes**: Control lyric visibility (Show All, Previous-Active-Next, Next Only, Active Only).
+- **AI Transcription**: Built-in integration with **Google Gemini** for automatic audio transcription and lyric generation.
+- **Manual Management**: Manually load external `.lrc` / `.srt` files or clear existing lyrics for any track.
 
 ### 🎬 Professional Visual Timeline Editor
  Create complex visual stories synchronized to your music.
@@ -132,6 +134,7 @@ Check out our other AI-powered tools for music and visuals:
 | **J** | Next Visual Preset |
 | **+ / -**| Increase / Decrease Lyric Font Size |
 | **S** | Stop & Reset |
+| **X** | Split Clip at Playhead (Timeline Editor) |
 | **H** | Toggle UI Auto-Hide Inhibit |
 | **L** | Toggle Playlist View |
 | **T** | Open/Close Timeline Editor |
@@ -160,6 +163,20 @@ This application is built with React + Vite and requires **Node.js** to run.
     npm run dev
     ```
 4.  **Launch**: Open `http://localhost:5173` in Chrome or Edge.
+
+## Configuration (Optional)
+
+ To use the **AI Transcription** feature, you need a Google Gemini API Key.
+
+ 1.  Get a free API Key from [Google AI Studio](https://aistudio.google.com/app/apikey).
+ 2.  Create a file named `.env.local` in the root directory.
+ 3.  Add your API key:
+     ```env
+     GEMINI_API_KEY=your_api_key_here
+     ```
+     _Alternatively, you can enter the API Key directly in the application UI (Config Icon)._
+ 4.  **Restart Server**: If the server is running, restart it (`Ctrl+C` then `npm run dev`) to load the new environment variables.
+
 
 ## How to Use
 

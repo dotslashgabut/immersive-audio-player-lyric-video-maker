@@ -5,6 +5,12 @@ export interface LyricLine {
   endTime?: number; // Optional end time in seconds
 }
 
+export interface TranscriptionSegment {
+  startTime: string; // HH:MM:SS.mmm
+  endTime: string;   // HH:MM:SS.mmm
+  text: string;
+}
+
 export interface VisualSlide {
   id: string;
   type: 'image' | 'video' | 'audio';
@@ -13,8 +19,10 @@ export interface VisualSlide {
   endTime: number; // in seconds
   name: string;
   mediaDuration?: number; // Duration of the video media itself
+  mediaStartOffset?: number; // Offset in seconds where media playback should start
   isMuted?: boolean;
   volume?: number; // 0 to 1
+  layer?: number; // 0 or 1
 }
 
 export interface AudioMetadata {
@@ -87,8 +95,13 @@ export interface RenderConfig {
   infoPosition?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'top-center' | 'bottom-center';
   infoStyle?: 'classic' | 'modern' | 'box' | 'minimal' | 'modern_art' | 'circle_art';
   infoMarginScale?: number;
+  infoSizeScale?: number;
   backgroundBlurStrength: number; // 0 = sharp, >0 = blur px (default 0 or 12)
   introMode: 'auto' | 'manual';
   introText: string;
   textCase: 'none' | 'upper' | 'lower' | 'title' | 'sentence' | 'invert';
+  layerVisibility?: {
+    visual: Record<number, boolean>;
+    audio: Record<number, boolean>;
+  };
 }

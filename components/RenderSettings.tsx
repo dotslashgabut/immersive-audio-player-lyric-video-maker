@@ -2,9 +2,10 @@ import React, { useRef, useEffect, useState } from 'react';
 import { X, Video, Settings, ImageIcon, Type, Layout, Palette, Music, FileText, Check, ListMusic, Bold, Italic, Underline, Strikethrough, AlignVerticalJustifyCenter, AlignVerticalJustifyStart, AlignVerticalJustifyEnd, Upload, Trash2, ChevronDown, Maximize, RotateCcw, Download, Keyboard as KeyboardIcon } from './Icons';
 import { RenderConfig, VideoPreset } from '../types';
 import { fontGroups } from '../utils/fonts';
+import { useUI } from '../contexts/UIContext';
 
 const DEFAULT_CONFIG: RenderConfig = {
-    backgroundSource: 'timeline',
+    backgroundSource: 'custom',
     backgroundColor: '#581c87',
     backgroundGradient: 'linear-gradient(to bottom right, #312e81, #581c87, #000000)',
     renderMode: 'current',
@@ -28,6 +29,7 @@ const DEFAULT_CONFIG: RenderConfig = {
     infoPosition: 'top-left',
     infoStyle: 'classic',
     infoMarginScale: 1.0,
+    infoSizeScale: 1.0,
     backgroundBlurStrength: 0,
     introMode: 'auto',
     introText: '',
@@ -394,6 +396,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
     renderFps,
     setRenderFps
 }) => {
+    const { toast, confirm } = useUI();
     const sidebarRef = useRef<HTMLDivElement>(null);
     const fontInputRef = useRef<HTMLInputElement>(null);
     const settingsInputRef = useRef<HTMLInputElement>(null);
@@ -405,8 +408,8 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
         setConfig({ ...config, [key]: value });
     };
 
-    const handleReset = () => {
-        if (window.confirm('Reset all render settings to default?')) {
+    const handleReset = async () => {
+        if (await confirm('Reset all render settings to default?', "Reset Settings")) {
             setConfig(DEFAULT_CONFIG);
             setPreset('default');
             setResolution('1080p');
@@ -462,6 +465,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                     if (newConfig.backgroundBlurStrength) newConfig.backgroundBlurStrength = Number(newConfig.backgroundBlurStrength);
                     if (newConfig.fontSizeScale) newConfig.fontSizeScale = Number(newConfig.fontSizeScale);
                     if (newConfig.infoMarginScale) newConfig.infoMarginScale = Number(newConfig.infoMarginScale);
+                    if (newConfig.infoSizeScale) newConfig.infoSizeScale = Number(newConfig.infoSizeScale);
 
                     setConfig(newConfig);
 
@@ -473,11 +477,11 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                     setRenderQuality((importedRenderQuality as any) || 'med');
 
                     setPreset('custom');
-                    alert('Settings loaded successfully!');
+                    toast.success('Settings loaded successfully!');
                 }
             } catch (err) {
                 console.error(err);
-                alert('Failed to parse settings file. Please ensure it is a valid JSON file.');
+                toast.error('Failed to parse settings file. Please ensure it is a valid JSON file.');
             }
         };
         reader.readAsText(file);
@@ -894,6 +898,25 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                                     step="0.1"
                                     value={config.infoMarginScale ?? 1.0}
                                     onChange={(e) => handleChange('infoMarginScale', parseFloat(e.target.value))}
+                                    className="w-full h-1 bg-zinc-600 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full hover:[&::-webkit-slider-thumb]:bg-purple-400 transition-all"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="space-y-1.5">
+                            <div className="flex justify-between items-center">
+                                <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Info Size</label>
+                                <span className="text-[10px] text-zinc-400 font-mono">{(config.infoSizeScale ?? 1).toFixed(1)}x</span>
+                            </div>
+                            <div className="flex items-center gap-2 bg-zinc-800 border border-white/10 rounded-lg px-2 py-1.5">
+                                <span className="text-zinc-500"><Type size={12} /></span>
+                                <input
+                                    type="range"
+                                    min="0.5"
+                                    max="3.0"
+                                    step="0.1"
+                                    value={config.infoSizeScale ?? 1.0}
+                                    onChange={(e) => handleChange('infoSizeScale', parseFloat(e.target.value))}
                                     className="w-full h-1 bg-zinc-600 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full hover:[&::-webkit-slider-thumb]:bg-purple-400 transition-all"
                                 />
                             </div>

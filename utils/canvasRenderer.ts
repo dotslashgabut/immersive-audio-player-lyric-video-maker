@@ -294,13 +294,32 @@ export const drawCanvasFrame = (
     if (renderConfig && renderConfig.backgroundBlurStrength > 0) ctx.filter = `blur(${renderConfig.backgroundBlurStrength}px)`;
     else if (isBlurEnabled) ctx.filter = 'blur(12px)'; // Fallback for legacy
     if (renderConfig ? (renderConfig.backgroundSource === 'timeline' || renderConfig.backgroundSource === 'custom') : true) {
-        const currentSlide = visualSlides.find(s => s.type !== 'audio' && time >= s.startTime && time < s.endTime);
         const useTimeline = renderConfig ? renderConfig.backgroundSource === 'timeline' : true;
-        if (useTimeline && currentSlide) {
-            const vid = currentSlide.type === 'video' ? videos.get(currentSlide.id) : null;
-            const img = currentSlide.type !== 'video' ? images.get(currentSlide.id) : null;
-            if (vid) drawScaled(vid); else if (img) drawScaled(img);
-        } else if (metadata.coverUrl) {
+        let drawnAny = false;
+
+        if (useTimeline) {
+            const activeSlides = visualSlides.filter(s => s.type !== 'audio' && time >= s.startTime && time < s.endTime);
+            // Sort by layer (0 first, then 1) so 1 draws on top
+            activeSlides.sort((a, b) => (a.layer || 0) - (b.layer || 0));
+
+            if (activeSlides.length > 0) {
+                activeSlides.forEach(slide => {
+                    // Check visibility
+                    const layer = slide.layer || 0;
+                    if (renderConfig && renderConfig.layerVisibility?.visual?.[layer] === false) return;
+
+                    const vid = slide.type === 'video' ? videos.get(slide.id) : null;
+                    const img = slide.type !== 'video' ? images.get(slide.id) : null;
+                    if (vid) drawScaled(vid);
+                    else if (img) drawScaled(img);
+                });
+                drawnAny = true; // Mark as drawn even if filtered? No, only if actually drawn.
+                // Wait, if all are hidden, drawnAny stays false, so we fall back to cover?
+                // Probably desired behavior: if you hide video layers, show default cover.
+            }
+        }
+
+        if (!drawnAny && metadata.coverUrl && visualSlides.length === 0) {
             const vid = metadata.backgroundType === 'video' ? videos.get('background') : null;
             const img = images.get('cover');
             if (vid) drawScaled(vid); else if (img) drawScaled(img);
@@ -639,12 +658,13 @@ export const drawCanvasFrame = (
                 if (pos.includes('top')) { y = margin; vertical = 'top'; }
                 else { y = height - margin; vertical = 'bottom'; }
 
-                const coverSize = (style === 'minimal' || style === 'modern') ? 0 : 100 * scale;
+                const infoScale = (renderConfig?.infoSizeScale ?? 1);
+                const coverSize = ((style === 'minimal' || style === 'modern') ? 0 : 100 * scale) * infoScale;
                 const hasCover = showCover && coverSize > 0 && (metadata.coverUrl !== null);
                 const coverImg = hasCover ? (metadata.backgroundType === 'video' ? videos.get('background') : images.get('cover')) : null;
 
-                const titleSize = (style === 'minimal' ? 20 : (style === 'modern' || style === 'modern_art') ? 40 : 28) * scale;
-                const artistSize = (style === 'minimal' ? 14 : (style === 'modern' || style === 'modern_art') ? 24 : 18) * scale;
+                const titleSize = ((style === 'minimal' ? 20 : (style === 'modern' || style === 'modern_art') ? 40 : 28) * scale) * infoScale;
+                const artistSize = ((style === 'minimal' ? 14 : (style === 'modern' || style === 'modern_art') ? 24 : 18) * scale) * infoScale;
                 const titleFont = `bold ${titleSize}px ${fontFamily}`;
                 const artistFont = `${artistSize}px ${fontFamily}`;
                 const gap = 20 * scale;

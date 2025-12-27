@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { VisualSlide, LyricLine } from '../types';
-import { Plus, X, ImageIcon, GripHorizontal, ZoomIn, ZoomOut, Trash2, Volume2, VolumeX, Undo2, Redo2, Copy, Clipboard, Scissors, Film } from './Icons';
+import { VisualSlide, LyricLine, RenderConfig } from '../types';
+import { Plus, X, ImageIcon, GripHorizontal, ZoomIn, ZoomOut, Trash2, Volume2, VolumeX, Undo2, Redo2, Copy, Clipboard, Scissors, Film, Eye, EyeOff, Split } from './Icons';
 import { formatTime } from '../utils/parsers';
+import { useUI } from '../contexts/UIContext';
 
 interface VisualEditorProps {
   slides: VisualSlide[];
@@ -11,6 +12,8 @@ interface VisualEditorProps {
   lyrics: LyricLine[];
   onSeek: (time: number) => void;
   onClose: () => void;
+  renderConfig: RenderConfig;
+  setRenderConfig: React.Dispatch<React.SetStateAction<RenderConfig>>;
 }
 
 // Dynamic ruler interval based on zoom level
@@ -39,6 +42,20 @@ const formatRulerTime = (seconds: number, interval: number): string => {
 const SNAP_THRESHOLD_PX = 10; // Pixels to snap
 const MAX_HISTORY_SIZE = 50; // Maximum number of undo steps
 
+const TRACK_LAYOUT = {
+  RULER_HEIGHT: 24,
+  VISUAL_L1_TOP: 32,
+  VISUAL_L1_HEIGHT: 48,
+  VISUAL_L2_TOP: 84,
+  VISUAL_L2_HEIGHT: 48,
+  LYRICS_TOP: 136,
+  LYRICS_HEIGHT: 32,
+  AUDIO_L1_TOP: 172,
+  AUDIO_L1_HEIGHT: 32,
+  AUDIO_L2_TOP: 208,
+  AUDIO_L2_HEIGHT: 32,
+};
+
 const getMediaDuration = (file: File): Promise<number> => {
   return new Promise((resolve) => {
     const objectUrl = URL.createObjectURL(file);
@@ -56,7 +73,8 @@ const getMediaDuration = (file: File): Promise<number> => {
   });
 };
 
-const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentTime, duration, lyrics, onSeek, onClose }) => {
+const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentTime, duration, lyrics, onSeek, onClose, renderConfig, setRenderConfig }) => {
+  const { confirm } = useUI();
   const editorRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
@@ -171,6 +189,52 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
     setSelectedSlideIds(newSlides.map(s => s.id));
   }, [clipboard, currentTime, setSlides]);
 
+  const handleSplit = useCallback(() => {
+    // Candidates: selected slides that overlap currentTime
+    const candidates = slides.filter(s =>
+      selectedSlideIds.includes(s.id) &&
+      currentTime > s.startTime &&
+      currentTime < s.endTime
+    );
+
+    if (candidates.length === 0) return;
+
+    let newSlides: VisualSlide[] = [];
+    const idsToRemove: string[] = [];
+    const newSelection: string[] = [];
+
+    candidates.forEach(s => {
+      const splitT = currentTime;
+
+      // Left Part
+      const left: VisualSlide = {
+        ...s,
+        id: Math.random().toString(36).substr(2, 9),
+        endTime: splitT
+      };
+
+      // Right Part
+      const addedOffset = splitT - s.startTime;
+      const right: VisualSlide = {
+        ...s,
+        id: Math.random().toString(36).substr(2, 9),
+        startTime: splitT,
+        mediaStartOffset: (s.mediaStartOffset || 0) + addedOffset
+      };
+
+      idsToRemove.push(s.id);
+      newSlides.push(left, right);
+      newSelection.push(right.id);
+    });
+
+    setSlides(prev => {
+      const kept = prev.filter(sl => !idsToRemove.includes(sl.id));
+      return [...kept, ...newSlides].sort((a, b) => a.startTime - b.startTime);
+    });
+
+    setSelectedSlideIds(newSelection);
+  }, [slides, selectedSlideIds, currentTime, setSlides]);
+
   const [activeDrag, setActiveDrag] = useState<{
     id: string;
     type: 'move' | 'resize-start' | 'resize-end';
@@ -213,7 +277,8 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
             type: 'image',
             startTime: start,
             endTime: end,
-            name: file.name
+            name: file.name,
+            layer: 0
           });
         });
       } else {
@@ -238,7 +303,8 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
             endTime: currentStart + itemDuration,
             name: file.name,
             isMuted: type === 'video', // Default muted for video
-            volume: (type === 'video' || type === 'audio') ? 1 : undefined
+            volume: (type === 'video' || type === 'audio') ? 1 : undefined,
+            layer: 0
           });
 
           currentStart += itemDuration;
@@ -256,10 +322,10 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
     setSlides(prev => prev.filter(s => s.id !== id));
   };
 
-  const handleClearAll = (e: React.MouseEvent) => {
+  const handleClearAll = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (slides.length === 0) return;
-    if (window.confirm("Are you sure you want to remove all visual slides?")) {
+    if (await confirm("Are you sure you want to remove all visual slides?", "Remove All Slides")) {
       setSlides([]);
     }
   };
@@ -450,24 +516,39 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
 
       if (!isDragSelect && dist > 5) {
         isDragSelect = true;
+        // Initialize selection box on first drag
+        setSelectionBox({ x: startX, y: startY, w: 0, h: 0 });
       }
 
       if (isDragSelect && trackRef.current) {
         const currentRect = trackRef.current.getBoundingClientRect();
-        const currentX = ev.clientX - currentRect.left;
+        const currentX = ev.clientX - currentRect.left - 96; // Subtract 96px
         const currentY = ev.clientY - currentRect.top;
 
+        setSelectionBox(prev => {
+          if (!prev) return null; // Should not happen if isDragSelect is true and initialized above
+          const width = currentX - startX; // Use startX from handleTrackMouseDown scope
+          const height = currentY - startY; // Use startY from handleTrackMouseDown scope
+
+          return {
+            x: width > 0 ? startX : currentX,
+            y: height > 0 ? startY : currentY,
+            w: Math.abs(width),
+            h: Math.abs(height)
+          };
+        });
+
+        // Intersection Logic - This part remains the same, but it should use the *current* selectionBox state
+        // The state update is async, so we need to re-calculate based on current mouse position
+        const newSelectedIds: string[] = [];
+        const currentSlides = slidesRef.current;
+        const currentPxPerSec = pxPerSecRef.current;
+
+        // Calculate box boundaries based on current mouse position and start position
         const boxX = Math.min(startX, currentX);
         const boxY = Math.min(startY, currentY);
         const boxW = Math.abs(currentX - startX);
         const boxH = Math.abs(currentY - startY);
-
-        setSelectionBox({ x: boxX, y: boxY, w: boxW, h: boxH });
-
-        // Intersection Logic
-        const newSelectedIds: string[] = [];
-        const currentSlides = slidesRef.current;
-        const currentPxPerSec = pxPerSecRef.current;
 
         // Box Boundaries
         const boxRight = boxX + boxW;
@@ -479,14 +560,26 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
           let slideTop = 0;
           let slideBottom = 0;
 
-          // Determine Y range based on type
+          // Determine Y range based on type & layer
+          const layer = slide.layer || 0;
+
           if (slide.type === 'audio') {
-            slideTop = 160; // top-40 (40 * 4px = 160px)
-            slideBottom = 160 + 32; // h-8 (8 * 4px = 32px)
+            if (layer === 0) {
+              slideTop = TRACK_LAYOUT.AUDIO_L1_TOP;
+              slideBottom = TRACK_LAYOUT.AUDIO_L1_TOP + TRACK_LAYOUT.AUDIO_L1_HEIGHT;
+            } else {
+              slideTop = TRACK_LAYOUT.AUDIO_L2_TOP;
+              slideBottom = TRACK_LAYOUT.AUDIO_L2_TOP + TRACK_LAYOUT.AUDIO_L2_HEIGHT;
+            }
           } else {
             // Image/Video
-            slideTop = 32; // top-8
-            slideBottom = 32 + 64; // h-16
+            if (layer === 0) {
+              slideTop = TRACK_LAYOUT.VISUAL_L1_TOP;
+              slideBottom = TRACK_LAYOUT.VISUAL_L1_TOP + TRACK_LAYOUT.VISUAL_L1_HEIGHT;
+            } else {
+              slideTop = TRACK_LAYOUT.VISUAL_L2_TOP;
+              slideBottom = TRACK_LAYOUT.VISUAL_L2_TOP + TRACK_LAYOUT.VISUAL_L2_HEIGHT;
+            }
           }
 
           // Check overlap
@@ -521,7 +614,7 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
   const updateScrubPosition = (clientX: number) => {
     if (!trackRef.current) return;
     const rect = trackRef.current.getBoundingClientRect();
-    const offsetX = clientX - rect.left;
+    const offsetX = clientX - rect.left - 96; // Subtract 96px header width
     let time = Math.max(0, Math.min(offsetX / pxPerSec, timelineDuration));
 
     // Apply Snapping to lyrics/images
@@ -579,6 +672,14 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
     if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
       e.preventDefault();
       handlePaste();
+      return;
+    }
+
+    // Split: X or Ctrl+K
+    if ((e.key.toLowerCase() === 'x' && !e.ctrlKey && !e.metaKey) || ((e.ctrlKey || e.metaKey) && e.key === 'k')) {
+      e.preventDefault();
+      e.stopPropagation();
+      handleSplit();
       return;
     }
 
@@ -748,10 +849,46 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
             const init = prev.initialMap[s.id];
             if (init) {
               const duration = init.end - init.start;
+
+              // Handle Layer Switching (Vertical Drag)
+              let newLayer = s.layer || 0;
+
+              // Helper to check if mouseY is within a track rect
+              const checkLayer = (y: number, top: number, height: number): boolean => {
+                return y >= top && y <= top + height;
+              };
+
+              // Use trackRef logic similar to mouse move
+              // We need offsetY relative to track.
+              // We can approximate by checking if 'e.clientY' changed significantly?
+              // Better: We need e.clientY relative to track.
+              // Since we don't have track rect easily here without ref query every move (expensive?),
+              // we can rely on storing track offset in 'activeDrag'.
+              // But 'activeDrag' was set on MouseDown.
+              // Let's grab track rect if possible or assume relative position if we had startY?
+              // The 'handleMouseMove' has 'e.clientY'.
+              // We need the track offset.
+
+              // Let's try to get rect safely
+              const trackRect = trackRef.current?.getBoundingClientRect();
+              if (trackRect) {
+                const offsetY = e.clientY - trackRect.top;
+
+                // Logic to switch layer based on type
+                if (s.type === 'audio') {
+                  if (checkLayer(offsetY, TRACK_LAYOUT.AUDIO_L1_TOP, TRACK_LAYOUT.AUDIO_L1_HEIGHT)) newLayer = 0;
+                  if (checkLayer(offsetY, TRACK_LAYOUT.AUDIO_L2_TOP, TRACK_LAYOUT.AUDIO_L2_HEIGHT)) newLayer = 1;
+                } else {
+                  if (checkLayer(offsetY, TRACK_LAYOUT.VISUAL_L1_TOP, TRACK_LAYOUT.VISUAL_L1_HEIGHT)) newLayer = 0;
+                  if (checkLayer(offsetY, TRACK_LAYOUT.VISUAL_L2_TOP, TRACK_LAYOUT.VISUAL_L2_HEIGHT)) newLayer = 1;
+                }
+              }
+
               return {
                 ...s,
                 startTime: init.start + effectiveDelta,
-                endTime: init.start + effectiveDelta + duration
+                endTime: init.start + effectiveDelta + duration,
+                layer: newLayer
               };
             }
             return s;
@@ -825,10 +962,31 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
   const handleZoomIn = () => setPxPerSec(prev => Math.min(200, prev + 10));
   const handleZoomOut = () => setPxPerSec(prev => Math.max(10, prev - 10));
 
+  const toggleLayerVisibility = (type: 'visual' | 'audio', layer: number) => {
+    setRenderConfig(prev => {
+      const targetMap = prev.layerVisibility?.[type] || {};
+      const newVisibility = { ...targetMap, [layer]: targetMap[layer] === false ? true : false };
+
+      return {
+        ...prev,
+        layerVisibility: {
+          ...prev.layerVisibility,
+          [type]: newVisibility,
+          // Ensure other type exists so we don't wipe it if undefined initially
+          ...(type === 'visual' ? { audio: prev.layerVisibility?.audio || {} } : { visual: prev.layerVisibility?.visual || {} })
+        } as { visual: Record<number, boolean>; audio: Record<number, boolean> }
+      };
+    });
+  };
+
+  const isLayerVisible = (type: 'visual' | 'audio', layer: number) => {
+    return renderConfig.layerVisibility?.[type]?.[layer] !== false;
+  };
+
   return (
     <div
       ref={editorRef}
-      className="w-full max-w-[100vw] h-64 flex flex-col bg-zinc-900/95 backdrop-blur-md border-t border-white/10 z-20 shadow-xl overflow-hidden outline-none"
+      className="w-full max-w-[100vw] h-64 flex flex-col bg-zinc-900/95 backdrop-blur-md border-t border-white/10 z-20 shadow-xl outline-none overflow-hidden"
       tabIndex={0}
       onMouseDown={(e) => e.currentTarget.focus()}
       onKeyDown={handleKeyDown}
@@ -842,6 +1000,11 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
 
             Timeline
           </h2>
+          <div className="w-px h-4 bg-zinc-700"></div>
+          <label className="flex items-center gap-2 px-3 py-1 bg-purple-600 hover:bg-purple-500 rounded text-xs font-medium cursor-pointer transition-colors text-white whitespace-nowrap">
+            <Plus size={14} /> Import Media
+            <input type="file" className="hidden" accept="image/*,video/*,audio/*" multiple onChange={handleFileUpload} />
+          </label>
           <div className="w-px h-4 bg-zinc-700"></div>
           <div className="flex items-center gap-1">
             <button onClick={handleZoomOut} className="p-1 hover:bg-zinc-700 rounded text-zinc-400 hover:text-white" title="Zoom Out">
@@ -900,6 +1063,19 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
               title="Paste (Ctrl+V)"
             >
               <Clipboard size={14} />
+            </button>
+          </div>
+          <div className="w-px h-4 bg-zinc-700"></div>
+
+          {/* Split Button */}
+          <div className="flex items-center gap-1">
+            <button
+              onClick={handleSplit}
+              disabled={selectedSlideIds.length === 0}
+              className="p-1 hover:bg-zinc-700 rounded text-zinc-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
+              title="Split Content (X)"
+            >
+              <Split size={14} />
             </button>
           </div>
           <div className="w-px h-4 bg-zinc-700"></div>
@@ -1014,10 +1190,7 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
           >
             <Trash2 size={14} />
           </button>
-          <label className="flex items-center gap-2 px-3 py-1 bg-purple-600 hover:bg-purple-500 rounded text-xs font-medium cursor-pointer transition-colors text-white whitespace-nowrap">
-            <Plus size={14} /> Import Media
-            <input type="file" className="hidden" accept="image/*,video/*,audio/*" multiple onChange={handleFileUpload} />
-          </label>
+
           <div className="w-px h-4 bg-zinc-700 mx-1 self-center"></div>
           <button
             onClick={onClose}
@@ -1034,15 +1207,21 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
         ref={containerRef}
         onWheel={(e) => {
           if (containerRef.current) {
-            containerRef.current.scrollLeft += e.deltaY;
+            // Shift+Wheel -> Horizontal Scroll
+            // Wheel -> Vertical Scroll
+            if (e.shiftKey) {
+              e.preventDefault();
+              containerRef.current.scrollLeft += e.deltaY;
+            }
+            // Default behavior handles vertical scroll
           }
         }}
-        className="flex-1 overflow-x-auto overflow-y-hidden relative bg-zinc-950 scroll-smooth custom-scrollbar cursor-default"
+        className="flex-1 overflow-x-auto overflow-y-auto relative bg-zinc-950 scroll-smooth custom-scrollbar cursor-default"
       >
         <div
           ref={trackRef}
-          className="relative h-full"
-          style={{ width: `${totalWidth}px`, minWidth: '100%' }}
+          className="relative"
+          style={{ width: `${totalWidth + 96}px`, minWidth: '100%', height: 'max(100%, 280px)' }}
           onMouseDown={handleTrackMouseDown}
         >
 
@@ -1059,37 +1238,14 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
             />
           )}
 
-          {/* 1. Ruler (Top Strip) */}
-          <div
-            className="absolute top-0 left-0 right-0 h-6 border-b border-white/10 bg-zinc-900/50 select-none cursor-pointer z-40"
-            onMouseDown={handleRulerMouseDown}
-          >
-            {(() => {
-              const rulerInterval = getRulerInterval(pxPerSec);
-              return Array.from({ length: Math.ceil(totalWidth / (pxPerSec * rulerInterval)) }).map((_, i) => {
-                const seconds = i * rulerInterval;
-                if (seconds > timelineDuration) return null;
-                return (
-                  <div
-                    key={i}
-                    className="absolute bottom-0 border-l border-white/20 text-[9px] text-zinc-500 font-mono pl-1 pb-0.5 pointer-events-none"
-                    style={{ left: seconds * pxPerSec, width: rulerInterval * pxPerSec }}
-                  >
-                    {formatRulerTime(seconds, rulerInterval)}
-                  </div>
-                );
-              });
-            })()}
-          </div>
-
-          {/* 2. Grid Lines (Vertical) */}
-          <div className="absolute top-6 bottom-0 left-0 right-0 pointer-events-none">
+          {/* Grid Lines */}
+          <div className="absolute top-0 bottom-0 left-[96px] right-0 pointer-events-none z-0">
             {(() => {
               const rulerInterval = getRulerInterval(pxPerSec);
               return Array.from({ length: Math.ceil(totalWidth / (pxPerSec * rulerInterval)) }).map((_, i) => (
                 <div
                   key={i}
-                  className="absolute h-full border-l border-white/5"
+                  className="absolute top-0 bottom-0 border-l border-white/5"
                   style={{ left: i * rulerInterval * pxPerSec }}
                 ></div>
               ));
@@ -1105,49 +1261,268 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
             )}
           </div>
 
-          {/* 3. Playhead (Vertical Cursor) */}
+          {/* 1. Ruler (Top Strip) - Sticky */}
           <div
-            className="absolute top-0 bottom-0 border-l-2 border-red-500 z-50 cursor-ew-resize group"
-            style={{
-              left: 0,
-              transform: `translateX(${currentTime * pxPerSec}px)`
-            }}
+            className="sticky top-0 left-0 right-0 h-6 border-b border-white/10 bg-zinc-900/90 backdrop-blur-sm select-none cursor-pointer z-[60] flex"
             onMouseDown={handleRulerMouseDown}
           >
-            <div className="absolute top-6 -ml-2.5 bg-red-500 text-white text-[9px] px-1 rounded font-mono shadow-md z-30 group-hover:scale-110 transition-transform">
-              {formatTime(currentTime)}
+            {/* Corner Box */}
+            <div className="w-[96px] shrink-0 border-r border-white/10 flex items-center justify-center text-[10px] text-zinc-500 bg-zinc-900/90">
+              Time
+            </div>
+            {/* Ruler Ticks Container */}
+            <div className="relative flex-1">
+              {(() => {
+                const rulerInterval = getRulerInterval(pxPerSec);
+                return Array.from({ length: Math.ceil(totalWidth / (pxPerSec * rulerInterval)) }).map((_, i) => {
+                  const seconds = i * rulerInterval;
+                  if (seconds > timelineDuration) return null;
+                  return (
+                    <div
+                      key={i}
+                      className="absolute bottom-0 border-l border-white/20 text-[9px] text-zinc-500 font-mono pl-1 pb-0.5 pointer-events-none"
+                      style={{ left: seconds * pxPerSec, width: rulerInterval * pxPerSec }}
+                    >
+                      {formatRulerTime(seconds, rulerInterval)}
+                    </div>
+                  );
+                });
+              })()}
+            </div>
+          </div>
+          {/* 2. Playhead & Current Time Line */}
+          {/* 2. Playhead & Current Time Line */}
+          <div
+            className="absolute top-6 bottom-0 w-px bg-red-500 z-50 pointer-events-none"
+            style={{
+              left: '96px',
+              transform: `translateX(${currentTime * pxPerSec}px)`,
+              willChange: 'transform'
+            }}
+          >
+            <div className="absolute -top-1.5 -left-1.5 w-3 h-3 bg-red-500 rotate-45 transform origin-center shadow-sm" />
+          </div>
+
+          {/* 4. Slides Track (Images/Video) - Layer 0 */}
+          <div className="absolute left-0 right-0 border-b border-white/5 bg-zinc-900/20"
+            style={{ top: TRACK_LAYOUT.VISUAL_L1_TOP, height: TRACK_LAYOUT.VISUAL_L1_HEIGHT }}>
+
+            {/* Sticky Header */}
+            <div className="sticky left-0 w-[96px] h-full bg-zinc-900/90 border-r border-white/10 z-30 flex items-center justify-between px-2 text-[10px] text-zinc-400 backdrop-blur-sm">
+              <span>Visual 1</span>
+              <button
+                onClick={(e) => { e.stopPropagation(); toggleLayerVisibility('visual', 0); }}
+                className="p-1 hover:text-white hover:bg-zinc-700 rounded transition-colors"
+              >
+                {isLayerVisible('visual', 0) ? <Eye size={12} /> : <EyeOff size={12} className="text-zinc-600" />}
+              </button>
+            </div>
+
+            <div className={`absolute top-0 bottom-0 left-[96px] right-0 ${!isLayerVisible('visual', 0) ? 'opacity-30 grayscale pointer-events-none' : ''}`}>
+              {slides.filter(s => s.type !== 'audio' && (s.layer === 0 || s.layer === undefined)).map(slide => (
+                <div
+                  key={slide.id}
+                  style={{
+                    left: slide.startTime * pxPerSec,
+                    width: Math.max(10, (slide.endTime - slide.startTime) * pxPerSec)
+                  }}
+                  className={`absolute top-1 bottom-1 rounded-md overflow-hidden group bg-zinc-800 border shadow-sm select-none cursor-move
+                      ${(activeDrag?.id === slide.id || selectedSlideIds.includes(slide.id)) ? 'border-purple-400 z-30 shadow-xl opacity-90' : 'border-zinc-600 hover:border-zinc-400 z-10 hover:z-20'}
+                      ${selectedSlideIds.includes(slide.id) ? 'ring-2 ring-blue-500/70 ring-offset-1 ring-offset-zinc-950' : ''}
+                    `}
+                  onMouseDown={(e) => handleMouseDown(e, slide.id, 'move')}
+                >
+                  {/* Background Media Preview */}
+                  {slide.type === 'video' ? (
+                    <video src={slide.url} className="w-full h-full object-cover opacity-60 pointer-events-none" muted />
+                  ) : (
+                    <img src={slide.url} className="w-full h-full object-cover opacity-60 pointer-events-none" draggable={false} alt={slide.name} />
+                  )}
+
+                  {/* Info Overlay */}
+                  <div className="absolute inset-0 p-1 pointer-events-none flex flex-col justify-end">
+                    <span className="text-[10px] font-bold drop-shadow-md truncate text-zinc-200 bg-black/30 px-1 rounded w-max max-w-full">{slide.name}</span>
+                  </div>
+
+                  {/* Mute/Unmute Button (Videos Only) */}
+                  {slide.type === 'video' && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSlides(prev => prev.map(s => {
+                          if (s.id === slide.id) return { ...s, isMuted: !s.isMuted };
+                          return s;
+                        }));
+                      }}
+                      className="absolute top-1 right-10 p-0.5 bg-black/60 hover:bg-zinc-600 rounded text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer z-40"
+                      title={slide.isMuted !== false ? "Unmute" : "Mute"}
+                    >
+                      {slide.isMuted !== false ? <VolumeX size={10} /> : <Volume2 size={10} />}
+                    </button>
+                  )}
+
+                  {/* Delete Button */}
+                  <button
+                    onClick={(e) => { e.stopPropagation(); removeSlide(slide.id); }}
+                    className="absolute top-1 right-4 p-0.5 bg-black/60 hover:bg-red-500 rounded text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer z-30"
+                  >
+                    <X size={10} />
+                  </button>
+
+                  {/* Resize Handle (Left Edge) */}
+                  <div
+                    className="absolute top-0 bottom-0 left-0 w-3 cursor-w-resize flex items-center justify-center bg-black/20 hover:bg-purple-500/80 transition-colors z-20"
+                    onMouseDown={(e) => handleMouseDown(e, slide.id, 'resize-start')}
+                  >
+                    <GripHorizontal size={10} className="text-white/70 rotate-90" />
+                  </div>
+
+                  {/* Resize Handle (Right Edge) */}
+                  <div
+                    className="absolute top-0 bottom-0 right-0 w-3 cursor-e-resize flex items-center justify-center bg-black/20 hover:bg-purple-500/80 transition-colors z-20"
+                    onMouseDown={(e) => handleMouseDown(e, slide.id, 'resize-end')}
+                  >
+                    <GripHorizontal size={10} className="text-white/70 rotate-90" />
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
 
-          {/* 4. Slides Track (Images) */}
-          <div className="absolute top-8 h-16 left-0 right-0 border-b border-white/5 bg-zinc-900/20">
-            {slides.filter(s => s.type !== 'audio').map(slide => (
-              <div
-                key={slide.id}
-                style={{
-                  left: slide.startTime * pxPerSec,
-                  width: Math.max(10, (slide.endTime - slide.startTime) * pxPerSec)
-                }}
-                className={`absolute top-1 bottom-1 rounded-md overflow-hidden group bg-zinc-800 border shadow-sm select-none cursor-move
+          {/* 4b. Slides Track (Images/Video) - Layer 1 */}
+          <div className="absolute left-0 right-0 border-b border-white/5 bg-zinc-900/20"
+            style={{ top: TRACK_LAYOUT.VISUAL_L2_TOP, height: TRACK_LAYOUT.VISUAL_L2_HEIGHT }}>
+
+            {/* Sticky Header */}
+            <div className="sticky left-0 w-[96px] h-full bg-zinc-900/90 border-r border-white/10 z-30 flex items-center justify-between px-2 text-[10px] text-zinc-400 backdrop-blur-sm">
+              <span>Visual 2</span>
+              <button
+                onClick={(e) => { e.stopPropagation(); toggleLayerVisibility('visual', 1); }}
+                className="p-1 hover:text-white hover:bg-zinc-700 rounded transition-colors"
+              >
+                {isLayerVisible('visual', 1) ? <Eye size={12} /> : <EyeOff size={12} className="text-zinc-600" />}
+              </button>
+            </div>
+
+            <div className={`absolute top-0 bottom-0 left-[96px] right-0 ${!isLayerVisible('visual', 1) ? 'opacity-30 grayscale pointer-events-none' : ''}`}>
+              {slides.filter(s => s.type !== 'audio' && s.layer === 1).map(slide => (
+                <div
+                  key={slide.id}
+                  style={{
+                    left: slide.startTime * pxPerSec,
+                    width: Math.max(10, (slide.endTime - slide.startTime) * pxPerSec)
+                  }}
+                  className={`absolute top-1 bottom-1 rounded-md overflow-hidden group bg-zinc-800 border shadow-sm select-none cursor-move
                      ${(activeDrag?.id === slide.id || selectedSlideIds.includes(slide.id)) ? 'border-purple-400 z-30 shadow-xl opacity-90' : 'border-zinc-600 hover:border-zinc-400 z-10 hover:z-20'}
                      ${selectedSlideIds.includes(slide.id) ? 'ring-2 ring-blue-500/70 ring-offset-1 ring-offset-zinc-950' : ''}
                    `}
-                onMouseDown={(e) => handleMouseDown(e, slide.id, 'move')}
-              >
-                {/* Background Media Preview */}
-                {slide.type === 'video' ? (
-                  <video src={slide.url} className="w-full h-full object-cover opacity-60 pointer-events-none" muted />
-                ) : (
-                  <img src={slide.url} className="w-full h-full object-cover opacity-60 pointer-events-none" draggable={false} alt={slide.name} />
-                )}
-
-                {/* Info Overlay */}
-                <div className="absolute inset-0 p-1 pointer-events-none flex flex-col justify-end">
-                  <span className="text-[10px] font-bold drop-shadow-md truncate text-zinc-200 bg-black/30 px-1 rounded w-max max-w-full">{slide.name}</span>
+                  onMouseDown={(e) => handleMouseDown(e, slide.id, 'move')}
+                >
+                  {slide.type === 'video' ? (
+                    <video src={slide.url} className="w-full h-full object-cover opacity-60 pointer-events-none" muted />
+                  ) : (
+                    <img src={slide.url} className="w-full h-full object-cover opacity-60 pointer-events-none" draggable={false} alt={slide.name} />
+                  )}
+                  <div className="absolute inset-0 p-1 pointer-events-none flex flex-col justify-end">
+                    <span className="text-[10px] font-bold drop-shadow-md truncate text-zinc-200 bg-black/30 px-1 rounded w-max max-w-full">{slide.name}</span>
+                  </div>
+                  {slide.type === 'video' && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation(); //...
+                        setSlides(prev => prev.map(s => {
+                          if (s.id === slide.id) return { ...s, isMuted: !s.isMuted };
+                          return s;
+                        }));
+                      }}
+                      className="absolute top-1 right-10 p-0.5 bg-black/60 hover:bg-zinc-600 rounded text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer z-40"
+                    >
+                      {slide.isMuted !== false ? <VolumeX size={10} /> : <Volume2 size={10} />}
+                    </button>
+                  )}
+                  <button
+                    onClick={(e) => { e.stopPropagation(); removeSlide(slide.id); }}
+                    className="absolute top-1 right-4 p-0.5 bg-black/60 hover:bg-red-500 rounded text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer z-30"
+                  >
+                    <X size={10} />
+                  </button>
+                  <div
+                    className="absolute top-0 bottom-0 left-0 w-3 cursor-w-resize flex items-center justify-center bg-black/20 hover:bg-purple-500/80 transition-colors z-20"
+                    onMouseDown={(e) => handleMouseDown(e, slide.id, 'resize-start')}
+                  >
+                    <GripHorizontal size={10} className="text-white/70 rotate-90" />
+                  </div>
+                  <div
+                    className="absolute top-0 bottom-0 right-0 w-3 cursor-e-resize flex items-center justify-center bg-black/20 hover:bg-purple-500/80 transition-colors z-20"
+                    onMouseDown={(e) => handleMouseDown(e, slide.id, 'resize-end')}
+                  >
+                    <GripHorizontal size={10} className="text-white/70 rotate-90" />
+                  </div>
                 </div>
+              ))}
+            </div>
+          </div>
 
-                {/* Mute/Unmute Button (Videos Only) */}
-                {slide.type === 'video' && (
+          {/* 5. Lyrics Track */}
+          <div className="absolute left-0 right-0 overflow-hidden" style={{ top: TRACK_LAYOUT.LYRICS_TOP, height: TRACK_LAYOUT.LYRICS_HEIGHT }}>
+            <div className="sticky left-0 w-[96px] h-full bg-zinc-900/90 border-r border-white/10 z-30 flex items-center px-2 text-[10px] text-zinc-400 backdrop-blur-sm select-none">
+              <span>Lyrics</span>
+            </div>
+
+            {/* Content */}
+            <div className="absolute top-0 bottom-0 left-[96px] right-0 pointer-events-none">
+              {lyrics.map((line, idx) => (
+                <div
+                  key={idx}
+                  className="absolute top-1 bottom-1 text-[10px] text-zinc-400 truncate hover:text-white transition-colors hover:bg-zinc-800/50 rounded px-2 cursor-pointer border-l border-zinc-700 flex items-center whitespace-nowrap"
+                  style={{ left: line.time * pxPerSec }}
+                  title={`${formatTime(line.time)} - ${line.text}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSeek(line.time);
+                  }}
+                >
+                  <span className="mr-1 text-zinc-600 font-mono text-[9px]">{formatTime(line.time)}</span>
+                  {line.text}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* 6. Audio Track - Layer 0 */}
+          <div className="absolute left-0 right-0 border-t border-white/5 bg-zinc-900/40" style={{ top: TRACK_LAYOUT.AUDIO_L1_TOP, height: TRACK_LAYOUT.AUDIO_L1_HEIGHT }}>
+
+            {/* Sticky Header */}
+            <div className="sticky left-0 w-[96px] h-full bg-zinc-900/90 border-r border-white/10 z-30 flex items-center justify-between px-2 text-[10px] text-zinc-400 backdrop-blur-sm">
+              <span>Audio 1</span>
+              <button
+                onClick={(e) => { e.stopPropagation(); toggleLayerVisibility('audio', 0); }}
+                className="p-1 hover:text-white hover:bg-zinc-700 rounded transition-colors"
+              >
+                {isLayerVisible('audio', 0) ? <Eye size={12} /> : <EyeOff size={12} className="text-zinc-600" />}
+              </button>
+            </div>
+
+            <div className={`absolute top-0 bottom-0 left-[96px] right-0 ${!isLayerVisible('audio', 0) ? 'opacity-30 grayscale pointer-events-none' : ''}`}>
+              {slides.filter(s => s.type === 'audio' && (s.layer === 0 || s.layer === undefined)).map(slide => (
+                <div
+                  key={slide.id}
+                  style={{
+                    left: slide.startTime * pxPerSec,
+                    width: Math.max(10, (slide.endTime - slide.startTime) * pxPerSec)
+                  }}
+                  className={`absolute top-1 bottom-1 rounded-md overflow-hidden group bg-emerald-900/50 border shadow-sm select-none cursor-move
+                      ${(activeDrag?.id === slide.id || selectedSlideIds.includes(slide.id)) ? 'border-emerald-400 z-30 shadow-xl opacity-90' : 'border-emerald-700/50 hover:border-emerald-500 z-10 hover:z-20'}
+                      ${selectedSlideIds.includes(slide.id) ? 'ring-2 ring-blue-500/70 ring-offset-1 ring-offset-zinc-950' : ''}
+                    `}
+                  onMouseDown={(e) => handleMouseDown(e, slide.id, 'move')}
+                >
+                  <div className="absolute inset-0 flex items-center justify-center opacity-30">
+                    <Volume2 size={16} className="text-emerald-200" />
+                  </div>
+                  <div className="absolute inset-0 p-1 pointer-events-none flex flex-col justify-center">
+                    <span className="text-[9px] font-bold drop-shadow-md truncate text-emerald-100 px-1">{slide.name}</span>
+                  </div>
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -1156,122 +1531,98 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
                         return s;
                       }));
                     }}
-                    className="absolute top-1 right-10 p-0.5 bg-black/60 hover:bg-zinc-600 rounded text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer z-40"
-                    title={slide.isMuted !== false ? "Unmute" : "Mute"}
+                    className="absolute top-1 right-10 p-0.5 bg-black/60 hover:bg-emerald-600 rounded text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer z-40"
+                    title={slide.isMuted === true ? "Unmute" : "Mute"}
                   >
-                    {slide.isMuted !== false ? <VolumeX size={10} /> : <Volume2 size={10} />}
+                    {slide.isMuted === true ? <VolumeX size={10} /> : <Volume2 size={10} />}
                   </button>
-                )}
-
-                {/* Delete Button */}
-                <button
-                  onClick={(e) => { e.stopPropagation(); removeSlide(slide.id); }}
-                  className="absolute top-1 right-4 p-0.5 bg-black/60 hover:bg-red-500 rounded text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer z-30"
-                >
-                  <X size={10} />
-                </button>
-
-                {/* Resize Handle (Left Edge) */}
-                <div
-                  className="absolute top-0 bottom-0 left-0 w-3 cursor-w-resize flex items-center justify-center bg-black/20 hover:bg-purple-500/80 transition-colors z-20"
-                  onMouseDown={(e) => handleMouseDown(e, slide.id, 'resize-start')}
-                >
-                  <GripHorizontal size={10} className="text-white/70 rotate-90" />
+                  <button
+                    onClick={(e) => { e.stopPropagation(); removeSlide(slide.id); }}
+                    className="absolute top-1 right-3 p-0.5 bg-black/60 hover:bg-red-500 rounded text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer z-40"
+                  >
+                    <X size={10} />
+                  </button>
+                  <div
+                    className="absolute top-0 bottom-0 left-0 w-2 cursor-w-resize flex items-center justify-center hover:bg-emerald-500/50 transition-colors z-20"
+                    onMouseDown={(e) => handleMouseDown(e, slide.id, 'resize-start')}
+                  >
+                  </div>
+                  <div
+                    className="absolute top-0 bottom-0 right-0 w-2 cursor-e-resize flex items-center justify-center hover:bg-emerald-500/50 transition-colors z-20"
+                    onMouseDown={(e) => handleMouseDown(e, slide.id, 'resize-end')}
+                  >
+                  </div>
                 </div>
-
-                {/* Resize Handle (Right Edge) */}
-                <div
-                  className="absolute top-0 bottom-0 right-0 w-3 cursor-e-resize flex items-center justify-center bg-black/20 hover:bg-purple-500/80 transition-colors z-20"
-                  onMouseDown={(e) => handleMouseDown(e, slide.id, 'resize-end')}
-                >
-                  <GripHorizontal size={10} className="text-white/70 rotate-90" />
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
 
-          {/* 5. Lyrics Track */}
-          <div className="absolute top-28 h-10 left-0 right-0 overflow-hidden">
-            {lyrics.map((line, idx) => (
-              <div
-                key={idx}
-                className="absolute top-1 bottom-1 text-[10px] text-zinc-400 truncate hover:text-white transition-colors hover:bg-zinc-800/50 rounded px-2 cursor-pointer border-l border-zinc-700 flex items-center whitespace-nowrap"
-                style={{ left: line.time * pxPerSec }}
-                title={`${formatTime(line.time)} - ${line.text}`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onSeek(line.time);
-                }}
+          {/* 6b. Audio Track - Layer 1 */}
+          <div className="absolute left-0 right-0 border-t border-white/5 bg-zinc-900/40" style={{ top: TRACK_LAYOUT.AUDIO_L2_TOP, height: TRACK_LAYOUT.AUDIO_L2_HEIGHT }}>
+
+            {/* Sticky Header */}
+            <div className="sticky left-0 w-[96px] h-full bg-zinc-900/90 border-r border-white/10 z-30 flex items-center justify-between px-2 text-[10px] text-zinc-400 backdrop-blur-sm">
+              <span>Audio 2</span>
+              <button
+                onClick={(e) => { e.stopPropagation(); toggleLayerVisibility('audio', 1); }}
+                className="p-1 hover:text-white hover:bg-zinc-700 rounded transition-colors"
               >
-                <span className="mr-1 text-zinc-600 font-mono text-[9px]">{formatTime(line.time)}</span>
-                {line.text}
-              </div>
-            ))}
-          </div>
+                {isLayerVisible('audio', 1) ? <Eye size={12} /> : <EyeOff size={12} className="text-zinc-600" />}
+              </button>
+            </div>
 
-          {/* 6. Audio Track */}
-          <div className="absolute top-40 h-8 left-0 right-0 border-t border-white/5 bg-zinc-900/40">
-            {slides.filter(s => s.type === 'audio').map(slide => (
-              <div
-                key={slide.id}
-                style={{
-                  left: slide.startTime * pxPerSec,
-                  width: Math.max(10, (slide.endTime - slide.startTime) * pxPerSec)
-                }}
-                className={`absolute top-1 bottom-1 rounded-md overflow-hidden group bg-emerald-900/50 border shadow-sm select-none cursor-move
-                     ${(activeDrag?.id === slide.id || selectedSlideIds.includes(slide.id)) ? 'border-emerald-400 z-30 shadow-xl opacity-90' : 'border-emerald-700/50 hover:border-emerald-500 z-10 hover:z-20'}
-                     ${selectedSlideIds.includes(slide.id) ? 'ring-2 ring-blue-500/70 ring-offset-1 ring-offset-zinc-950' : ''}
-                   `}
-                onMouseDown={(e) => handleMouseDown(e, slide.id, 'move')}
-              >
-                {/* Visual Representation (Waveform fake) */}
-                <div className="absolute inset-0 flex items-center justify-center opacity-30">
-                  <Volume2 size={16} className="text-emerald-200" />
-                </div>
-
-                {/* Info Overlay */}
-                <div className="absolute inset-0 p-1 pointer-events-none flex flex-col justify-center">
-                  <span className="text-[9px] font-bold drop-shadow-md truncate text-emerald-100 px-1">{slide.name}</span>
-                </div>
-
-                {/* Mute/Unmute Button (Audio Only) */}
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setSlides(prev => prev.map(s => {
-                      if (s.id === slide.id) return { ...s, isMuted: !s.isMuted };
-                      return s;
-                    }));
+            <div className={`absolute top-0 bottom-0 left-[96px] right-0 ${!isLayerVisible('audio', 1) ? 'opacity-30 grayscale pointer-events-none' : ''}`}>
+              {slides.filter(s => s.type === 'audio' && s.layer === 1).map(slide => (
+                <div
+                  key={slide.id}
+                  style={{
+                    left: slide.startTime * pxPerSec,
+                    width: Math.max(10, (slide.endTime - slide.startTime) * pxPerSec)
                   }}
-                  className="absolute top-1 right-10 p-0.5 bg-black/60 hover:bg-emerald-600 rounded text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer z-40"
-                  title={slide.isMuted === true ? "Unmute" : "Mute"}
+                  className={`absolute top-1 bottom-1 rounded-md overflow-hidden group bg-emerald-900/50 border shadow-sm select-none cursor-move
+                      ${(activeDrag?.id === slide.id || selectedSlideIds.includes(slide.id)) ? 'border-emerald-400 z-30 shadow-xl opacity-90' : 'border-emerald-700/50 hover:border-emerald-500 z-10 hover:z-20'}
+                      ${selectedSlideIds.includes(slide.id) ? 'ring-2 ring-blue-500/70 ring-offset-1 ring-offset-zinc-950' : ''}
+                    `}
+                  onMouseDown={(e) => handleMouseDown(e, slide.id, 'move')}
                 >
-                  {slide.isMuted === true ? <VolumeX size={10} /> : <Volume2 size={10} />}
-                </button>
-
-                {/* Delete Button */}
-                <button
-                  onClick={(e) => { e.stopPropagation(); removeSlide(slide.id); }}
-                  className="absolute top-1 right-3 p-0.5 bg-black/60 hover:bg-red-500 rounded text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer z-40"
-                >
-                  <X size={10} />
-                </button>
-
-                {/* Resize Handle (Left) */}
-                <div
-                  className="absolute top-0 bottom-0 left-0 w-2 cursor-w-resize flex items-center justify-center hover:bg-emerald-500/50 transition-colors z-20"
-                  onMouseDown={(e) => handleMouseDown(e, slide.id, 'resize-start')}
-                >
+                  <div className="absolute inset-0 flex items-center justify-center opacity-30">
+                    <Volume2 size={16} className="text-emerald-200" />
+                  </div>
+                  <div className="absolute inset-0 p-1 pointer-events-none flex flex-col justify-center">
+                    <span className="text-[9px] font-bold drop-shadow-md truncate text-emerald-100 px-1">{slide.name}</span>
+                  </div>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSlides(prev => prev.map(s => {
+                        if (s.id === slide.id) return { ...s, isMuted: !s.isMuted };
+                        return s;
+                      }));
+                    }}
+                    className="absolute top-1 right-10 p-0.5 bg-black/60 hover:bg-emerald-600 rounded text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer z-40"
+                    title={slide.isMuted === true ? "Unmute" : "Mute"}
+                  >
+                    {slide.isMuted === true ? <VolumeX size={10} /> : <Volume2 size={10} />}
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); removeSlide(slide.id); }}
+                    className="absolute top-1 right-3 p-0.5 bg-black/60 hover:bg-red-500 rounded text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer z-40"
+                  >
+                    <X size={10} />
+                  </button>
+                  <div
+                    className="absolute top-0 bottom-0 left-0 w-2 cursor-w-resize flex items-center justify-center hover:bg-emerald-500/50 transition-colors z-20"
+                    onMouseDown={(e) => handleMouseDown(e, slide.id, 'resize-start')}
+                  >
+                  </div>
+                  <div
+                    className="absolute top-0 bottom-0 right-0 w-2 cursor-e-resize flex items-center justify-center hover:bg-emerald-500/50 transition-colors z-20"
+                    onMouseDown={(e) => handleMouseDown(e, slide.id, 'resize-end')}
+                  >
+                  </div>
                 </div>
-
-                {/* Resize Handle (Right) */}
-                <div
-                  className="absolute top-0 bottom-0 right-0 w-2 cursor-e-resize flex items-center justify-center hover:bg-emerald-500/50 transition-colors z-20"
-                  onMouseDown={(e) => handleMouseDown(e, slide.id, 'resize-end')}
-                >
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
 
         </div>

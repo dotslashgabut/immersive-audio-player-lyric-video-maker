@@ -1,7 +1,9 @@
 import React, { useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import { PlaylistItem, LyricLine } from '../types';
-import { Plus, Trash2, Play, Volume2, FileText, ListMusic, Shuffle, User, Disc, Music, X } from './Icons';
-import { formatTime, parseLRC, parseSRT } from '../utils/parsers';
+import { Plus, Trash2, Play, Volume2, FileText, ListMusic, Shuffle, User, Disc, Music, X, Sparkles, Loader2, FileJson, FileType, FileDown, Key, Upload, Square } from './Icons';
+import { formatTime, parseLRC, parseSRT, parseTimestamp } from '../utils/parsers';
+import { useUI } from '../contexts/UIContext';
+import { transcribeAudio } from '../services/geminiService';
 
 interface PlaylistEditorProps {
     playlist: PlaylistItem[];
@@ -17,9 +19,32 @@ interface PlaylistEditorProps {
 }
 
 const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, currentTrackIndex, setCurrentTrackIndex, onPlayTrack, onSeek, onClearPlaylist, currentTime, onClose }) => {
+    const { confirm } = useUI();
     const containerRef = useRef<HTMLDivElement>(null);
+    const abortControllersRef = useRef<Map<string, AbortController>>(new Map());
+
+    // Helper for LRC display
+    const formatLrcTimeDisplay = (sec: number) => {
+        const mins = Math.floor(sec / 60).toString().padStart(2, '0');
+        const secs = (sec % 60).toFixed(2).padStart(5, '0');
+        return `[${mins}:${secs}]`;
+    };
     const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
     const [sortConfig, setSortConfig] = useState<{ key: string | null; direction: 'asc' | 'desc' }>({ key: null, direction: 'asc' });
+    const [transcribingIds, setTranscribingIds] = useState<Set<string>>(new Set());
+    const [apiKey, setApiKey] = useState<string>(localStorage.getItem('gemini_api_key') || '');
+    const [selectedModel, setSelectedModel] = useState<string>('gemini-2.5-flash');
+    const [showApiKeyInput, setShowApiKeyInput] = useState(false);
+
+    // Manual lyric upload
+    const lyricFileInputRef = useRef<HTMLInputElement>(null);
+    const [manualLyricTargetId, setManualLyricTargetId] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (apiKey) {
+            localStorage.setItem('gemini_api_key', apiKey);
+        }
+    }, [apiKey]);
 
     // Auto-scroll active lyric
     const currentItem = currentTrackIndex >= 0 ? playlist[currentTrackIndex] : null;
@@ -257,8 +282,288 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
         });
     };
 
+    const fileToBase64 = (file: File): Promise<string> => {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = () => {
+                const base64String = (reader.result as string).split(',')[1];
+                resolve(base64String);
+            };
+            reader.onerror = error => reject(error);
+        });
+    };
+
+    const handleTranscribe = async (item: PlaylistItem) => {
+        // Check connectivity first
+        if (!navigator.onLine) {
+            alert("Unable to transcribe: No internet connection.");
+            return;
+        }
+
+        // If already transcribing, abort properly
+        if (transcribingIds.has(item.id)) {
+            const controller = abortControllersRef.current.get(item.id);
+            if (controller) {
+                controller.abort();
+            }
+            return;
+        }
+
+        setTranscribingIds(prev => new Set(prev).add(item.id));
+        const controller = new AbortController();
+        abortControllersRef.current.set(item.id, controller);
+
+        try {
+            const base64Data = await fileToBase64(item.audioFile);
+
+            // Get duration to validate timestamps if not already known
+            let duration = item.duration || 0;
+            if (duration === 0) {
+                try {
+                    duration = await new Promise<number>((resolve) => {
+                        const audio = new Audio(URL.createObjectURL(item.audioFile));
+                        audio.onloadedmetadata = () => {
+                            resolve(audio.duration);
+                            URL.revokeObjectURL(audio.src);
+                        };
+                        audio.onerror = () => {
+                            URL.revokeObjectURL(audio.src); // cleanup
+                            resolve(0);
+                        };
+                    });
+                } catch (e) {
+                    console.warn("Could not determine duration for AI validation", e);
+                }
+            }
+
+            // Try to get key from state, or process.env (defined in vite.config.ts)
+            // Note: vite.config.ts replacements make process.env.GEMINI_API_KEY valid
+            // we also check VITE_ prefixed vars for standard Vite behavior
+            const keyToUse = apiKey || process.env.GEMINI_API_KEY || process.env.API_KEY || import.meta.env.VITE_GEMINI_API_KEY || '';
+
+            if (!keyToUse) {
+                alert("Please set your Gemini API Key first!");
+                setTranscribingIds(prev => {
+                    const next = new Set(prev);
+                    next.delete(item.id);
+                    return next;
+                });
+                setShowApiKeyInput(true);
+                return;
+            }
+
+            // Use service
+            const segments = await transcribeAudio(
+                selectedModel,
+                base64Data,
+                item.audioFile.type,
+                keyToUse,
+                controller.signal
+            );
+
+            let transcribedLyrics: LyricLine[] = segments.map(s => ({
+                time: parseTimestamp(s.startTime),
+                text: s.text,
+                endTime: parseTimestamp(s.endTime)
+            }));
+
+            // Filter out lyrics beyond duration
+            if (duration > 0) {
+                transcribedLyrics = transcribedLyrics.filter(l => l.time < duration && l.time >= 0);
+            }
+
+            setPlaylist(prev => prev.map(p =>
+                p.id === item.id ? {
+                    ...p,
+                    parsedLyrics: transcribedLyrics.sort((a, b) => a.time - b.time),
+                    duration: duration > 0 ? duration : p.duration
+                } : p
+            ));
+        } catch (err: any) {
+            if (err.name === 'AbortError') {
+                console.log("Transcription aborted via user action.");
+            } else {
+                console.error("Transcription failed:", err);
+
+                let errorMsg = "Transcription failed. Please check your API key or file format.";
+
+                if (!navigator.onLine) {
+                    errorMsg = "Connection lost. Please check your internet connection.";
+                } else if (err.message) {
+                    const lowerMsg = err.message.toLowerCase();
+                    if (lowerMsg.includes('fetch') || lowerMsg.includes('network') || lowerMsg.includes('failed to connect')) {
+                        errorMsg = "Network error. Please check your connection.";
+                    } else if (lowerMsg.includes('api key') || err.message.includes('400') || err.message.includes('401') || err.message.includes('403')) {
+                        errorMsg = "API Key Error: Please check if your key is valid and has credits.";
+                    }
+                }
+
+                alert(errorMsg);
+            }
+        } finally {
+            abortControllersRef.current.delete(item.id);
+            setTranscribingIds(prev => {
+                const next = new Set(prev);
+                next.delete(item.id);
+                return next;
+            });
+        }
+    };
+
+    const downloadFile = (content: string, filename: string, mimeType: string) => {
+        const blob = new Blob([content], { type: 'application/octet-stream' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    };
+
+    const exportLyrics = async (item: PlaylistItem, format: 'txt' | 'json' | 'srt' | 'lrc') => {
+        const rawLyrics = item.parsedLyrics || [];
+        if (rawLyrics.length === 0) return;
+
+        let content = "";
+        const filename = `${item.metadata.title || 'lyrics'}.${format}`;
+
+        // Get duration if missing
+        let duration = item.duration || 0;
+        if (duration === 0) {
+            try {
+                duration = await new Promise<number>((resolve) => {
+                    const audio = new Audio(URL.createObjectURL(item.audioFile));
+                    audio.onloadedmetadata = () => {
+                        resolve(audio.duration);
+                        URL.revokeObjectURL(audio.src);
+                    };
+                    audio.onerror = () => resolve(0);
+                });
+            } catch (e) {
+                console.warn("Could not determine duration for export check", e);
+            }
+        }
+
+        if (format === 'txt') {
+            content = rawLyrics.map(l => l.text).join("\n");
+        } else if (format === 'json') {
+            content = JSON.stringify(rawLyrics, null, 2);
+        } else if (format === 'srt') {
+            content = rawLyrics.map((l, i) => {
+                const calculatedNextTime = rawLyrics[i + 1]?.time || l.time + 3;
+                const nextTime = (duration > 0 && calculatedNextTime > duration) ? duration : calculatedNextTime;
+
+                const toTimestamp = (sec: number) => {
+                    const hrs = Math.floor(sec / 3600).toString().padStart(2, '0');
+                    const mins = Math.floor((sec % 3600) / 60).toString().padStart(2, '0');
+                    const secs = Math.floor(sec % 60).toString().padStart(2, '0');
+                    const ms = Math.floor((sec % 1) * 1000).toString().padStart(3, '0');
+                    return `${hrs}:${mins}:${secs},${ms}`;
+                };
+                return `${i + 1}\n${toTimestamp(l.time)} --> ${toTimestamp(nextTime)}\n${l.text}\n`;
+            }).join("\n");
+        } else if (format === 'lrc') {
+            const lrcLines: string[] = [];
+
+            const formatLrcTime = (sec: number) => {
+                const mins = Math.floor(sec / 60).toString().padStart(2, '0');
+                const secs = (sec % 60).toFixed(2).padStart(5, '0');
+                return `[${mins}:${secs}]`;
+            };
+
+            for (let i = 0; i < rawLyrics.length; i++) {
+                const current = rawLyrics[i];
+                const next = rawLyrics[i + 1];
+
+                lrcLines.push(`${formatLrcTime(current.time)}${current.text}`);
+
+                // User request: blank line timestamp should be +4 seconds from the end timestamp.
+                // If endTime is not available, we assume a default duration (e.g., 3s).
+                const endTime = current.endTime ?? (current.time + 3);
+                const blankTime = endTime + 4;
+
+                // Only add blank line if it fits within the song duration
+                // If duration is 0 (unknown), stricter safety might be to allow it, or skip?
+                // User said: "kalau tidak memenuhi" (if not fulfilling). Assuming known duration.
+                // If unknown, we default to true (allow) to avoid aggressive filtering, unless specific otherwise.
+                const isWithinDuration = duration > 0 ? blankTime <= duration : true;
+
+                if (isWithinDuration) {
+                    if (next) {
+                        // Only insert blank line if there's enough gap before the next line starts
+                        if (next.time > blankTime) {
+                            lrcLines.push(`${formatLrcTime(blankTime)}`);
+                        }
+                    } else {
+                        // Always add blank line for the last transcript line
+                        lrcLines.push(`${formatLrcTime(blankTime)}`);
+                    }
+                }
+            }
+
+            content = lrcLines.join("\n");
+        }
+
+        downloadFile(content, filename, 'application/octet-stream');
+    };
+
+    const handleClearLyrics = async (item: PlaylistItem) => {
+        if (await confirm("Are you sure you want to clear the lyric timeline?", "Clear Lyrics")) {
+            setPlaylist(prev => prev.map(p =>
+                p.id === item.id ? {
+                    ...p,
+                    parsedLyrics: [],
+                    lyricFile: undefined
+                } : p
+            ));
+        }
+    };
+
+    const handleManualLyricUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file || !manualLyricTargetId) return;
+
+        try {
+            const text = await file.text();
+            const ext = file.name.split('.').pop()?.toLowerCase();
+            let parsed: LyricLine[] = [];
+
+            if (ext === 'lrc') parsed = parseLRC(text);
+            else if (ext === 'srt') parsed = parseSRT(text);
+
+            if (parsed.length > 0) {
+                setPlaylist(prev => prev.map(p =>
+                    p.id === manualLyricTargetId ? {
+                        ...p,
+                        lyricFile: file,
+                        parsedLyrics: parsed
+                    } : p
+                ));
+            } else {
+                alert("Could not parse lyrics. Ensure file is .lrc or .srt");
+            }
+        } catch (err) {
+            console.error("Failed to load lyrics", err);
+            alert("Failed to load lyrics file.");
+        }
+
+        // Reset
+        setManualLyricTargetId(null);
+        e.target.value = '';
+    };
+
     return (
         <div className="w-full max-w-[100vw] h-64 flex flex-col bg-zinc-900/95 backdrop-blur-md border-t border-white/10 z-20 shadow-xl overflow-hidden outline-none">
+            <input
+                type="file"
+                ref={lyricFileInputRef}
+                className="hidden"
+                accept=".lrc,.srt"
+                onChange={handleManualLyricUpload}
+            />
             {/* Header */}
             <div className="p-2 border-b border-white/10 flex items-center justify-between bg-zinc-900 z-30 shrink-0 h-12">
                 <div className="flex items-center gap-4 shrink-0">
@@ -266,6 +571,11 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
                         <ListMusic size={16} className="text-orange-400" />
                         Playlist
                     </h2>
+                    <div className="w-px h-4 bg-zinc-700"></div>
+                    <label className="flex items-center gap-2 px-3 py-1 bg-orange-600 hover:bg-orange-500 rounded text-xs font-medium cursor-pointer transition-colors text-white whitespace-nowrap">
+                        <Plus size={14} /> Add Audio & Lyrics
+                        <input type="file" className="hidden" accept="audio/*,.lrc,.srt" multiple onChange={handleFileUpload} />
+                    </label>
                     <div className="w-px h-4 bg-zinc-700"></div>
                     {/* Sort Icons */}
                     <div className="flex items-center gap-1">
@@ -307,10 +617,43 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
                     </div>
                 </div>
 
-                <div className="flex gap-2 shrink-0">
+                <div className="flex gap-2 shrink-0 items-center">
+                    <div className="flex items-center gap-1 bg-zinc-800/50 rounded px-1">
+                        <button
+                            onClick={() => setShowApiKeyInput(!showApiKeyInput)}
+                            className={`p-1 rounded transition-colors ${showApiKeyInput ? 'text-orange-400' : 'text-zinc-500 hover:text-zinc-300'}`}
+                            title="Gemini API Key"
+                        >
+                            <Key size={14} />
+                        </button>
+                        {showApiKeyInput && (
+                            <input
+                                type="password"
+                                value={apiKey}
+                                onChange={(e) => setApiKey(e.target.value)}
+                                placeholder="Paste API Key here"
+                                className="bg-transparent border-none outline-none text-xs text-zinc-200 w-32 placeholder:text-zinc-600"
+                                autoFocus
+                            />
+                        )}
+                    </div>
+
+                    {/* Model Dropdown */}
+                    <div className="relative group">
+                        <select
+                            value={selectedModel}
+                            onChange={(e) => setSelectedModel(e.target.value)}
+                            className="bg-zinc-800 text-[10px] text-zinc-300 border border-zinc-700 rounded px-1 py-1 focus:outline-none focus:border-orange-500 appearance-none cursor-pointer hover:bg-zinc-700"
+                            title="Select Gemini Model"
+                        >
+                            <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+                            <option value="gemini-3-flash-preview">Gemini 3.0 Flash Preview</option>
+                        </select>
+                    </div>
+
                     <button
-                        onClick={() => {
-                            if (playlist.length > 0 && window.confirm("Clear entire playlist?")) {
+                        onClick={async () => {
+                            if (playlist.length > 0 && await confirm("Clear entire playlist?", "Clear Playlist")) {
                                 onClearPlaylist();
                                 setPlaylist([]);
                             }
@@ -320,10 +663,7 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
                     >
                         <Trash2 size={14} />
                     </button>
-                    <label className="flex items-center gap-2 px-3 py-1 bg-orange-600 hover:bg-orange-500 rounded text-xs font-medium cursor-pointer transition-colors text-white whitespace-nowrap">
-                        <Plus size={14} /> Add Audio & Lyrics
-                        <input type="file" className="hidden" accept="audio/*,.lrc,.srt" multiple onChange={handleFileUpload} />
-                    </label>
+
                     <div className="w-px h-4 bg-zinc-700 mx-1 self-center"></div>
                     <button
                         onClick={onClose}
@@ -432,7 +772,7 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
                                                                 ? 'bg-orange-600 text-white border border-orange-400 shadow-[0_0_10px_rgba(234,88,12,0.3)]'
                                                                 : 'bg-zinc-800/50 hover:bg-blue-900/50 border border-zinc-700/30 hover:border-blue-500/50 text-zinc-400'}
                                                     `}
-                                                        title={`${formatTime(line.time)} - ${line.text}`}
+                                                        title={`${formatLrcTimeDisplay(line.time)} - ${line.text}`}
                                                         onClick={(e) => {
                                                             e.stopPropagation();
                                                             // If this track is not the current one, play it first
@@ -445,7 +785,7 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
                                                             }
                                                         }}
                                                     >
-                                                        <span className={`font-mono text-[8px] ${isActive ? 'text-orange-200' : 'text-zinc-500'}`}>{formatTime(line.time)}</span>
+                                                        <span className={`font-mono text-[8px] ${isActive ? 'text-orange-200' : 'text-zinc-500'}`}>{formatLrcTimeDisplay(line.time)}</span>
                                                         <span className={`truncate max-w-[120px] ${isActive ? 'text-white font-medium' : 'text-zinc-400'}`}>{line.text || '♪'}</span>
                                                     </div>
                                                 )
@@ -454,6 +794,46 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
                                     ) : (
                                         <div className="h-full flex items-center justify-center text-zinc-700 text-[9px] italic">
                                             No lyric timeline
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="flex items-center gap-1 shrink-0 px-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setManualLyricTargetId(item.id);
+                                            if (lyricFileInputRef.current) lyricFileInputRef.current.value = '';
+                                            lyricFileInputRef.current?.click();
+                                        }}
+                                        className="p-1.5 rounded bg-blue-900/30 border border-blue-500/30 text-blue-400 hover:bg-blue-800/50 transition-colors"
+                                        title="Load Lyrics Manually"
+                                    >
+                                        <Upload size={14} />
+                                    </button>
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); handleTranscribe(item); }}
+                                        className={`group/btn relative p-1.5 rounded bg-purple-900/30 border border-purple-500/30 text-purple-400 hover:bg-purple-800/50 transition-colors ${transcribingIds.has(item.id) ? 'text-red-400 border-red-500/50 hover:bg-red-900/30' : ''}`}
+                                        title={transcribingIds.has(item.id) ? "Stop Transcription" : "AI Sync Transcribe"}
+                                    >
+                                        {transcribingIds.has(item.id) ? (
+                                            <>
+                                                <Loader2 size={14} className="animate-spin group-hover/btn:hidden" />
+                                                <Square size={14} className="hidden group-hover/btn:block fill-current" />
+                                            </>
+                                        ) : (
+                                            <Sparkles size={14} />
+                                        )}
+                                    </button>
+
+                                    {lyrics.length > 0 && (
+                                        <div className="flex items-center gap-0.5 bg-zinc-800/50 rounded p-0.5 border border-zinc-700/50">
+                                            <button onClick={(e) => { e.stopPropagation(); exportLyrics(item, 'txt'); }} className="p-1 hover:bg-white/10 rounded text-[8px] text-zinc-400 font-bold" title="Download TXT">TXT</button>
+                                            <button onClick={(e) => { e.stopPropagation(); exportLyrics(item, 'lrc'); }} className="p-1 hover:bg-white/10 rounded text-[8px] text-zinc-400 font-bold" title="Download LRC">LRC</button>
+                                            <button onClick={(e) => { e.stopPropagation(); exportLyrics(item, 'srt'); }} className="p-1 hover:bg-white/10 rounded text-[8px] text-zinc-400 font-bold" title="Download SRT">SRT</button>
+                                            <button onClick={(e) => { e.stopPropagation(); exportLyrics(item, 'json'); }} className="p-1 hover:bg-white/10 rounded text-[8px] text-zinc-400 font-bold" title="Download JSON">JSON</button>
+                                            <div className="w-px h-3 bg-zinc-700 mx-0.5"></div>
+                                            <button onClick={(e) => { e.stopPropagation(); handleClearLyrics(item); }} className="p-1 hover:bg-red-900/50 rounded text-[8px] text-red-500 hover:text-red-300 font-bold" title="Clear Lyrics">CLR</button>
                                         </div>
                                     )}
                                 </div>

@@ -12,9 +12,11 @@ import PlaylistEditor from './components/PlaylistEditor';
 import RenderSettings from './components/RenderSettings';
 import { drawCanvasFrame } from './utils/canvasRenderer';
 import { loadGoogleFonts } from './utils/fonts';
+import { useUI } from './contexts/UIContext';
 
 
 function App() {
+  const { toast, confirm } = useUI();
   // Refs
   const audioRef = useRef<HTMLAudioElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -271,18 +273,28 @@ function App() {
         setLyrics(parsedLyrics);
       } catch (err) {
         console.error("Failed to parse lyrics:", err);
-        alert("Failed to parse lyric file.");
+        toast.error("Failed to parse lyric file.");
       }
     }
     // Allow re-upload
     e.target.value = '';
   };
 
+  // Sync lyrics from playlist changes (e.g. loaded/deleted in Editor)
+  useEffect(() => {
+    if (currentTrackIndex !== -1 && playlist[currentTrackIndex]) {
+      const track = playlist[currentTrackIndex];
+      // We prioritize parsedLyrics if available, otherwise clear
+      // This ensures if user clears lyrics in editor, it reflects here immediately
+      setLyrics(track.parsedLyrics || []);
+    }
+  }, [playlist, currentTrackIndex]);
+
   const handleFontUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       if (!window.FontFace || !document.fonts) {
-        alert("Custom fonts are not supported in this browser.");
+        toast.error("Custom fonts are not supported in this browser.");
         return;
       }
       try {
@@ -294,7 +306,7 @@ function App() {
         setCustomFontName(fontName);
       } catch (err) {
         console.error("Failed to load font:", err);
-        alert("Failed to load font file.");
+        toast.error("Failed to load font file.");
       }
     }
     // Allow re-upload
@@ -494,7 +506,8 @@ function App() {
       ? `Start rendering ALL ${queue.length} songs from the playlist? This will result in one continuous video.`
       : `Start rendering ${aspectRatio} (${resolution}) video? This will play the song from start to finish.`;
 
-    if (!window.confirm(`${confirmMsg} Please do not switch tabs during rendering.`)) {
+    const isConfirmed = await confirm(`${confirmMsg} Please do not switch tabs during rendering.`, "Start Rendering?");
+    if (!isConfirmed) {
       // Cleanup generated URLs if aborted immediately
       if (isPlaylistRender) queue.forEach(q => q.isFileSource && URL.revokeObjectURL(q.audioSrc));
       return;
@@ -597,7 +610,7 @@ function App() {
       else if (audioEl.mozCaptureStream) audioStream = audioEl.mozCaptureStream();
       else throw new Error("Audio capture not supported");
     } catch (e) {
-      alert("Your browser does not support audio capture for recording.");
+      toast.error("Your browser does not support audio capture for recording.");
       setIsRendering(false);
       return;
     }
@@ -736,7 +749,7 @@ function App() {
           const s = visualSlides.find(sl => sl.id === id);
           if (s) {
             if (t >= s.startTime && t < s.endTime) {
-              const rel = t - s.startTime;
+              const rel = (t - s.startTime) + (s.mediaStartOffset || 0);
               if (Math.abs(v.currentTime - rel) > 0.5) v.currentTime = rel;
               const shouldMute = s.isMuted !== false;
               if (v.muted !== shouldMute) v.muted = shouldMute;
@@ -753,8 +766,11 @@ function App() {
       audioMap.forEach((a, id) => {
         const s = visualSlides.find(sl => sl.id === id);
         if (s) {
-          if (t >= s.startTime && t < s.endTime) {
-            const rel = t - s.startTime;
+          const layer = s.layer || 0;
+          const isLayerVisible = renderConfig.layerVisibility?.audio?.[layer] !== false;
+
+          if (isLayerVisible && t >= s.startTime && t < s.endTime) {
+            const rel = (t - s.startTime) + (s.mediaStartOffset || 0);
             if (Math.abs(a.currentTime - rel) > 0.5) a.currentTime = rel;
             const shouldMute = s.isMuted === true;
             if (a.muted !== shouldMute) a.muted = shouldMute;
@@ -977,7 +993,7 @@ function App() {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Check if the key shoud trigger UI wake-up
       const key = e.key.toLowerCase();
-      const ignoredKeysForIdle = [' ', 'k', 's', 't', 'l', 'r', 'f', 'h', 'm', 'j', 'd', 'e', 'arrowleft', 'arrowright', 'arrowup', 'arrowdown', 'meta', 'control', 'shift', 'alt', 'printscreen', 'fn', '+', '-', '='];
+      const ignoredKeysForIdle = [' ', 'k', 's', 't', 'l', 'r', 'f', 'h', 'm', 'j', 'd', 'e', 'x', 'arrowleft', 'arrowright', 'arrowup', 'arrowdown', 'meta', 'control', 'shift', 'alt', 'printscreen', 'fn', '+', '-', '='];
 
       if (!ignoredKeysForIdle.includes(key)) {
         resetIdleTimer();
@@ -1168,7 +1184,7 @@ function App() {
       if (isRendering) {
         if (!vid.paused) vid.pause();
       } else {
-        const relTime = currentTime - activeSlide.startTime;
+        const relTime = (currentTime - activeSlide.startTime) + (activeSlide.mediaStartOffset || 0);
 
         // Check if we need to sync timestamps (fix drift/seeks)
         if (Math.abs(vid.currentTime - relTime) > 0.1) {
@@ -1226,7 +1242,7 @@ function App() {
     activeAudioSlides.forEach(s => {
       const aud = document.getElementById(`audio-preview-${s.id}`) as HTMLAudioElement;
       if (aud) {
-        const relTime = currentTime - s.startTime;
+        const relTime = (currentTime - s.startTime) + (s.mediaStartOffset || 0);
         if (Math.abs(aud.currentTime - relTime) > 0.2) aud.currentTime = relTime;
 
         const shouldMute = s.isMuted === true;
@@ -1334,7 +1350,7 @@ function App() {
             }}
           />
         )}
-        {(renderConfig.backgroundSource === 'timeline' || renderConfig.backgroundSource === 'custom') && metadata.coverUrl && (
+        {(renderConfig.backgroundSource === 'timeline' || renderConfig.backgroundSource === 'custom') && metadata.coverUrl && visualSlides.length === 0 && (
           metadata.backgroundType === 'video' ? (
             <video
               ref={bgVideoRef}
@@ -1379,7 +1395,7 @@ function App() {
         )}
 
         {/* Default Gradient if nothing */}
-        {!metadata.coverUrl && !activeSlide && (renderConfig.backgroundSource === 'timeline' || renderConfig.backgroundSource === 'custom') && (
+        {!metadata.coverUrl && !activeSlide && (renderConfig.backgroundSource === 'timeline' || renderConfig.backgroundSource === 'custom') && visualSlides.length === 0 && (
           <div className="absolute inset-0 bg-gradient-to-br from-indigo-900 via-purple-900 to-black opacity-80"></div>
         )}
 
@@ -2318,6 +2334,8 @@ function App() {
                   }
                 }}
                 onClose={() => setActiveTab(TabView.PLAYER)}
+                renderConfig={renderConfig}
+                setRenderConfig={setRenderConfig}
               />
             </div>
           )

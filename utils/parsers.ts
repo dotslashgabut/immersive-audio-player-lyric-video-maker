@@ -1,5 +1,30 @@
 import { LyricLine } from '../types';
 
+export const parseTimestamp = (timeStr: string): number => {
+  if (!timeStr) return 0;
+
+  // Clean string to allow flexible parsing (e.g. comma or dot for decimals)
+  const clean = timeStr.replace(',', '.').trim();
+  const parts = clean.split(':');
+
+  let seconds = 0;
+
+  if (parts.length === 3) {
+    // HH:MM:SS.mmm
+    seconds += parseInt(parts[0], 10) * 3600;
+    seconds += parseInt(parts[1], 10) * 60;
+    seconds += parseFloat(parts[2]);
+  } else if (parts.length === 2) {
+    // MM:SS.mmm
+    seconds += parseInt(parts[0], 10) * 60;
+    seconds += parseFloat(parts[1]);
+  } else if (parts.length === 1) {
+    seconds += parseFloat(parts[0]);
+  }
+
+  return isNaN(seconds) ? 0 : seconds;
+};
+
 export const formatTime = (seconds: number): string => {
   const mins = Math.floor(seconds / 60);
   const secs = Math.floor(seconds % 60);
@@ -26,25 +51,9 @@ export const parseLRC = (lrcContent: string): LyricLine[] => {
       matches.forEach(match => {
         const minutes = parseInt(match[1], 10);
         const seconds = parseInt(match[2], 10);
-        // Match[4] is milliseconds part without dot, match[3] is dot+ms
-        // If match[4] exists use it, else 0
-        // The regex group indices: 1=mm, 2=ss, 3=.xxx, 4=xxx
         const msStr = match[4];
-        const milliseconds = msStr ? parseInt(msStr, 10) : 0;
 
         // Calculate total time in seconds
-        // If 2 digits ms (e.g. .50), it is 500ms? No, typically parsed as hundredths.
-        // Standard LRC: .xx is hundredths. .xxx is thousandths.
-        // utils code previously did: parseInt(match[3], 10) / 1000. 
-        // If it was .23 (match[3]=23), parseInt is 23. 23/1000 = 0.023. That's WRONG.
-        // It should be 230ms usually if it's 2 digits.
-        // Let's stick to simple parsing: if 2 digits, usually frames or hundredths.
-        // Previous code: `(\d{2,3})` -> `milliseconds / 1000`.
-        // If string is "23", num is 23. 23/1000 = 0.023s. 
-        // [00:01.23] usually means 1s 230ms. 
-        // If I use the previous logic, I should preserve it or fix it. 
-        // Let's fix it to be more robust.
-
         let time = minutes * 60 + seconds;
 
         if (msStr) {

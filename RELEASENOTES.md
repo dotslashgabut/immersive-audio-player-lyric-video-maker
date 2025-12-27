@@ -1,5 +1,28 @@
 # Release Notes
 
+# v2.1.0
+
+## What's New
+- **Advanced Lyric Management**:
+    - **Manually Load Lyrics**: You can now manually load lyric (`.lrc`) or subtitle (`.srt`) files for any track in the playlist.
+    - **Clear Lyric Button**: Added a dedicated button to clear/delete the lyric timeline for a specific track.
+    - **Sync Across Components**: Lyric changes (load/delete) in the Playlist Editor now instantly sync with the main Player/Timeline view.
+- **AI-Powered Transcription (Gemini)**:
+    - **Gemini Integration**: Built-in support for Google's Gemini models (`gemini-2.5-flash`, `gemini-3-flash-preview`, etc.) for high-quality audio transcription.
+    - **Smart Transcription**: Refined prompts to ensure complete coverage and minimize missed lines.
+    - **Abort Control**: Added the ability to stop/abort an ongoing transcription process.
+    - **Timestamp Correction**: Logic to clamp timestamps to audio duration and prevent playback jumps to incorrect times.
+- **Editor & Export Improvements**:
+    - **LRC Export Refinement**: Improved logic for handling blank lines and ensuring the final timestamp doesn't exceed audio duration.
+    - **Timeline Alignment**: Fixed ruler and playhead alignment issues for precise seeking.
+    - **Visual Editor Defaults**: Media background defaults to black; "Import Media" button moved for better accessibility.
+    - **Split Shortcut**: Changed the "Split" shortcut to **X** to avoid conflicts with the Stop (S) command.
+
+## Bug Fixes
+- **Transcription**: Fixed "Gemini Timestamp Jump" where clicking a timestamp would jump to a different model's result.
+- **UX**: Fixed issue where the Transcribe Model dropdown wasn't selected by default.
+- **Export**: Resolved timestamp overflow issues in LRC/SRT exports.
+
 # v2.0.9
 
 ## What's New
