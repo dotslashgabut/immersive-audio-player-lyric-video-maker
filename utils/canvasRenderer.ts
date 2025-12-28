@@ -414,9 +414,11 @@ export const drawCanvasFrame = (
             let line: LyricLine | null = null;
             let isCurrent = false;
 
-            if (i === 0 && showIntroTitle) {
-                line = { time: 0, text: introContent };
-                isCurrent = true;
+            if (showIntroTitle) {
+                if (i === 0) {
+                    line = { time: 0, text: introContent };
+                    isCurrent = true;
+                }
             } else {
                 const idx = virtualActiveIdx + i;
                 if (idx >= 0 && idx < lyrics.length) {
