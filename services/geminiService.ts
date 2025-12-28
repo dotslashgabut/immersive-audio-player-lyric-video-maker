@@ -15,11 +15,11 @@ const TRANSCRIPTION_SCHEMA = {
         properties: {
           startTime: {
             type: Type.STRING,
-            description: "Absolute timestamp in HH:MM:SS.mmm format (e.g. '00:01:05.300'). Cumulative from start.",
+            description: "Absolute timestamp in MM:SS.mmm format (e.g. '01:05.300'). Cumulative from start.",
           },
           endTime: {
             type: Type.STRING,
-            description: "Absolute timestamp in HH:MM:SS.mmm format.",
+            description: "Absolute timestamp in MM:SS.mmm format.",
           },
           text: {
             type: Type.STRING,
@@ -37,50 +37,51 @@ const TRANSCRIPTION_SCHEMA = {
  * Robustly normalizes timestamp strings to HH:MM:SS.mmm
  */
 function normalizeTimestamp(ts: string): string {
-  if (!ts) return "00:00:00.000";
+  if (!ts) return "00:00.000";
 
   let clean = ts.trim().replace(/[^\d:.]/g, '');
 
+  let totalSeconds = 0;
+
   // Handle if model returns raw seconds (e.g. "65.5") despite instructions
   if (!clean.includes(':') && /^[\d.]+$/.test(clean)) {
-    const totalSeconds = parseFloat(clean);
-    if (!isNaN(totalSeconds)) {
-      const h = Math.floor(totalSeconds / 3600);
-      const m = Math.floor((totalSeconds % 3600) / 60);
-      const s = Math.floor(totalSeconds % 60);
-      const ms = Math.round((totalSeconds % 1) * 1000);
-      return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}.${String(ms).padStart(3, '0')}`;
-    }
-  }
-
-  // Handle MM:SS.mmm or HH:MM:SS.mmm
-  const parts = clean.split(':');
-  let h = 0, m = 0, s = 0, ms = 0;
-
-  if (parts.length === 3) {
-    h = parseInt(parts[0], 10) || 0;
-    m = parseInt(parts[1], 10) || 0;
-    const secParts = parts[2].split('.');
-    s = parseInt(secParts[0], 10) || 0;
-    if (secParts[1]) {
-      // Pad or truncate to 3 digits for parsing
-      const msStr = secParts[1].substring(0, 3).padEnd(3, '0');
-      ms = parseInt(msStr, 10);
-    }
-  } else if (parts.length === 2) {
-    m = parseInt(parts[0], 10) || 0;
-    const secParts = parts[1].split('.');
-    s = parseInt(secParts[0], 10) || 0;
-    if (secParts[1]) {
-      const msStr = secParts[1].substring(0, 3).padEnd(3, '0');
-      ms = parseInt(msStr, 10);
-    }
+    totalSeconds = parseFloat(clean);
   } else {
-    // Fallback if parsing fails
-    return "00:00:00.000";
+    // Handle MM:SS.mmm or HH:MM:SS.mmm
+    const parts = clean.split(':');
+    
+    if (parts.length === 3) {
+      // HH:MM:SS
+      const h = parseInt(parts[0], 10) || 0;
+      const m = parseInt(parts[1], 10) || 0;
+      const secParts = parts[2].split('.');
+      const s = parseInt(secParts[0], 10) || 0;
+      let ms = 0;
+      if (secParts[1]) {
+        ms = parseFloat("0." + secParts[1]); // fractional part
+      }
+      totalSeconds = h * 3600 + m * 60 + s + ms;
+
+    } else if (parts.length === 2) {
+      // MM:SS
+      const m = parseInt(parts[0], 10) || 0;
+      const secParts = parts[1].split('.');
+      const s = parseInt(secParts[0], 10) || 0;
+      let ms = 0;
+      if (secParts[1]) {
+        ms = parseFloat("0." + secParts[1]);
+      }
+      totalSeconds = m * 60 + s + ms;
+    }
   }
 
-  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}.${String(ms).padStart(3, '0')}`;
+  if (isNaN(totalSeconds) || totalSeconds < 0) return "00:00.000";
+
+  const m = Math.floor(totalSeconds / 60);
+  const s = Math.floor(totalSeconds % 60);
+  const ms = Math.round((totalSeconds % 1) * 1000);
+  
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}.${String(ms).padStart(3, '0')}`;
 }
 
 /**
@@ -156,7 +157,7 @@ export async function transcribeAudio(
 
     const timingPolicy = `
     STRICT TIMING POLICY:
-    1. FORMAT: Use **HH:MM:SS.mmm** (e.g. 00:01:05.300).
+    1. FORMAT: Use **MM:SS.mmm** (e.g. 01:05.300).
     2. ABSOLUTE & CUMULATIVE: Timestamps must be relative to the START of the file.
     3. MONOTONICITY: Time MUST always move forward. startTime[n] >= endTime[n-1].
     4. ACCURACY: Sync text exactly to when it is spoken.
@@ -171,7 +172,7 @@ export async function transcribeAudio(
 
     const completenessPolicy = `
     COMPLETENESS POLICY (CRITICAL):
-    1. EXHAUSTIVE: You must transcribe the ENTIRE audio file from 00:00:00.000 until the end.
+    1. EXHAUSTIVE: You must transcribe the ENTIRE audio file from 00:00.000 until the end.
     2. NO SKIPPING: Do not skip any sentences or words, even if they are quiet or fast.
     3. NO DEDUPLICATION: If a speaker repeats the same sentence, you MUST transcribe it every time it is said.
     4. SEGMENTATION: Break segments at least every 5-7 seconds. Do NOT create long segments.
@@ -227,7 +228,7 @@ export async function transcribeAudio(
                 ${jsonSafetyPolicy}
                 
                 REQUIRED FORMAT: JSON object with "segments" array. 
-                Timestamps MUST be 'HH:MM:SS.mmm'. Do not stop until you have reached the end of the audio.`,
+                Timestamps MUST be 'MM:SS.mmm'. Do not stop until you have reached the end of the audio.`,
               },
             ],
           },
@@ -276,7 +277,7 @@ export async function translateSegments(
           parts: [
             {
               text: `Translate these segments into ${targetLanguage}. 
-              IMPORTANT: DO NOT CHANGE the timestamps at all. Keep the HH:MM:SS.mmm format exactly as is.
+              IMPORTANT: DO NOT CHANGE the timestamps at all. Keep the MM:SS.mmm format exactly as is.
               Data: ${JSON.stringify(segments)}`,
             },
           ],
