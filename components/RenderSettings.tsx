@@ -423,6 +423,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
     const handleExportSettings = () => {
         const exportData = {
             ...config,
+            preset, // Include preset in export
             resolution,
             aspectRatio,
             renderCodec,
@@ -454,6 +455,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                         renderCodec: importedRenderCodec,
                         renderFps: importedRenderFps,
                         renderQuality: importedRenderQuality,
+                        preset: importedPreset, // Extract preset
                         ...importedConfig
                     } = json;
 
@@ -476,7 +478,11 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                     setRenderFps(Number(importedRenderFps) || 30);
                     setRenderQuality((importedRenderQuality as any) || 'med');
 
-                    setPreset('custom');
+                    if (importedPreset) {
+                        setPreset(importedPreset as VideoPreset);
+                    } else {
+                        setPreset('custom');
+                    }
                     toast.success('Settings loaded successfully!');
                 }
             } catch (err) {
