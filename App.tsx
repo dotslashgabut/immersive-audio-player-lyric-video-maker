@@ -1414,28 +1414,28 @@ function App() {
         {/* 2. Slide Overlay */}
         <div className={`absolute inset-0 pointer-events-none ${renderConfig.backgroundSource === 'timeline' ? 'opacity-100' : 'opacity-0'}`}>
           {renderConfig.backgroundSource === 'timeline' && activeVisualSlides.map(slide => {
-             // Check visibility
-             const layer = slide.layer || 0;
-             if (renderConfig.layerVisibility?.visual?.[layer] === false) return null;
+            // Check visibility
+            const layer = slide.layer || 0;
+            if (renderConfig.layerVisibility?.visual?.[layer] === false) return null;
 
-             return (
-               <div key={slide.id} className="absolute inset-0 flex items-center justify-center overflow-hidden">
-                  {slide.type === 'video' ? (
-                    <video
-                      id={`video-preview-${slide.id}`}
-                      src={slide.url}
-                      className="w-full h-full object-cover"
-                      muted={slide.isMuted !== false}
-                      playsInline
-                    />
-                  ) : (
-                    <div
-                      className="w-full h-full bg-cover bg-center"
-                      style={{ backgroundImage: `url(${slide.url})` }}
-                    />
-                  )}
-               </div>
-             );
+            return (
+              <div key={slide.id} className="absolute inset-0 flex items-center justify-center overflow-hidden">
+                {slide.type === 'video' ? (
+                  <video
+                    id={`video-preview-${slide.id}`}
+                    src={slide.url}
+                    className="w-full h-full object-cover"
+                    muted={slide.isMuted !== false}
+                    playsInline
+                  />
+                ) : (
+                  <div
+                    className="w-full h-full bg-cover bg-center"
+                    style={{ backgroundImage: `url(${slide.url})` }}
+                  />
+                )}
+              </div>
+            );
           })}
         </div>
 
@@ -1502,6 +1502,15 @@ function App() {
                 className="px-3 py-2 rounded-full transition-colors bg-black/30 text-zinc-300 hover:bg-white/10 text-xs font-bold flex items-center"
               >
                 LyricalVision
+              </a>
+              <a
+                href="https://ai.studio/apps/drive/1IQUhhLIAJ_dYYbcOLni-x8LLk7Py4SSX?fullscreenApplet=true"
+                target="_blank"
+                rel="noopener noreferrer"
+                title="GeminiTranscription - Transcribe, Translate, and Compare Models"
+                className="px-3 py-2 rounded-full transition-colors bg-black/30 text-zinc-300 hover:bg-white/10 text-xs font-bold flex items-center"
+              >
+                GeminiTranscription
               </a>
               <button
                 onClick={() => setBypassAutoHide(!bypassAutoHide)}
