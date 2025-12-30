@@ -706,10 +706,9 @@ export const drawCanvasFrame = (
                         drawWrappedText(ctx, artistStr, xPos, artistY, width * 0.9, artistLH, textEffect, decoration);
                     }
 
-                } else if (isCurrent && (isBigLayout || ['slideshow', 'subtitle'].includes(activePreset))) {
-                    drawWrappedText(ctx, textToDraw, xPos, yPos, width * 0.9, baseFontSize * 1.2, textEffect, decoration);
                 } else {
-                    drawLineWithEffects(ctx, textToDraw, xPos, yPos, textEffect, decoration);
+                    const fs = isCurrent ? baseFontSize : secondaryFontSize;
+                    drawWrappedText(ctx, textToDraw, xPos, yPos, width * 0.9, fs * 1.2, textEffect, decoration);
                 }
                 ctx.restore();
             }
