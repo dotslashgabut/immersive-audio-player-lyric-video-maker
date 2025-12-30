@@ -323,6 +323,19 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
         const controller = new AbortController();
         abortControllersRef.current.set(item.id, controller);
 
+        // Check file size (Gemini Inline Data limit is ~20MB)
+        const MAX_SIZE_BYTES = 19.5 * 1024 * 1024; // slightly under 20MB for safety
+        if (item.audioFile.size > MAX_SIZE_BYTES) {
+            alert(`File is too large (${(item.audioFile.size / 1024 / 1024).toFixed(1)}MB). Gemini inline audio limit is ~20MB.\n\nPlease convert to MP3/M4A or use a smaller file.`);
+            setTranscribingIds(prev => {
+                const next = new Set(prev);
+                next.delete(item.id);
+                return next;
+            });
+            abortControllersRef.current.delete(item.id);
+            return;
+        }
+
         try {
             const base64Data = await fileToBase64(item.audioFile);
 
@@ -462,7 +475,7 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
             content = JSON.stringify(rawLyrics, null, 2);
         } else if (format === 'srt') {
             content = rawLyrics.map((l, i) => {
-                const calculatedNextTime = rawLyrics[i + 1]?.time || l.time + 3;
+                const calculatedNextTime = l.endTime !== undefined ? l.endTime : (rawLyrics[i + 1]?.time || l.time + 3);
                 const nextTime = (duration > 0 && calculatedNextTime > duration) ? duration : calculatedNextTime;
 
                 const toTimestamp = (sec: number) => {

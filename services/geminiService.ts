@@ -49,7 +49,7 @@ function normalizeTimestamp(ts: string): string {
   } else {
     // Handle MM:SS.mmm or HH:MM:SS.mmm
     const parts = clean.split(':');
-    
+
     if (parts.length === 3) {
       // HH:MM:SS
       const h = parseInt(parts[0], 10) || 0;
@@ -80,7 +80,7 @@ function normalizeTimestamp(ts: string): string {
   const m = Math.floor(totalSeconds / 60);
   const s = Math.floor(totalSeconds % 60);
   const ms = Math.round((totalSeconds % 1) * 1000);
-  
+
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}.${String(ms).padStart(3, '0')}`;
 }
 
@@ -175,7 +175,17 @@ export async function transcribeAudio(
     1. EXHAUSTIVE: You must transcribe the ENTIRE audio file from 00:00.000 until the end.
     2. NO SKIPPING: Do not skip any sentences or words, even if they are quiet or fast.
     3. NO DEDUPLICATION: If a speaker repeats the same sentence, you MUST transcribe it every time it is said.
-    4. SEGMENTATION: Break segments at least every 5-7 seconds. Do NOT create long segments.
+    `;
+
+    const segmentationPolicy = `
+    SEGMENTATION RULES (CRITICAL):
+    1. SPLIT REPETITIONS: If the audio contains repetitive sounds (e.g., "Eh eh eh", "Na na na", "La la la"), these MUST be in a separate segment from the main lyrics.
+       - WRONG: "Eh eh eh eh eh eh, Lorem ipsum dolor sit amet"
+       - CORRECT: 
+         Segment 1: "Eh eh eh eh eh eh"
+         Segment 2: "Lorem ipsum dolor sit amet"
+    2. SHORT SEGMENTS: Keep segments short (max 1 phrase or 4-6 seconds). Break at natural pauses (breaths, musical shifts).
+    3. NO RUN-ON SENTENCES: Do not combine multiple distinct lyrical lines into one segment.
     `;
 
     const antiHallucinationPolicy = `
@@ -222,6 +232,7 @@ export async function transcribeAudio(
                 text: `You are a high-fidelity, verbatim audio transcription engine. Your output must be exhaustive and complete.
                 
                 ${timingPolicy}
+                ${segmentationPolicy}
                 ${verbatimPolicy}
                 ${completenessPolicy}
                 ${antiHallucinationPolicy}
