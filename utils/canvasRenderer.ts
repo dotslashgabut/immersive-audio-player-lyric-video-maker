@@ -251,7 +251,8 @@ export const drawCanvasFrame = (
     if (renderConfig && renderConfig.fontFamily !== 'sans-serif') fontFamily = renderConfig.fontFamily;
 
     const isPortrait = width <= height;
-    const scale = (Math.max(width, height) === 1080 || Math.max(width, height) === 1920) ? 1 : 0.666;
+    // Adaptive scale for all resolutions (based on 1080p standard)
+    const scale = Math.min(width, height) / 1080;
 
     // Set base background - default to black for timeline/custom to avoid color leaks
     if (renderConfig && (renderConfig.backgroundSource === 'color' || renderConfig.backgroundSource === 'smart-gradient')) {
@@ -416,70 +417,70 @@ export const drawCanvasFrame = (
         const shouldUseDynamicLayout = true; // Use simple stacking for guaranteed no-overlap
 
         if (shouldUseDynamicLayout) {
-             const gap = Math.max((isPortrait ? 30 : 40) * scale, lineSpacing - baseFontSize); 
-             
-             // 1. Measure all lines in range
-             for (let i = startI; i <= endI; i++) {
+            const gap = Math.max((isPortrait ? 30 : 40) * scale, lineSpacing - baseFontSize);
+
+            // 1. Measure all lines in range
+            for (let i = startI; i <= endI; i++) {
                 let h = 0;
                 let isCurr = false;
-                
+
                 if (showIntroTitle && i === 0) {
-                     const titleLH = baseFontSize * 1.2;
-                     const artistLH = secondaryFontSize * 1.2;
-                     const parts = introContent.split('\n');
-                     const hasArtist = parts.length > 1;
-                     h = titleLH + (hasArtist ? artistLH : 0);
-                     isCurr = true; // Intro is "current"
+                    const titleLH = baseFontSize * 1.2;
+                    const artistLH = secondaryFontSize * 1.2;
+                    const parts = introContent.split('\n');
+                    const hasArtist = parts.length > 1;
+                    h = titleLH + (hasArtist ? artistLH : 0);
+                    isCurr = true; // Intro is "current"
                 } else {
-                     const idx = virtualActiveIdx + i;
-                     if (idx >= 0 && idx < lyrics.length) {
+                    const idx = virtualActiveIdx + i;
+                    if (idx >= 0 && idx < lyrics.length) {
                         const line = lyrics[idx];
                         isCurr = (idx === activeIdx);
-                        
+
                         const fs = isCurr ? baseFontSize : secondaryFontSize;
                         let weight = isCurr ? (['large', 'large_upper', 'big_center', 'metal', 'tech'].includes(activePreset) ? '900' : 'bold') : '400';
                         if (activePreset === 'custom' && renderConfig?.fontWeight) weight = renderConfig.fontWeight;
                         const style = (activePreset === 'custom' && renderConfig?.fontStyle) ? renderConfig.fontStyle : 'normal';
 
                         ctx.font = `${style} ${weight} ${fs}px ${fontFamily}`;
-                        
+
                         let text = line.text;
                         let casing = renderConfig?.textCase || 'none';
                         if (casing === 'none' && isCurr && ['large_upper', 'big_center', 'metal', 'tech', 'testing_up', 'one_line_up'].includes(activePreset)) {
-                             casing = 'upper';
+                            casing = 'upper';
                         }
-                        
+
                         if (casing === 'upper') text = text.toUpperCase();
                         else if (casing === 'lower') text = text.toLowerCase();
                         else if (casing === 'title') text = text.replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase());
                         else if (casing === 'sentence') text = text.charAt(0).toUpperCase() + text.slice(1).toLowerCase();
                         else if (casing === 'invert') text = text.replace(/\w\S*/g, (txt) => txt.charAt(0).toLowerCase() + txt.slice(1).toUpperCase());
- 
+
                         const lines = getWrappedLines(ctx, text, width * 0.9);
                         h = lines.length * (fs * 1.2);
-                     }
+                    }
                 }
                 hMap.set(i, h);
-             }
-             
-             // 2. Calculate Y Positions
-             yMap.set(0, centerY);
-             
-             // Downwards
-             for (let i = 1; i <= endI; i++) {
-                 const prevY = yMap.get(i-1) ?? centerY;
-                 const prevH = hMap.get(i-1) ?? 0;
-                 const curH = hMap.get(i) ?? 0;
-                 yMap.set(i, prevY + (prevH / 2) + gap + (curH / 2));
-             }
-             
-             // Upwards
-             for (let i = -1; i >= startI; i--) {
-                 const nextY = yMap.get(i+1) ?? centerY;
-                 const nextH = hMap.get(i+1) ?? 0;
-                 const curH = hMap.get(i) ?? 0;
-                 yMap.set(i, nextY - (nextH / 2) - gap - (curH / 2));
-             }
+            }
+
+            // 2. Calculate Y Positions
+            yMap.set(0, centerY);
+
+            // Downwards
+            for (let i = 1; i <= endI; i++) {
+                const prevY = yMap.get(i - 1) ?? centerY;
+                const prevH = hMap.get(i - 1) ?? 0;
+                const curH = hMap.get(i) ?? 0;
+                yMap.set(i, prevY + (prevH / 2) + gap + (curH / 2));
+            }
+
+            // Upwards
+            for (let i = -1; i >= startI; i--) {
+                const nextY = yMap.get(i + 1) ?? centerY;
+                const nextH = hMap.get(i + 1) ?? 0;
+                const curH = hMap.get(i) ?? 0;
+                yMap.set(i, nextY - (nextH / 2) - gap - (curH / 2));
+            }
         }
 
         for (let i = startI; i <= endI; i++) {
@@ -643,11 +644,11 @@ export const drawCanvasFrame = (
 
                 // Y Position Logic
                 let yPos = 0;
-                
+
                 if (yMap.has(i)) {
                     yPos = yMap.get(i)! + (i === 0 ? offsetY : 0);
                 } else {
-                     // Fallback (Legacy)
+                    // Fallback (Legacy)
                     yPos = (activePreset === 'subtitle' && i === 0 && renderConfig?.lyricDisplayMode !== 'all')
                         ? (height - 120 * scale)
                         : (centerY + (i * lineSpacing) + (i === 0 ? offsetY : 0));
@@ -656,7 +657,7 @@ export const drawCanvasFrame = (
                         if (i < 0) yPos -= activeLineShift; else if (i > 0) yPos += activeLineShift;
                     }
                 }
-                
+
                 yPos += animOffsetY;
 
                 let xPos = width / 2;
@@ -722,145 +723,233 @@ export const drawCanvasFrame = (
         if (showInfo || showCover) {
             if (activePreset === 'custom') {
                 // --- CUSTOM FLEXIBLE LAYOUT ---
+                // --- CUSTOM FLEXIBLE LAYOUT ---
                 const pos = renderConfig?.infoPosition || 'top-left';
                 const style = renderConfig?.infoStyle || 'classic';
-                const borderRadius = (style === 'box') ? 0 : 12 * scale;
+                const isBox = style === 'box';
+                const borderRadius = isBox ? 16 * scale : 12 * scale;
                 const margin = 40 * scale * (renderConfig?.infoMarginScale ?? 1);
 
-                let x = 0, y = 0;
-                let align: CanvasTextAlign = 'left';
+                let align: 'left' | 'center' | 'right' = 'left';
                 let vertical: 'top' | 'bottom' = 'top';
 
-                if (pos.includes('left')) { x = margin; align = 'left'; }
-                else if (pos.includes('right')) { x = width - margin; align = 'right'; }
-                else { x = width / 2; align = 'center'; }
+                if (pos.includes('left')) align = 'left';
+                else if (pos.includes('right')) align = 'right';
+                else align = 'center';
 
-                if (pos.includes('top')) { y = margin; vertical = 'top'; }
-                else { y = height - margin; vertical = 'bottom'; }
+                if (pos.includes('top')) vertical = 'top';
+                else vertical = 'bottom';
 
                 const infoScale = (renderConfig?.infoSizeScale ?? 1);
                 const coverSize = ((style === 'minimal' || style === 'modern') ? 0 : 100 * scale) * infoScale;
                 const hasCover = showCover && coverSize > 0 && (metadata.coverUrl !== null);
                 const coverImg = hasCover ? (metadata.backgroundType === 'video' ? videos.get('background') : images.get('cover')) : null;
 
-                const titleSize = ((style === 'minimal' ? 20 : (style === 'modern' || style === 'modern_art') ? 40 : 28) * scale) * infoScale;
-                const artistSize = ((style === 'minimal' ? 14 : (style === 'modern' || style === 'modern_art') ? 24 : 18) * scale) * infoScale;
+                const titleBaseSize = (style === 'minimal' ? 20 : (style === 'modern' || style === 'modern_art') ? 40 : 28) * scale;
+                const artistBaseSize = (style === 'minimal' ? 14 : (style === 'modern' || style === 'modern_art') ? 24 : 18) * scale;
+
+                const titleSize = titleBaseSize * infoScale;
+                const artistSize = artistBaseSize * infoScale;
+
                 const titleFont = `bold ${titleSize}px ${fontFamily}`;
                 const artistFont = `${artistSize}px ${fontFamily}`;
+
                 const gap = 20 * scale;
+                const padding = isBox ? 24 * scale : 0;
 
                 const mainColor = renderConfig?.fontColor || '#ffffff';
-                // lighter version for artist
                 const artistColor = (style === 'modern' || style === 'modern_art') ? mainColor : (renderConfig?.fontColor || '#d4d4d8');
 
-                let curY = y;
-                let curX = x;
+                // Measure Text
+                ctx.font = titleFont;
+                const titleMetrics = ctx.measureText(metadata.title);
+                const titleW = renderConfig?.showTitle ? titleMetrics.width : 0;
 
-                // BOX BACKGROUND (Simplistic implementation)
-                if (style === 'box') {
-                    // This would require pre-measuring text. Skipped for now to ensure reliability.
-                    // Instead, we just add a backdrop to the text if needed, or maybe just a style choice.
-                    // For now "box" will just act like classic but strictly boxed? 
-                    // Let's interpret "box" as "Card" style with background later.
-                }
+                ctx.font = artistFont;
+                const artistMetrics = ctx.measureText(metadata.artist);
+                const artistW = renderConfig?.showArtist ? artistMetrics.width : 0;
+
+                // Calculate Block Dimensions
+                let blockW = 0;
+                let blockH = 0;
 
                 if (align === 'center') {
-                    // STACKED LAYOUT
+                    // Stacked (Vertical)
+                    const contentW = Math.max(
+                        (hasCover && coverImg ? coverSize : 0),
+                        titleW,
+                        artistW
+                    );
+                    blockW = contentW + (padding * 2);
+
+                    let contentH = 0;
+                    if (hasCover && coverImg) contentH += coverSize;
+                    if (renderConfig?.showTitle ?? true) contentH += (hasCover && coverImg ? gap : 0) + titleSize;
+                    if (renderConfig?.showArtist ?? true) contentH += ((hasCover && coverImg || (renderConfig?.showTitle ?? true)) ? 5 * scale : 0) + artistSize;
+
+                    blockH = contentH + (padding * 2);
+                } else {
+                    // Side-by-Side
+                    const textW = Math.max(titleW, artistW);
+                    const coverW = (hasCover && coverImg) ? coverSize + gap : 0;
+                    blockW = coverW + textW + (padding * 2);
+
+                    const textH = (renderConfig?.showTitle ? titleSize : 0) + (renderConfig?.showArtist ? artistSize + 5 * scale : 0);
+                    const coverH = (hasCover && coverImg) ? coverSize : 0;
+                    blockH = Math.max(textH, coverH) + (padding * 2);
+                }
+
+                // Determine Layout Anchor Point (X, Y) 
+                // X, Y represents the specific corner based on alignment
+                let anchorX = 0;
+                let anchorY = 0;
+
+                if (align === 'left') anchorX = margin;
+                else if (align === 'right') anchorX = width - margin;
+                else anchorX = width / 2;
+
+                if (vertical === 'top') anchorY = margin;
+                else anchorY = height - margin;
+
+                // Determine Top-Left of Box for Drawing
+                let boxX = 0;
+                let boxY = 0;
+
+                if (align === 'left') boxX = anchorX;
+                else if (align === 'right') boxX = anchorX - blockW;
+                else boxX = anchorX - (blockW / 2);
+
+                if (vertical === 'top') boxY = anchorY;
+                else boxY = anchorY - blockH;
+
+                // DRAW BOX BACKGROUND
+                if (isBox) {
+                    ctx.save();
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.6)'; // Semi-transparent black box
+                    ctx.shadowColor = 'rgba(0,0,0,0.5)';
+                    ctx.shadowBlur = 20;
+                    ctx.beginPath();
+                    ctx.roundRect(boxX, boxY, blockW, blockH, borderRadius);
+                    ctx.fill();
+                    ctx.restore();
+                }
+
+                // DRAW CONTENT
+                // We draw relative to boxX, boxY + padding
+                const contentStartX = boxX + padding;
+                const contentStartY = boxY + padding;
+                const contentW = blockW - (padding * 2);
+                const contentH = blockH - (padding * 2);
+
+                if (align === 'center') {
+                    // Stacked
+                    let currentY = contentStartY;
+
+                    // Center vertically if needed? No, stacked flows. But let's center items horizontally in the block.
+                    const centerX = contentStartX + (contentW / 2);
                     ctx.textAlign = 'center';
+
                     if (vertical === 'top') {
-                        ctx.textBaseline = 'top';
                         // Image -> Title -> Artist
                         if (hasCover && coverImg) {
-                            const imgX = x - coverSize / 2;
-                            ctx.save(); ctx.beginPath();
-                            if (style === 'circle_art') {
-                                ctx.arc(x, curY + coverSize / 2, coverSize / 2, 0, Math.PI * 2);
-                            } else {
-                                ctx.roundRect(imgX, curY, coverSize, coverSize, borderRadius);
-                            }
+                            ctx.save();
+                            ctx.beginPath();
+                            const imgX = centerX - (coverSize / 2);
+                            if (style === 'circle_art') ctx.arc(centerX, currentY + coverSize / 2, coverSize / 2, 0, Math.PI * 2);
+                            else ctx.roundRect(imgX, currentY, coverSize, coverSize, borderRadius / 2);
                             ctx.clip();
-                            ctx.drawImage(coverImg, imgX, curY, coverSize, coverSize);
+                            ctx.drawImage(coverImg, imgX, currentY, coverSize, coverSize);
                             ctx.restore();
-                            curY += coverSize + gap;
+                            currentY += coverSize + gap;
                         }
                         if (renderConfig?.showTitle ?? true) {
-                            ctx.fillStyle = mainColor; ctx.font = titleFont;
-                            ctx.fillText(metadata.title, x, curY);
-                            curY += titleSize + 5 * scale;
+                            ctx.fillStyle = mainColor; ctx.font = titleFont; ctx.textBaseline = 'top';
+                            ctx.fillText(metadata.title, centerX, currentY);
+                            currentY += titleSize + 5 * scale;
                         }
                         if (renderConfig?.showArtist ?? true) {
-                            ctx.fillStyle = artistColor; ctx.font = artistFont;
-                            ctx.fillText(metadata.artist, x, curY);
+                            ctx.fillStyle = artistColor; ctx.font = artistFont; ctx.textBaseline = 'top';
+                            ctx.fillText(metadata.artist, centerX, currentY);
                         }
-                    } else { // Bottom
-                        ctx.textBaseline = 'bottom';
-                        // Artist -> Title -> Image (upwards)
-                        if (renderConfig?.showArtist ?? true) {
-                            ctx.fillStyle = artistColor; ctx.font = artistFont;
-                            ctx.fillText(metadata.artist, x, curY);
-                            curY -= (artistSize + 5 * scale);
-                        }
-                        if (renderConfig?.showTitle ?? true) {
-                            ctx.fillStyle = mainColor; ctx.font = titleFont;
-                            ctx.fillText(metadata.title, x, curY);
-                            curY -= (titleSize + gap);
-                        }
+                    } else {
+                        // Bottom (Artist -> Title -> Image) (Visual Order Upwards in standard UI, but here we draw downwards?)
+                        // If vertical is bottom, we usually stack upwards from bottom. 
+                        // But our BoxY calculation ensures the Box is placed ABOVE the margin.
+                        // So inside the box, we can just draw Top-Down as usual or specifically reverse?
+                        // Standard UI: Image is Usually "Top" relative to text, even at bottom?
+                        // Actually, lines 797-821 (original) reversed the order: Artist -> Title -> Image (Drawing upwards).
+                        // Let's stick to standard "Image on Top" flow inside the box, unless it looks weird at bottom.
+                        // Usually "Image on Top" is fine even at bottom.
+                        // Let's keep Image -> Title -> Artist flow inside the box for consistency.
+
                         if (hasCover && coverImg) {
-                            const imgX = x - coverSize / 2;
-                            curY -= coverSize;
                             ctx.save(); ctx.beginPath();
-                            if (style === 'circle_art') {
-                                ctx.arc(x, curY + coverSize / 2, coverSize / 2, 0, Math.PI * 2);
-                            } else {
-                                ctx.roundRect(imgX, curY, coverSize, coverSize, borderRadius);
-                            }
+                            const imgX = centerX - (coverSize / 2);
+                            if (style === 'circle_art') ctx.arc(centerX, currentY + coverSize / 2, coverSize / 2, 0, Math.PI * 2);
+                            else ctx.roundRect(imgX, currentY, coverSize, coverSize, borderRadius / 2);
                             ctx.clip();
-                            ctx.drawImage(coverImg, imgX, curY, coverSize, coverSize);
+                            ctx.drawImage(coverImg, imgX, currentY, coverSize, coverSize);
                             ctx.restore();
+                            currentY += coverSize + gap;
+                        }
+                        if (renderConfig?.showTitle ?? true) {
+                            ctx.fillStyle = mainColor; ctx.font = titleFont; ctx.textBaseline = 'top';
+                            ctx.fillText(metadata.title, centerX, currentY);
+                            currentY += titleSize + 5 * scale;
+                        }
+                        if (renderConfig?.showArtist ?? true) {
+                            ctx.fillStyle = artistColor; ctx.font = artistFont; ctx.textBaseline = 'top';
+                            ctx.fillText(metadata.artist, centerX, currentY);
                         }
                     }
+
                 } else {
-                    // SIDE-BY-SIDE LAYOUT
-                    ctx.textAlign = align;
-                    ctx.textBaseline = 'top';
+                    // Side-by-Side (Left or Right)
+                    // Image Left, Text Right (Always? Or flips for Right Align?)
+                    // Original code: Image was "outer" side?
+                    // Left Align: Img [Gap] Text
+                    // Right Align: Text [Gap] Img
+
                     const isRight = align === 'right';
 
-                    // Calculate Content Height for Vertical Center Alignment of Text vs Image
-                    const textTotalH = (renderConfig?.showTitle ? titleSize : 0) + (renderConfig?.showArtist ? artistSize + 5 * scale : 0);
-                    const blockH = Math.max(coverSize, textTotalH);
+                    // Vertical Center of Block
+                    const centerY = contentStartY + (contentH / 2);
 
-                    // Top: StartY = y. Bottom: StartY = y - blockH
-                    const startY = vertical === 'top' ? y : y - blockH;
+                    let drawX = contentStartX;
+                    if (isRight) drawX = contentStartX + contentW; // Start from right edge
 
                     // Draw Cover
                     if (hasCover && coverImg) {
-                        const imgX = isRight ? x - coverSize : x;
+                        const imgY = centerY - (coverSize / 2);
+                        const imgX = isRight ? (drawX - coverSize) : drawX;
+
                         ctx.save(); ctx.beginPath();
-                        if (style === 'circle_art') {
-                            ctx.arc(imgX + coverSize / 2, startY + coverSize / 2, coverSize / 2, 0, Math.PI * 2);
-                        } else {
-                            ctx.roundRect(imgX, startY, coverSize, coverSize, borderRadius);
-                        }
+                        if (style === 'circle_art') ctx.arc(imgX + coverSize / 2, imgY + coverSize / 2, coverSize / 2, 0, Math.PI * 2);
+                        else ctx.roundRect(imgX, imgY, coverSize, coverSize, borderRadius / 2);
                         ctx.clip();
-                        ctx.drawImage(coverImg, imgX, startY, coverSize, coverSize);
+                        ctx.drawImage(coverImg, imgX, imgY, coverSize, coverSize);
                         ctx.restore();
 
-                        // Shift Text X
-                        if (isRight) curX -= (coverSize + gap);
-                        else curX += (coverSize + gap);
+                        if (isRight) drawX -= (coverSize + gap);
+                        else drawX += (coverSize + gap);
                     }
 
-                    // Draw Text (Vertically Centered relative to Image/Block)
-                    let textY = startY + (blockH - textTotalH) / 2;
+                    // Draw Text
+                    // Calculate Text block height to center it
+                    const textH = (renderConfig?.showTitle ? titleSize : 0) + (renderConfig?.showArtist ? artistSize + 5 * scale : 0);
+                    let textStartY = centerY - (textH / 2);
+
+                    ctx.textAlign = isRight ? 'right' : 'left';
+                    ctx.textBaseline = 'top';
 
                     if (renderConfig?.showTitle ?? true) {
                         ctx.fillStyle = mainColor; ctx.font = titleFont;
-                        ctx.fillText(metadata.title, curX, textY);
-                        textY += titleSize + 5 * scale;
+                        ctx.fillText(metadata.title, drawX, textStartY);
+                        textStartY += titleSize + 5 * scale;
                     }
                     if (renderConfig?.showArtist ?? true) {
                         ctx.fillStyle = artistColor; ctx.font = artistFont;
-                        ctx.fillText(metadata.artist, curX, textY);
+                        ctx.fillText(metadata.artist, drawX, textStartY);
                     }
                 }
 
