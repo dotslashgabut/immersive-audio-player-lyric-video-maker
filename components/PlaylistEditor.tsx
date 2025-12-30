@@ -13,12 +13,13 @@ interface PlaylistEditorProps {
     onPlayTrack: (index: number) => void;
     onSeek: (time: number) => void;
     onClearPlaylist: () => void;
+    onRemoveTrack?: (index: number) => void;
 
     currentTime: number;
     onClose: () => void;
 }
 
-const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, currentTrackIndex, setCurrentTrackIndex, onPlayTrack, onSeek, onClearPlaylist, currentTime, onClose }) => {
+const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, currentTrackIndex, setCurrentTrackIndex, onPlayTrack, onSeek, onClearPlaylist, onRemoveTrack, currentTime, onClose }) => {
     const { confirm } = useUI();
     const containerRef = useRef<HTMLDivElement>(null);
     const abortControllersRef = useRef<Map<string, AbortController>>(new Map());
@@ -121,11 +122,15 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
         if (selectedIndex !== null && e.key === 'Delete') {
             e.preventDefault();
             e.stopPropagation();
-            setPlaylist(prev => {
-                const newList = [...prev];
-                newList.splice(selectedIndex, 1);
-                return newList;
-            });
+            if (onRemoveTrack) {
+                onRemoveTrack(selectedIndex);
+            } else {
+                setPlaylist(prev => {
+                    const newList = [...prev];
+                    newList.splice(selectedIndex, 1);
+                    return newList;
+                });
+            }
             // Adjust selection after deletion
             if (selectedIndex >= playlist.length - 1) {
                 setSelectedIndex(playlist.length > 1 ? playlist.length - 2 : null);
@@ -275,11 +280,15 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
     };
 
     const removeTrack = (index: number) => {
-        setPlaylist(prev => {
-            const newList = [...prev];
-            newList.splice(index, 1);
-            return newList;
-        });
+        if (onRemoveTrack) {
+            onRemoveTrack(index);
+        } else {
+            setPlaylist(prev => {
+                const newList = [...prev];
+                newList.splice(index, 1);
+                return newList;
+            });
+        }
     };
 
     const fileToBase64 = (file: File): Promise<string> => {

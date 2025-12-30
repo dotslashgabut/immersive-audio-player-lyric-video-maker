@@ -2334,6 +2334,22 @@ function App() {
                 setCurrentTrackIndex(-1);
                 setMetadata({ title: 'No Audio Loaded', artist: 'Select a file', coverUrl: null, backgroundType: 'image' });
               }}
+              onRemoveTrack={(index) => {
+                if (index === currentTrackIndex) {
+                  stopPlayback();
+                  setAudioSrc(null);
+                  setLyrics([]);
+                  setCurrentTrackIndex(-1);
+                  setMetadata({ title: 'No Audio Loaded', artist: 'Select a file', coverUrl: null, backgroundType: 'image' });
+                } else if (index < currentTrackIndex) {
+                  setCurrentTrackIndex(prev => prev - 1);
+                }
+                setPlaylist(prev => {
+                  const newList = [...prev];
+                  newList.splice(index, 1);
+                  return newList;
+                });
+              }}
               onClose={() => setIsPlaylistMode(false)}
             />
           </div>
