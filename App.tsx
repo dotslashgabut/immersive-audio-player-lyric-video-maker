@@ -161,9 +161,13 @@ function App() {
   const [showPlayer, setShowPlayer] = useState(true);
 
   // Derived State
-  const activeSlide = visualSlides.find(
-    s => s.type !== 'audio' && currentTime >= s.startTime && currentTime < s.endTime
-  );
+  const activeVisualSlides = useMemo(() => {
+    const slides = visualSlides.filter(
+      s => s.type !== 'audio' && currentTime >= s.startTime && currentTime < s.endTime
+    );
+    // Sort by layer (0 first, then 1) so 1 draws on top
+    return slides.sort((a, b) => (a.layer || 0) - (b.layer || 0));
+  }, [visualSlides, currentTime]);
 
   const activeAudioSlides = visualSlides.filter(
     s => s.type === 'audio' && currentTime >= s.startTime && currentTime < s.endTime
@@ -1166,6 +1170,8 @@ function App() {
   const isHeaderVisible = showInfo && (!isMouseIdle || bypassAutoHide) && !isRendering;
   const isFooterVisible = showPlayer && (!isMouseIdle || bypassAutoHide) && !isRendering;
 
+  const activeSlide = activeVisualSlides.length > 0 ? activeVisualSlides[0] : null;
+
   const backgroundStyle = activeSlide
     ? { backgroundImage: `url(${activeSlide.url})` }
     : metadata.coverUrl
@@ -1173,38 +1179,44 @@ function App() {
       : undefined;
 
   // Video Sync Logic
-  const activeVideoRef = useRef<HTMLVideoElement>(null);
   const bgVideoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
-    // 1. Active Slide Video
-    if (activeSlide?.type === 'video' && activeVideoRef.current) {
-      const vid = activeVideoRef.current;
+    // 1. Active Visual Slides Sync
+    activeVisualSlides.forEach(slide => {
+      // Check visibility
+      const layer = slide.layer || 0;
+      if (renderConfig.layerVisibility?.visual?.[layer] === false) return;
 
-      if (isRendering) {
-        if (!vid.paused) vid.pause();
-      } else {
-        const relTime = (currentTime - activeSlide.startTime) + (activeSlide.mediaStartOffset || 0);
+      if (slide.type === 'video') {
+        const vid = document.getElementById(`video-preview-${slide.id}`) as HTMLVideoElement;
+        if (vid) {
+          if (isRendering) {
+            if (!vid.paused) vid.pause();
+          } else {
+            const relTime = (currentTime - slide.startTime) + (slide.mediaStartOffset || 0);
 
-        // Check if we need to sync timestamps (fix drift/seeks)
-        if (Math.abs(vid.currentTime - relTime) > 0.1) {
-          vid.currentTime = relTime;
-        }
+            // Check if we need to sync timestamps (fix drift/seeks)
+            if (Math.abs(vid.currentTime - relTime) > 0.1) {
+              vid.currentTime = relTime;
+            }
 
-        // Sync Muted State & Volume
-        const shouldMute = activeSlide.isMuted !== false; // Default true (muted)
-        if (vid.muted !== shouldMute) vid.muted = shouldMute;
+            // Sync Muted State & Volume
+            const shouldMute = slide.isMuted !== false; // Default true (muted)
+            if (vid.muted !== shouldMute) vid.muted = shouldMute;
 
-        const targetVolume = activeSlide.volume !== undefined ? activeSlide.volume : 1;
-        if (Math.abs(vid.volume - targetVolume) > 0.01) vid.volume = targetVolume;
+            const targetVolume = slide.volume !== undefined ? slide.volume : 1;
+            if (Math.abs(vid.volume - targetVolume) > 0.01) vid.volume = targetVolume;
 
-        if (isPlaying && vid.paused) {
-          vid.play().catch(() => { }); // catch interrupt errors
-        } else if (!isPlaying && !vid.paused) {
-          vid.pause();
+            if (isPlaying && vid.paused) {
+              vid.play().catch(() => { }); // catch interrupt errors
+            } else if (!isPlaying && !vid.paused) {
+              vid.pause();
+            }
+          }
         }
       }
-    }
+    });
 
     // 2. Background Video (Metadata)
     // Only play if no active slide covers it, OR if we want it to run behind.
@@ -1256,7 +1268,7 @@ function App() {
       }
     });
 
-  }, [currentTime, isPlaying, activeSlide, metadata, activeAudioSlides]);
+  }, [currentTime, isPlaying, activeVisualSlides, metadata, activeAudioSlides, renderConfig.layerVisibility]);
 
   return (
     <div
@@ -1364,7 +1376,7 @@ function App() {
             />
           ) : (
             <div
-              className={`absolute inset-0 bg-cover bg-center transition-all duration-700 ease-in-out ${renderConfig.backgroundSource === 'custom' || !activeSlide ? 'opacity-60' : 'opacity-0'}`}
+              className={`absolute inset-0 bg-cover bg-center transition-all duration-700 ease-in-out ${renderConfig.backgroundSource === 'custom' || activeVisualSlides.length === 0 ? 'opacity-60' : 'opacity-0'}`}
               style={{ backgroundImage: `url(${metadata.coverUrl})` }}
             />
           )
@@ -1395,29 +1407,36 @@ function App() {
         )}
 
         {/* Default Gradient if nothing */}
-        {!metadata.coverUrl && !activeSlide && (renderConfig.backgroundSource === 'timeline' || renderConfig.backgroundSource === 'custom') && visualSlides.length === 0 && (
+        {!metadata.coverUrl && activeVisualSlides.length === 0 && (renderConfig.backgroundSource === 'timeline' || renderConfig.backgroundSource === 'custom') && visualSlides.length === 0 && (
           <div className="absolute inset-0 bg-gradient-to-br from-indigo-900 via-purple-900 to-black opacity-80"></div>
         )}
 
         {/* 2. Slide Overlay */}
-        <div className={`absolute inset-0 transition-opacity duration-500 ${activeSlide && renderConfig.backgroundSource === 'timeline' ? 'opacity-100' : 'opacity-0'}`}>
-          {activeSlide && renderConfig.backgroundSource === 'timeline' && (
-            activeSlide.type === 'video' ? (
-              <video
-                key={activeSlide.id}
-                ref={activeVideoRef}
-                src={activeSlide.url}
-                className="w-full h-full object-cover"
-                muted={activeSlide.isMuted !== false}
-                playsInline
-              />
-            ) : (
-              <div
-                className="w-full h-full bg-cover bg-center"
-                style={{ backgroundImage: `url(${activeSlide.url})` }}
-              />
-            )
-          )}
+        <div className={`absolute inset-0 pointer-events-none ${renderConfig.backgroundSource === 'timeline' ? 'opacity-100' : 'opacity-0'}`}>
+          {renderConfig.backgroundSource === 'timeline' && activeVisualSlides.map(slide => {
+             // Check visibility
+             const layer = slide.layer || 0;
+             if (renderConfig.layerVisibility?.visual?.[layer] === false) return null;
+
+             return (
+               <div key={slide.id} className="absolute inset-0 flex items-center justify-center overflow-hidden">
+                  {slide.type === 'video' ? (
+                    <video
+                      id={`video-preview-${slide.id}`}
+                      src={slide.url}
+                      className="w-full h-full object-cover"
+                      muted={slide.isMuted !== false}
+                      playsInline
+                    />
+                  ) : (
+                    <div
+                      className="w-full h-full bg-cover bg-center"
+                      style={{ backgroundImage: `url(${slide.url})` }}
+                    />
+                  )}
+               </div>
+             );
+          })}
         </div>
 
         {/* Blur / Dim Overlay */}
