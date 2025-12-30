@@ -410,6 +410,78 @@ export const drawCanvasFrame = (
             endI = lyrics.length;
         }
 
+        // --- DYNAMIC POSITIONING to prevent overlap ---
+        const yMap = new Map<number, number>();
+        const hMap = new Map<number, number>();
+        const shouldUseDynamicLayout = true; // Use simple stacking for guaranteed no-overlap
+
+        if (shouldUseDynamicLayout) {
+             const gap = Math.max((isPortrait ? 30 : 40) * scale, lineSpacing - baseFontSize); 
+             
+             // 1. Measure all lines in range
+             for (let i = startI; i <= endI; i++) {
+                let h = 0;
+                let isCurr = false;
+                
+                if (showIntroTitle && i === 0) {
+                     const titleLH = baseFontSize * 1.2;
+                     const artistLH = secondaryFontSize * 1.2;
+                     const parts = introContent.split('\n');
+                     const hasArtist = parts.length > 1;
+                     h = titleLH + (hasArtist ? artistLH : 0);
+                     isCurr = true; // Intro is "current"
+                } else {
+                     const idx = virtualActiveIdx + i;
+                     if (idx >= 0 && idx < lyrics.length) {
+                        const line = lyrics[idx];
+                        isCurr = (idx === activeIdx);
+                        
+                        const fs = isCurr ? baseFontSize : secondaryFontSize;
+                        let weight = isCurr ? (['large', 'large_upper', 'big_center', 'metal', 'tech'].includes(activePreset) ? '900' : 'bold') : '400';
+                        if (activePreset === 'custom' && renderConfig?.fontWeight) weight = renderConfig.fontWeight;
+                        const style = (activePreset === 'custom' && renderConfig?.fontStyle) ? renderConfig.fontStyle : 'normal';
+
+                        ctx.font = `${style} ${weight} ${fs}px ${fontFamily}`;
+                        
+                        let text = line.text;
+                        let casing = renderConfig?.textCase || 'none';
+                        if (casing === 'none' && isCurr && ['large_upper', 'big_center', 'metal', 'tech', 'testing_up', 'one_line_up'].includes(activePreset)) {
+                             casing = 'upper';
+                        }
+                        
+                        if (casing === 'upper') text = text.toUpperCase();
+                        else if (casing === 'lower') text = text.toLowerCase();
+                        else if (casing === 'title') text = text.replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase());
+                        else if (casing === 'sentence') text = text.charAt(0).toUpperCase() + text.slice(1).toLowerCase();
+                        else if (casing === 'invert') text = text.replace(/\w\S*/g, (txt) => txt.charAt(0).toLowerCase() + txt.slice(1).toUpperCase());
+ 
+                        const lines = getWrappedLines(ctx, text, width * 0.9);
+                        h = lines.length * (fs * 1.2);
+                     }
+                }
+                hMap.set(i, h);
+             }
+             
+             // 2. Calculate Y Positions
+             yMap.set(0, centerY);
+             
+             // Downwards
+             for (let i = 1; i <= endI; i++) {
+                 const prevY = yMap.get(i-1) ?? centerY;
+                 const prevH = hMap.get(i-1) ?? 0;
+                 const curH = hMap.get(i) ?? 0;
+                 yMap.set(i, prevY + (prevH / 2) + gap + (curH / 2));
+             }
+             
+             // Upwards
+             for (let i = -1; i >= startI; i--) {
+                 const nextY = yMap.get(i+1) ?? centerY;
+                 const nextH = hMap.get(i+1) ?? 0;
+                 const curH = hMap.get(i) ?? 0;
+                 yMap.set(i, nextY - (nextH / 2) - gap - (curH / 2));
+             }
+        }
+
         for (let i = startI; i <= endI; i++) {
             let line: LyricLine | null = null;
             let isCurrent = false;
@@ -570,14 +642,21 @@ export const drawCanvasFrame = (
                 }
 
                 // Y Position Logic
-                let yPos = (activePreset === 'subtitle' && i === 0 && renderConfig?.lyricDisplayMode !== 'all')
-                    ? (height - 120 * scale)
-                    : (centerY + (i * lineSpacing) + (i === 0 ? offsetY : 0));
+                let yPos = 0;
+                
+                if (yMap.has(i)) {
+                    yPos = yMap.get(i)! + (i === 0 ? offsetY : 0);
+                } else {
+                     // Fallback (Legacy)
+                    yPos = (activePreset === 'subtitle' && i === 0 && renderConfig?.lyricDisplayMode !== 'all')
+                        ? (height - 120 * scale)
+                        : (centerY + (i * lineSpacing) + (i === 0 ? offsetY : 0));
 
-
-                if (activePreset !== 'custom') {
-                    if (i < 0) yPos -= activeLineShift; else if (i > 0) yPos += activeLineShift;
+                    if (activePreset !== 'custom') {
+                        if (i < 0) yPos -= activeLineShift; else if (i > 0) yPos += activeLineShift;
+                    }
                 }
+                
                 yPos += animOffsetY;
 
                 let xPos = width / 2;
