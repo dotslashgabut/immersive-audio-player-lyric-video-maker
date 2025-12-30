@@ -33,18 +33,21 @@
     - **Subtitle**: Cinematic bottom-centered text (No song metadata).
     - **Just Video**: Hides text content.
     - **None**: Hides everything (Lyrics, Titles, and Metadata).
-  - **Text Animations**: Bounce, Pulse, Wave, Glitch, Shake, and Typewriter effects.
+  - **Text Animations**: Bounce, Pulse, Wave, Glitch, Shake, Typewriter, Heartbeat, Tada, Jello, and more.
   - **Display Modes**: Control lyric visibility (Show All, Previous-Active-Next, Next Only, Active Only).
-- **AI Transcription**: Built-in integration with **Google Gemini** for automatic audio transcription and lyric generation.
+- **AI Transcription**: Built-in integration with **Google Gemini** (supports **Gemini 2.5 Flash** and **3.0 Flash Preview**) for automatic high-accuracy audio transcription.
+- **Export Lyrics**: Save your transcribed or edited lyrics as `.lrc`, `.srt`, `.json`, or `.txt` files.
 - **Manual Management**: Manually load external `.lrc` / `.srt` files or clear existing lyrics for any track.
 
 ### 🎬 Professional Visual Timeline Editor
  Create complex visual stories synchronized to your music.
+- **Multi-Track Layering**:
+  - **2 Visual Tracks**: Layer videos and images (Background + Overlay).
+  - **2 Audio Tracks**: Layer sound effects or secondary audio.
 - **Full Editing Suite**:
   - **Undo/Redo** (Ctrl+Z / Ctrl+Y): Never worry about mistakes.
   - **Copy/Cut/Paste** (Ctrl+C / Ctrl+X / Ctrl+V): Duplicate slides easily.
-  - **Snapping**: Clips snap to each other, lyric timestamps, and grid lines for pixel-perfect timing.
-- **Multi-Track Capabilities**: Add Images, Videos, and Sound Effects overlaid on the main track.
+  - **Snapping**: Clips snap to each other, lyric timestamps, grid lines, and playhead for pixel-perfect timing.
 - **Advanced Selection**:
   - **Drag Selection**: Click and drag on the timeline background to interpretively select multiple clips.
   - **Shift + Click** for range selection.
@@ -94,8 +97,8 @@
   - **Text Transformations**: **Uppercase**, **Lowercase**, **Title Case**, **Sentence Case**, and **Invert Case** overrides.
   - **Effects Library**: 
     - **Text Effects**: Shadow, Glow, Neon, 3D Pop, Glitch, Retro, and more.
-    - **Animations**: Pulse, Bounce, Wave, Shake, Typewriter, etc.
-    - **Transitions**: Smooth Fade, Slide, Zoom, Flip, Motion Blur, and **None** (Instant Cut).
+    - **Animations**: Pulse, Bounce, Wave, Shake, Typewriter, Heartbeat, Flash, Spin, and more.
+    - **Transitions**: Smooth Fade, Slide, Zoom, Flip, Motion Blur, Spiral, Shatter, and **None** (Instant Cut).
 - **Song Info Customization**:
   - **Positioning**: 9-point grid automatic positioning (Top-Left to Bottom-Right).
   - **Styles**: Classic (Detailed), Modern + Cover, Circle Cover, Boxed Cover, Minimal (Text Only).
@@ -144,7 +147,7 @@ Check out our other AI-powered tools for music and visuals:
 | **F** | Toggle Fullscreen |
 | **Delete** | Remove selected Playlist Item or Visual Slide |
 | **Ctrl + Z / Y** | Undo / Redo (Editor) |
-| **Ctrl + C / V** | Copy / Paste (Editor) |
+| **Ctrl + C / X / V** | Copy / Cut / Paste (Editor) |
 | **Escape** | Abort Video Rendering |
 
 | **Ctrl/Cmd + Shift + E** | Export / Render Video |
@@ -204,7 +207,9 @@ This application is built with React + Vite and requires **Node.js** to run.
 - **Visual Efek**: Fitur **Background Blur** (dengan **Slider Kekuatan Blur**), **Smart Gradient**, dan **Text Animation** (Bounce, Pulse, Glitch, dll).
 - **Kustomisasi Info Lagu**: Atur posisi, gaya tampilan, jarak tepi (padding), serta **Intro** teks (Auto/Manual).
 - **Mode Tampilan Lirik**: Pilih mau tampilkan semua baris, atau hanya aktif/berikutnya saja.
-- **Timeline Canggih**: Sekarang dengan fitur **Undo/Redo**, **Copy-Paste** slide, **Drag Selection**, dan **Snapping** otomatis agar visual pas dengan ketukan lirik.
+- **AI Transkripsi**: Dukungan model **Gemini 2.5 Flash** dan **3.0 Flash Preview** untuk transkripsi audio otomatis yang presisi.
+- **Ekspor Lirik**: Simpan hasil transkripsi dalam format `.lrc`, `.srt`, `.json`, atau `.txt`.
+- **Timeline Canggih**: Dukungan **Multi-Layer** (2 Visual + 2 Audio), **Undo/Redo**, **Cut/Copy/Paste**, **Drag Selection**, dan **Snapping** otomatis.
 - **Shortcut Baru**: Tekan **D** (Render Settings), **N**/**B** (Next/Prev), **M** (Mute), **R** (Repeat), **L** (Playlist), **+/-** (Font), dan **Ctrl/Cmd+Shift+E** (Export).
 
 ### Cara Install & Jalan
