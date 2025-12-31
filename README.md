@@ -120,8 +120,9 @@
 
 ## Related Tools
 Check out our other AI-powered tools for music and visuals:
-- **[LyricFlow](https://ai.studio/apps/drive/1M1VfxdBlNB_eOPQqQiHspvVwizaEs0aI?showPreview=true&fullscreenApplet=true&showAssistant=true)**: Advanced lyric synchronization and flow.
-- **[LyricalVision](https://aistudio.google.com/apps/drive/1WKA-bCxzIKD-DcI_pq0HznN3m1_oNEkg?fullscreenApplet=true&showPreview=true&showAssistant=true)**: AI-driven visual generation for your lyrics.
+- **[LyricFlow](https://ai.studio/apps/drive/1M1VfxdBlNB_eOPQqQiHspvVwizaEs0aI?fullscreenApplet=true)**: Advanced lyric synchronization and flow.
+- **[LyricalVision](https://ai.studio/apps/drive/1WKA-bCxzIKD-DcI_pq0HzxN3m1_oNEkg?fullscreenApplet=true)**: AI-driven visual generation for your lyrics.
+- **[GeminiTranscription](https://ai.studio/apps/drive/1IQUhhLIAJ_dYYbcOLni-x8LLk7Py4SSX?fullscreenApplet=true)**: AI-powered transcription for your audio files.
 
 ## Keyboard Shortcuts
 
@@ -139,6 +140,7 @@ Check out our other AI-powered tools for music and visuals:
 | **S** | Stop & Reset |
 | **X** | Split Clip at Playhead (Timeline Editor) |
 | **H** | Toggle UI Auto-Hide Inhibit |
+| **G** | Cycle Lyric Display Mode |
 | **L** | Toggle Playlist View |
 | **T** | Open/Close Timeline Editor |
 | **D** | Toggle Render Settings Panel |

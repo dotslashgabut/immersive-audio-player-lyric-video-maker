@@ -7,6 +7,9 @@
     - **Manually Load Lyrics**: You can now manually load lyric (`.lrc`) or subtitle (`.srt`) files for any track in the playlist.
     - **Clear Lyric Button**: Added a dedicated button to clear/delete the lyric timeline for a specific track.
     - **Sync Across Components**: Lyric changes (load/delete) in the Playlist Editor now instantly sync with the main Player/Timeline view.
+- **Playlist Improvements**:
+    - **Drag & Drop**: Added robust drag-and-drop support for Audio (`mp3`, `wav`, etc.) and Lyric (`lrc`, `srt`) files directly into the Playlist Editor.
+    - **Smart Pairing**: Dropped files are automatically paired by filename (e.g., `song.mp3` + `song.lrc` = one track).
 - **AI-Powered Transcription (Gemini)**:
     - **Gemini Integration**: Built-in support for Google's Gemini models (`gemini-2.5-flash`, `gemini-3-flash-preview`, etc.) for high-quality audio transcription.
     - **Smart Transcription**: Refined prompts to ensure complete coverage and minimize missed lines.
@@ -17,6 +20,7 @@
     - **Timeline Alignment**: Fixed ruler and playhead alignment issues for precise seeking.
     - **Visual Editor Defaults**: Media background defaults to black; "Import Media" button moved for better accessibility.
     - **Split Shortcut**: Changed the "Split" shortcut to **X** to avoid conflicts with the Stop (S) command.
+    - **Lyric Mode Shortcut**: Added **G** shortcut to quickly cycle through lyric display modes (Show All, Previous-Next, Next Only, Active Only).
 
 ## Bug Fixes
 - **Transcription**: Fixed "Gemini Timestamp Jump" where clicking a timestamp would jump to a different model's result.

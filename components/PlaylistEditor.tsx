@@ -167,115 +167,143 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
         }
     }, [playlist.length, selectedIndex]);
 
-    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files && e.target.files.length > 0) {
-            // @ts-ignore
-            const files: File[] = Array.from(e.target.files);
-            const fileGroups = new Map<string, { audio?: File; lyric?: File }>();
+    const processFiles = async (files: File[]) => {
+        const fileGroups = new Map<string, { audio?: File; lyric?: File }>();
 
-            files.forEach(file => {
-                const ext = file.name.split('.').pop()?.toLowerCase();
-                const basename = file.name.replace(/\.[^/.]+$/, "");
+        files.forEach(file => {
+            const ext = file.name.split('.').pop()?.toLowerCase();
+            const basename = file.name.replace(/\.[^/.]+$/, "");
 
-                if (!fileGroups.has(basename)) {
-                    fileGroups.set(basename, {});
-                }
-                const group = fileGroups.get(basename)!;
+            if (!fileGroups.has(basename)) {
+                fileGroups.set(basename, {});
+            }
+            const group = fileGroups.get(basename)!;
 
-                // Simple extension check
-                if (['mp3', 'wav', 'ogg', 'flac', 'm4a'].includes(ext || '')) {
-                    group.audio = file;
-                } else if (['lrc', 'srt'].includes(ext || '')) {
-                    group.lyric = file;
-                }
-            });
+            // Simple extension check
+            if (['mp3', 'wav', 'ogg', 'flac', 'm4a'].includes(ext || '')) {
+                group.audio = file;
+            } else if (['lrc', 'srt'].includes(ext || '')) {
+                group.lyric = file;
+            }
+        });
 
-            const newItems: PlaylistItem[] = [];
+        const newItems: PlaylistItem[] = [];
 
-            // Helper function to extract metadata using jsmediatags
-            const extractMetadata = async (file: File, fallbackTitle: string): Promise<{ title: string; artist: string; album?: string; coverUrl: string | null }> => {
-                return new Promise((resolve) => {
-                    // @ts-ignore
-                    import('jsmediatags/dist/jsmediatags.min.js').then((jsmediatags) => {
-                        jsmediatags.read(file, {
-                            onSuccess: (tag: any) => {
-                                const { title, artist, album, picture } = tag.tags;
-                                let coverUrl: string | null = null;
-                                if (picture) {
-                                    const { data, format } = picture;
-                                    let base64String = "";
-                                    for (let i = 0; i < data.length; i++) {
-                                        base64String += String.fromCharCode(data[i]);
-                                    }
-                                    coverUrl = `data:${format};base64,${window.btoa(base64String)}`;
+        // Helper function to extract metadata using jsmediatags
+        const extractMetadata = async (file: File, fallbackTitle: string): Promise<{ title: string; artist: string; album?: string; coverUrl: string | null }> => {
+            return new Promise((resolve) => {
+                // @ts-ignore
+                import('jsmediatags/dist/jsmediatags.min.js').then((jsmediatags) => {
+                    jsmediatags.read(file, {
+                        onSuccess: (tag: any) => {
+                            const { title, artist, album, picture } = tag.tags;
+                            let coverUrl: string | null = null;
+                            if (picture) {
+                                const { data, format } = picture;
+                                let base64String = "";
+                                for (let i = 0; i < data.length; i++) {
+                                    base64String += String.fromCharCode(data[i]);
                                 }
-                                resolve({
-                                    title: title || fallbackTitle,
-                                    artist: artist || 'Unknown Artist',
-                                    album: album || undefined,
-                                    coverUrl
-                                });
-                            },
-                            onError: () => {
-                                resolve({
-                                    title: fallbackTitle,
-                                    artist: 'Unknown Artist',
-                                    coverUrl: null
-                                });
+                                coverUrl = `data:${format};base64,${window.btoa(base64String)}`;
                             }
-                        });
-                    }).catch(() => {
-                        resolve({
-                            title: fallbackTitle,
-                            artist: 'Unknown Artist',
-                            coverUrl: null
-                        });
+                            resolve({
+                                title: title || fallbackTitle,
+                                artist: artist || 'Unknown Artist',
+                                album: album || undefined,
+                                coverUrl
+                            });
+                        },
+                        onError: () => {
+                            resolve({
+                                title: fallbackTitle,
+                                artist: 'Unknown Artist',
+                                coverUrl: null
+                            });
+                        }
+                    });
+                }).catch(() => {
+                    resolve({
+                        title: fallbackTitle,
+                        artist: 'Unknown Artist',
+                        coverUrl: null
                     });
                 });
-            };
+            });
+        };
 
-            // Helper function to parse lyrics from file
-            const parseLyrics = async (file: File): Promise<LyricLine[]> => {
-                try {
-                    const text = await file.text();
-                    const ext = file.name.split('.').pop()?.toLowerCase();
-                    if (ext === 'lrc') return parseLRC(text);
-                    if (ext === 'srt') return parseSRT(text);
-                } catch (e) {
-                    console.error("Failed to parse lyrics", e);
-                }
-                return [];
-            };
-
-            // Process all audio files and extract metadata
-            for (const [basename, group] of fileGroups.entries()) {
-                if (group.audio) {
-                    const metadata = await extractMetadata(group.audio, basename);
-                    const id = Math.random().toString(36).substr(2, 9);
-
-                    // Parse lyrics if available
-                    let itemParsedLyrics: LyricLine[] = [];
-                    if (group.lyric) {
-                        itemParsedLyrics = await parseLyrics(group.lyric);
-                    }
-
-                    newItems.push({
-                        id,
-                        audioFile: group.audio,
-                        lyricFile: group.lyric,
-                        parsedLyrics: itemParsedLyrics,
-                        metadata,
-                        duration: 0 // Will be known when played
-                    });
-                }
+        // Helper function to parse lyrics from file
+        const parseLyrics = async (file: File): Promise<LyricLine[]> => {
+            try {
+                const text = await file.text();
+                const ext = file.name.split('.').pop()?.toLowerCase();
+                if (ext === 'lrc') return parseLRC(text);
+                if (ext === 'srt') return parseSRT(text);
+            } catch (e) {
+                console.error("Failed to parse lyrics", e);
             }
+            return [];
+        };
 
-            if (newItems.length > 0) {
-                setPlaylist(prev => [...prev, ...newItems]);
+        // Process all audio files and extract metadata
+        for (const [basename, group] of fileGroups.entries()) {
+            if (group.audio) {
+                const metadata = await extractMetadata(group.audio, basename);
+                const id = Math.random().toString(36).substr(2, 9);
+
+                // Parse lyrics if available
+                let itemParsedLyrics: LyricLine[] = [];
+                if (group.lyric) {
+                    itemParsedLyrics = await parseLyrics(group.lyric);
+                }
+
+                newItems.push({
+                    id,
+                    audioFile: group.audio,
+                    lyricFile: group.lyric,
+                    parsedLyrics: itemParsedLyrics,
+                    metadata,
+                    duration: 0 // Will be known when played
+                });
             }
+        }
 
+        if (newItems.length > 0) {
+            setPlaylist(prev => [...prev, ...newItems]);
+        }
+    };
+
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files.length > 0) {
+            const files = Array.from(e.target.files) as File[];
+            await processFiles(files);
             // Allow re-upload
             e.target.value = '';
+        }
+    };
+
+    // Drag and Drop handlers
+    const [isDragging, setIsDragging] = useState(false);
+
+    const handleDragOver = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(true);
+    };
+
+    const handleDragLeave = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(false);
+    };
+
+    const handleDrop = async (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(false);
+
+        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+            const files = Array.from(e.dataTransfer.files) as File[];
+            await processFiles(files);
         }
     };
 
@@ -578,7 +606,21 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
     };
 
     return (
-        <div className="w-full max-w-[100vw] h-64 flex flex-col bg-zinc-900/95 backdrop-blur-md border-t border-white/10 z-20 shadow-xl overflow-hidden outline-none">
+        <div
+            className={`w-full max-w-[100vw] h-64 flex flex-col bg-zinc-900/95 backdrop-blur-md border-t border-white/10 z-20 shadow-xl overflow-hidden outline-none relative transition-colors ${isDragging ? 'bg-zinc-800 border-orange-500' : ''}`}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+        >
+            {isDragging && (
+                <div className="absolute inset-0 z-50 flex items-center justify-center bg-zinc-900/90 backdrop-blur-sm pointer-events-none">
+                    <div className="flex flex-col items-center gap-4 text-orange-500 animate-pulse">
+                        <Upload size={48} />
+                        <h3 className="text-xl font-bold">Drop Audio & Lyrics Here</h3>
+                        <p className="text-sm text-zinc-400">Supported formats: MP3, WAV, OGG, FLAC, M4A, LRC, SRT</p>
+                    </div>
+                </div>
+            )}
             <input
                 type="file"
                 ref={lyricFileInputRef}

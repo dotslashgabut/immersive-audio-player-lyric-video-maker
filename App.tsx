@@ -103,6 +103,12 @@ function App() {
     textCase: 'none',
   });
 
+  // Ref to access latest config in event handlers without triggering re-renders
+  const renderConfigRef = useRef(renderConfig);
+  useEffect(() => {
+    renderConfigRef.current = renderConfig;
+  }, [renderConfig]);
+
   const isBlurEnabled = renderConfig.backgroundBlurStrength > 0;
 
   const supportedCodecs = useMemo(() => {
@@ -997,7 +1003,7 @@ function App() {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Check if the key shoud trigger UI wake-up
       const key = e.key.toLowerCase();
-      const ignoredKeysForIdle = [' ', 'k', 's', 't', 'l', 'r', 'f', 'h', 'm', 'j', 'd', 'e', 'x', 'arrowleft', 'arrowright', 'arrowup', 'arrowdown', 'meta', 'control', 'shift', 'alt', 'printscreen', 'fn', '+', '-', '='];
+      const ignoredKeysForIdle = [' ', 'k', 's', 't', 'l', 'r', 'f', 'h', 'g', 'm', 'j', 'd', 'e', 'x', 'arrowleft', 'arrowright', 'arrowup', 'arrowdown', 'meta', 'control', 'shift', 'alt', 'printscreen', 'fn', '+', '-', '='];
 
       if (!ignoredKeysForIdle.includes(key)) {
         resetIdleTimer();
@@ -1044,6 +1050,17 @@ function App() {
         case 'h':
           e.preventDefault();
           setBypassAutoHide(prev => !prev);
+          break;
+        case 'g': // Cycle Lyric Display Mode
+          e.preventDefault();
+          const modes = ['all', 'previous-next', 'next-only', 'active-only'];
+          const currentMode = renderConfigRef.current.lyricDisplayMode;
+          const currentIndex = modes.indexOf(currentMode);
+          const nextIndex = (currentIndex + 1) % modes.length;
+          const nextMode = modes[nextIndex] as any;
+
+          setRenderConfig(prev => ({ ...prev, lyricDisplayMode: nextMode }));
+          toast.success(`Lyric Mode: ${nextMode.replace('-', ' ')}`);
           break;
         case 'f':
           toggleFullscreen();
@@ -1131,7 +1148,7 @@ function App() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isPlaying, repeatMode, activeTab, isRendering, resetIdleTimer, handleAbortRender, isPlaylistMode, playNextSong, playPreviousSong]);
+  }, [isPlaying, repeatMode, activeTab, isRendering, resetIdleTimer, handleAbortRender, isPlaylistMode, playNextSong, playPreviousSong, toast]);
 
   // Smooth Playback Animation Loop (Throttled to ~30fps)
   useEffect(() => {
