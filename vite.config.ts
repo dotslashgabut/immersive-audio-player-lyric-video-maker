@@ -13,6 +13,11 @@ export default defineConfig(({ mode }) => {
       strictPort: false,
       host: '0.0.0.0',
     },
+    preview: {
+      port: 4173,
+      strictPort: false,
+      host: '0.0.0.0',
+    },
     plugins: [
       react(),
       VitePWA({
