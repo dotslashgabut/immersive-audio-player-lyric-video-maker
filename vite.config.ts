@@ -9,14 +9,14 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, '.', '');
   return {
     server: {
-      port: 5173,
+      // port: 5173,
       strictPort: false,
-      host: '0.0.0.0',
+      // host: '0.0.0.0',
     },
     preview: {
-      port: 4173,
+      // port: 4173,
       strictPort: false,
-      host: '0.0.0.0',
+      // host: '0.0.0.0',
     },
     plugins: [
       react(),
