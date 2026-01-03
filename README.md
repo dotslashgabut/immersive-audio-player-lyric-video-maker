@@ -167,7 +167,7 @@ This application is built with React + Vite and requires **Node.js** to run.
     ```bash
     npm run dev
     ```
-4.  **Launch**: Open `http://localhost:5173` in Chrome or Edge.
+4.  **Launch**: Open the URL shown in your terminal (usually `http://localhost:5173`) in Chrome or Edge.
 
 ## Configuration (Optional)
 
@@ -221,7 +221,7 @@ This application is built with React + Vite and requires **Node.js** to run.
     npm install
     npm run dev
     ```
-3.  Buka browser di `http://localhost:5173`.
+3.  Buka browser di alamat yang muncul di terminal (biasanya `http://localhost:5173`).
 
 ### Alur Kerja
 1.  **Playlist**: Masukkan semua aset lagu dan lirik. Gunakan panah Atas/Bawah untuk ganti lagu.
