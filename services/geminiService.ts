@@ -229,7 +229,7 @@ export async function transcribeAudio(
                 },
               },
               {
-                text: `You are a high-fidelity, verbatim audio transcription engine. Your output must be exhaustive and complete. Optimized for lyrics or subtitles.
+                text: `You are a high-fidelity, verbatim audio transcription engine optimized for **Lyrics**. Your output must be exhaustive, complete, and perfectly timed.
                 
                 ${timingPolicy}
                 ${segmentationPolicy}
