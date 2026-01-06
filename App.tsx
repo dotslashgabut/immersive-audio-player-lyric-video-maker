@@ -45,7 +45,7 @@ function App() {
 
   // State: Playback
   const [isPlaying, setIsPlaying] = useState(false);
-  const [repeatMode, setRepeatMode] = useState<'off' | 'all' | 'one'>('off');
+  const [repeatMode, setRepeatMode] = useState<'off' | 'one' | 'all' | 'all_repeat'>('off');
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(1);
@@ -407,9 +407,10 @@ function App() {
 
   const toggleRepeat = () => {
     setRepeatMode(prev => {
-      if (prev === 'off') return 'all';
-      if (prev === 'all') return 'one';
-      return 'off';
+      if (prev === 'off') return 'one';       // 1. Loop One
+      if (prev === 'one') return 'all';       // 2. Play All (Stop at End)
+      if (prev === 'all') return 'all_repeat';// 3. Play All (Loop Playlist)
+      return 'off';                           // 4. Off
     });
   };
 
@@ -1003,7 +1004,7 @@ function App() {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Check if the key shoud trigger UI wake-up
       const key = e.key.toLowerCase();
-      const ignoredKeysForIdle = [' ', 'k', 's', 't', 'l', 'r', 'f', 'h', 'g', 'm', 'j', 'd', 'e', 'x', 'arrowleft', 'arrowright', 'arrowup', 'arrowdown', 'meta', 'control', 'shift', 'alt', 'printscreen', 'fn', '+', '-', '='];
+      const ignoredKeysForIdle = [' ', 'k', 's', 't', 'l', 'r', 'f', 'h', 'g', 'm', 'j', 'd', 'e', 'c', 'x', 'arrowleft', 'arrowright', 'arrowup', 'arrowdown', 'meta', 'control', 'shift', 'alt', 'printscreen', 'fn', '+', '-', '='];
 
       if (!ignoredKeysForIdle.includes(key)) {
         resetIdleTimer();
@@ -1061,6 +1062,17 @@ function App() {
 
           setRenderConfig(prev => ({ ...prev, lyricDisplayMode: nextMode }));
           toast.success(`Lyric Mode: ${nextMode.replace('-', ' ')}`);
+          break;
+        case 'c': // Cycle Text Case
+          e.preventDefault();
+          const cases = ['none', 'upper', 'lower', 'title', 'sentence', 'invert'];
+          const currentCase = renderConfigRef.current.textCase;
+          const currentCaseIndex = cases.indexOf(currentCase);
+          const nextCaseIndex = (currentCaseIndex + 1) % cases.length;
+          const nextCase = cases[nextCaseIndex] as any;
+
+          setRenderConfig(prev => ({ ...prev, textCase: nextCase }));
+          toast.success(`Text Case: ${nextCase}`);
           break;
         case 'f':
           toggleFullscreen();
@@ -1304,33 +1316,35 @@ function App() {
         onLoadedMetadata={handleLoadedMetadata}
         onEnded={() => {
           if (isRendering) return;
+
+          // Global Queue Handling (Active regardless of Playist UI visibility)
+          const hasQueue = playlist.length > 0;
+
           if (repeatMode === 'one') {
-            // Native loop handles it, but safety fallback
-          } else {
-            // Off or All
-            if (isPlaylistMode && playlist.length > 0) {
-              if (repeatMode === 'all') {
-                playNextSong();
-              } else {
-                // Off: Stop if last song
-                if (currentTrackIndex < playlist.length - 1) {
-                  playNextSong();
-                } else {
-                  setIsPlaying(false);
-                }
-              }
+            // Handled by loop attribute, but purely for backup:
+            // if (!audioRef.current?.loop) audioRef.current?.play();
+          } else if (repeatMode === 'all_repeat') {
+            // Loop All: Always go next (loops around)
+            if (hasQueue) {
+              playNextSong();
             } else {
-              // Normal Mode (Single)
-              if (repeatMode === 'all') {
-                // Loop for continuity if user selected 'All'
-                if (audioRef.current) {
-                  audioRef.current.currentTime = 0;
-                  audioRef.current.play();
-                }
+              // Single file loop equivalent
+              audioRef.current?.play();
+            }
+          } else if (repeatMode === 'all') {
+            // Play All (No Repeat): Stop at end
+            if (hasQueue) {
+              if (currentTrackIndex < playlist.length - 1) {
+                playNextSong();
               } else {
                 setIsPlaying(false);
               }
+            } else {
+              setIsPlaying(false);
             }
+          } else {
+            // Off: Stop
+            setIsPlaying(false);
           }
         }}
         crossOrigin="anonymous"
@@ -2214,10 +2228,13 @@ function App() {
                   <button
                     className={`transition-colors disabled:opacity-50 ${repeatMode !== 'off' ? 'text-green-400 hover:text-green-300' : 'text-zinc-400 hover:text-white'}`}
                     onClick={toggleRepeat}
-                    title={`Repeat: ${repeatMode === 'off' ? 'Off' : repeatMode === 'all' ? 'All' : 'One'} (R)`}
+                    title={`Repeat: ${repeatMode === 'off' ? 'Off' : repeatMode === 'one' ? 'One' : repeatMode === 'all' ? 'Play All (No Repeat)' : 'Loop All'} (R)`}
                     disabled={isRendering}
                   >
-                    {repeatMode === 'one' ? <Repeat1 size={20} /> : <Repeat size={20} />}
+                    {repeatMode === 'one' && <Repeat1 size={20} />}
+                    {repeatMode === 'all_repeat' && <Repeat size={20} />}
+                    {repeatMode === 'all' && <ListMusic size={20} />}
+                    {repeatMode === 'off' && <Repeat size={20} className="opacity-50" />}
                   </button>
 
 

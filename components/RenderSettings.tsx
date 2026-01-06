@@ -1321,6 +1321,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                                         <div className="flex justify-between items-center"><span className="text-zinc-300">Toggle Player</span> <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 font-mono text-[10px] border border-white/10">P</kbd></div>
                                         <div className="flex justify-between items-center"><span className="text-zinc-300">Auto-Hide HUD</span> <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 font-mono text-[10px] border border-white/10">H</kbd></div>
                                         <div className="flex justify-between items-center"><span className="text-zinc-300">Lyric Display Mode</span> <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 font-mono text-[10px] border border-white/10">G</kbd></div>
+                                        <div className="flex justify-between items-center"><span className="text-zinc-300">Text Case</span> <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 font-mono text-[10px] border border-white/10">C</kbd></div>
                                         <div className="flex justify-between items-center"><span className="text-zinc-300">Render Settings</span> <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 font-mono text-[10px] border border-white/10">D</kbd></div>
                                     </div>
                                 </div>

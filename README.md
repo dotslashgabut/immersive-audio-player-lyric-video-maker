@@ -13,7 +13,7 @@
 - **Smart Playlist**: Drag & drop multiple files. Automatically groups audio files with matching lyric files (`.lrc` or `.srt`) based on filename.
 - **Interactive Lyric Timeline**: Each playlist item shows a mini-timeline of lyrics. Click any line to play that specific track starting from that time.
 - **Sorting & Management**: Sort by Filename, Artist, Title, Album (Ascending/Descending), or Shuffle.
-- **Repeat Modes**: Cycle between **Off**, **Repeat All**, and **Repeat One**.
+- **Repeat Modes**: Cycle between **Off**, **Repeat One**, **Play All** (Play playlist once), and **Repeat All** (Loop playlist).
 - **Immersive Mode**: UI controls automatically fade out when idle for a distraction-free experience.
 
 ![Playlist Management](screenshot-playlist.jpg)
@@ -141,6 +141,7 @@ Check out our other AI-powered tools for music and visuals:
 | **X** | Split Clip at Playhead (Timeline Editor) |
 | **H** | Toggle UI Auto-Hide Inhibit |
 | **G** | Cycle Lyric Display Mode |
+| **C** | Cycle Text Case |
 | **L** | Toggle Playlist View |
 | **T** | Open/Close Timeline Editor |
 | **D** | Toggle Render Settings Panel |

@@ -19,8 +19,11 @@
     - **LRC Export Refinement**: Improved logic for handling blank lines and ensuring the final timestamp doesn't exceed audio duration.
     - **Timeline Alignment**: Fixed ruler and playhead alignment issues for precise seeking.
     - **Visual Editor Defaults**: Media background defaults to black; "Import Media" button moved for better accessibility.
-    - **Split Shortcut**: Changed the "Split" shortcut to **X** to avoid conflicts with the Stop (S) command.
+    - **Split Shortcut**: Changed the "Split" shortcut to **X** to avoid conflict with Stop (S).
     - **Lyric Mode Shortcut**: Added **G** shortcut to quickly cycle through lyric display modes (Show All, Previous-Next, Next Only, Active Only).
+    - **Text Case Shortcut**: Added **C** shortcut to cycle through text case options (Normal, Upper, Lower, Title, Sentence, Invert).
+- **Playback Enhancements**:
+    - **Advanced Repeat Logic**: Expanded to 4 modes: **Off**, **Repeat One**, **Play All** (Stop at end), and **Repeat All** (Loop Playlist).
 
 ## Bug Fixes
 - **Transcription**: Fixed "Gemini Timestamp Jump" where clicking a timestamp would jump to a different model's result.
