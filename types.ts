@@ -1,14 +1,26 @@
 
+export interface LyricWord {
+  text: string;
+  startTime: number;
+  endTime: number;
+}
+
 export interface LyricLine {
   time: number; // in seconds
   text: string;
   endTime?: number; // Optional end time in seconds
+  words?: LyricWord[];
 }
 
 export interface TranscriptionSegment {
   startTime: string; // HH:MM:SS.mmm
   endTime: string;   // HH:MM:SS.mmm
   text: string;
+  words?: {
+    text: string;
+    startTime: string;
+    endTime: string;
+  }[];
 }
 
 export interface VisualSlide {
@@ -104,4 +116,8 @@ export interface RenderConfig {
     visual: Record<number, boolean>;
     audio: Record<number, boolean>;
   };
+  highlightEffect?: 'none' | 'karaoke' | 'scale' | 'color' | 'glow' | 'background' | 'karaoke-neon' | 'karaoke-scale' | 'karaoke-underline' | 'karaoke-bounce' | 'karaoke-fill' | 'karaoke-outline' | 'karaoke-shadow' | 'karaoke-gradient' | 'karaoke-wave' | 'karaoke-blue' | 'karaoke-purple' | 'karaoke-green' | 'karaoke-pink' | 'karaoke-cyan' | 'karaoke-pill' | 'karaoke-box' | 'karaoke-rounded' | 'karaoke-glow-blue' | 'karaoke-glow-pink';
+  highlightColor?: string;
+  highlightBackground?: string;
+  useCustomHighlightColors?: boolean;
 }

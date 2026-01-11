@@ -1,5 +1,22 @@
 # Release Notes
 
+# v2.2.0
+
+## What's New
+- **Advanced Karaoke Effects**: Added 10+ new highlight effects including `Neon`, `Glow`, `Bounce`, `Wave`, and solid colors (`Blue`, `Purple`, `Green`, `Pink`, `Cyan`).
+- **Shape Highlights**: Introduced shape-based highlights: `Pill`, `Box`, and `Rounded Box` backgrounds.
+- **Customizable Highlight Colors**: New color pickers for **Text/Glow Color** and **Background/Shape Color** allow for full personalization of karaoke effects.
+- **TTML/XML Support**: Native support for `.ttml` and `.xml` lyric files with word-level timing precision (Karaoke mode).
+- **Polished Settings UI**: Redesigned dropdowns in the Render Settings panel (Highlight, Background, FPS, Codec, etc.) with a modern, grouped interface.
+- **Improved Keyboard Shortcuts**: 
+    - **X**: Toggle Highlight Effect On/Off.
+    - **Z**: Cycle through all available Highlight Effects.
+    - Added "Visual Effects" section to the Keyboard Shortcuts help modal.
+- **Improved TTML Handling**: Enhanced parsing and export of Word-Level timing data (`<span>` tags) for precise karaoke synchronization.
+- **Smart Presets**: Selecting a named color effect (e.g., "Karaoke Blue") automatically configures the custom color pickers.
+- **Refined Rendering**: Improved visual consistency for both live playback and video export.
+
+
 # v2.1.0
 
 ## What's New

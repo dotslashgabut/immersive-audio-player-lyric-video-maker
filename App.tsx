@@ -6,7 +6,7 @@ import {
   ChevronUp, ChevronDown
 } from './components/Icons';
 import { AudioMetadata, LyricLine, TabView, VisualSlide, VideoPreset, PlaylistItem, RenderConfig } from './types';
-import { formatTime, parseLRC, parseSRT } from './utils/parsers';
+import { formatTime, parseLRC, parseSRT, parseTTML } from './utils/parsers';
 import VisualEditor from './components/VisualEditor';
 import PlaylistEditor from './components/PlaylistEditor';
 import RenderSettings from './components/RenderSettings';
@@ -101,6 +101,7 @@ function App() {
     introMode: 'auto',
     introText: '',
     textCase: 'none',
+    highlightEffect: 'karaoke',
   });
 
   // Ref to access latest config in event handlers without triggering re-renders
@@ -279,6 +280,13 @@ function App() {
           parsedLyrics = parseLRC(text);
         } else if (ext === 'srt') {
           parsedLyrics = parseSRT(text);
+        } else if (ext === 'ttml' || ext === 'xml') {
+          parsedLyrics = parseTTML(text);
+          // Auto-enable karaoke highlight if word-level data is detected
+          if (parsedLyrics.some(l => l.words && l.words.length > 0)) {
+            setRenderConfig(prev => ({ ...prev, highlightEffect: 'karaoke' }));
+            toast.success("TTML loaded with word-level timing! Karaoke mode enabled.");
+          }
         }
         setLyrics(parsedLyrics);
       } catch (err) {
@@ -345,12 +353,24 @@ function App() {
     // Load Lyrics
     if (track.parsedLyrics && track.parsedLyrics.length > 0) {
       setLyrics(track.parsedLyrics);
+      if (track.parsedLyrics.some(l => l.words && l.words.length > 0)) {
+        setRenderConfig(prev => ({ ...prev, highlightEffect: 'karaoke' }));
+      }
     } else if (track.lyricFile) {
       try {
         const text = await track.lyricFile.text();
         const ext = track.lyricFile.name.split('.').pop()?.toLowerCase();
-        if (ext === 'lrc') setLyrics(parseLRC(text));
-        else if (ext === 'srt') setLyrics(parseSRT(text));
+        let parsed: LyricLine[] = [];
+        if (ext === 'lrc') parsed = parseLRC(text);
+        else if (ext === 'srt') parsed = parseSRT(text);
+        else if (ext === 'ttml' || ext === 'xml') parsed = parseTTML(text);
+
+        setLyrics(parsed);
+
+        if (parsed.some(l => l.words && l.words.length > 0)) {
+          setRenderConfig(prev => ({ ...prev, highlightEffect: 'karaoke' }));
+        }
+
       } catch (e) {
         console.error("Failed to load lyrics", e);
       }
@@ -484,6 +504,7 @@ function App() {
             const ext = item.lyricFile.name.split('.').pop()?.toLowerCase();
             if (ext === 'lrc') trackLyrics = parseLRC(text);
             else if (ext === 'srt') trackLyrics = parseSRT(text);
+            else if (ext === 'ttml' || ext === 'xml') trackLyrics = parseTTML(text);
           } catch (e) {
             console.error("Failed to parse lyrics for playlist item", e);
           }
@@ -1004,7 +1025,7 @@ function App() {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Check if the key shoud trigger UI wake-up
       const key = e.key.toLowerCase();
-      const ignoredKeysForIdle = [' ', 'k', 's', 't', 'l', 'r', 'f', 'h', 'g', 'm', 'j', 'd', 'e', 'c', 'x', 'arrowleft', 'arrowright', 'arrowup', 'arrowdown', 'meta', 'control', 'shift', 'alt', 'printscreen', 'fn', '+', '-', '='];
+      const ignoredKeysForIdle = [' ', 'k', 's', 't', 'l', 'r', 'f', 'h', 'g', 'm', 'j', 'd', 'e', 'c', 'x', 'z', 'arrowleft', 'arrowright', 'arrowup', 'arrowdown', 'meta', 'control', 'shift', 'alt', 'printscreen', 'fn', '+', '-', '='];
 
       if (!ignoredKeysForIdle.includes(key)) {
         resetIdleTimer();
@@ -1098,6 +1119,33 @@ function App() {
         case 'm': // Mute
           e.preventDefault();
           setIsMuted(prev => !prev);
+          break;
+        case 'x': // Toggle Highlight Effect
+          e.preventDefault();
+          setRenderConfig(prev => ({
+            ...prev,
+            highlightEffect: prev.highlightEffect === 'none' ? 'karaoke' : 'none'
+          }));
+          toast.success(`Highlight: ${renderConfigRef.current.highlightEffect === 'none' ? 'On (Karaoke)' : 'Off'}`);
+          break;
+        case 'z': // Cycle Highlight Effect
+          e.preventDefault();
+          const highlightEffects = [
+            'none', 'color', 'scale', 'glow', 'background',
+            'karaoke', 'karaoke-fill', 'karaoke-outline', 'karaoke-underline', 'karaoke-shadow', 'karaoke-gradient',
+            'karaoke-bounce', 'karaoke-wave', 'karaoke-scale',
+            'karaoke-neon', 'karaoke-glow-blue', 'karaoke-glow-pink',
+            'karaoke-blue', 'karaoke-purple', 'karaoke-green', 'karaoke-pink', 'karaoke-cyan',
+            'karaoke-pill', 'karaoke-box', 'karaoke-rounded'
+          ];
+          setRenderConfig(prev => {
+            const currentEffect = prev.highlightEffect || 'none';
+            const idx = highlightEffects.indexOf(currentEffect as string);
+            const nextIdx = (idx + 1) % highlightEffects.length;
+            const nextEffect = highlightEffects[nextIdx] as any;
+            toast.success(`Effect: ${nextEffect.replace(/-/g, ' ')}`);
+            return { ...prev, highlightEffect: nextEffect };
+          });
           break;
         case 'j': // Cycle Preset
           e.preventDefault();
@@ -1981,6 +2029,167 @@ function App() {
                   textContent = textContent.substring(0, Math.max(0, Math.floor((currentTime - line.time) * 35)));
                 }
 
+                // --- Highlight Effect Logic ---
+                // If we have word-level data and exact highlight effect (e.g. Karaoke)
+                // We render words individually.
+                let contentRender: React.ReactNode = textContent;
+
+                if (isActive && renderConfig.highlightEffect !== 'none') {
+                  const hEffect = renderConfig.highlightEffect;
+                  const hasWords = line.words && line.words.length > 0;
+
+                  if ((hEffect === 'karaoke' || hEffect?.startsWith('karaoke-')) && hasWords) {
+                    // Word-level Karaoke with variants
+                    contentRender = line.words!.map((w, wIdx) => {
+                      // Apply Casing to individual words
+                      let wText = w.text;
+                      if (casing === 'upper') wText = wText.toUpperCase();
+                      else if (casing === 'lower') wText = wText.toLowerCase();
+                      else if (casing === 'title') wText = wText.replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase());
+                      else if (casing === 'sentence') {
+                        const lower = wText.toLowerCase();
+                        wText = (wIdx === 0) ? lower.charAt(0).toUpperCase() + lower.slice(1) : lower;
+                      }
+                      else if (casing === 'invert') wText = wText.replace(/\w\S*/g, (txt) => txt.charAt(0).toLowerCase() + txt.slice(1).toUpperCase());
+
+                      const wStart = w.startTime + lyricOffset;
+                      const wEnd = w.endTime + lyricOffset;
+                      const isWordActive = currentTime >= wStart && currentTime < wEnd;
+                      const isWordPast = currentTime >= wEnd;
+
+                      let wordStyle: React.CSSProperties = { display: 'inline-block', margin: '0 4px', transition: 'all 0.1s ease' }; // Base style
+
+                      // Apply Global Decoration
+                      if (renderConfig.textDecoration && renderConfig.textDecoration !== 'none') {
+                        wordStyle.textDecoration = renderConfig.textDecoration;
+                      }
+
+                      // Inactive/Future state defaults
+                      if (!isWordActive && !isWordPast) {
+                        wordStyle.opacity = 0.5;
+                        wordStyle.transform = 'scale(1)';
+                      } else if (isWordPast) {
+                        wordStyle.color = preset === 'custom' ? renderConfig.fontColor : 'white';
+                        wordStyle.opacity = 1;
+                      }
+
+                      // Active State Per Effect
+                      if (isWordActive) {
+                        const hColor = renderConfig.highlightColor || '#fb923c';
+                        const hBg = renderConfig.highlightBackground || '#fb923c';
+
+                        if (hEffect === 'karaoke' || hEffect === 'color') {
+                          wordStyle.color = hColor;
+                          wordStyle.textShadow = `0 0 10px ${hColor}`;
+                        } else if (hEffect === 'karaoke-neon') {
+                          wordStyle.color = '#fff';
+                          wordStyle.textShadow = `0 0 5px #fff, 0 0 10px #fff, 0 0 20px ${hColor}, 0 0 35px ${hColor}`;
+                        } else if (hEffect === 'karaoke-scale') {
+                          wordStyle.color = hColor;
+                          wordStyle.transform = 'scale(1.3)';
+                        } else if (hEffect === 'karaoke-underline') {
+                          wordStyle.color = hColor;
+                          wordStyle.textDecoration = (wordStyle.textDecoration || '') + ' underline';
+                          wordStyle.textDecorationColor = hColor;
+                          wordStyle.textUnderlineOffset = '4px';
+                        } else if (hEffect === 'karaoke-bounce') {
+                          wordStyle.color = hColor;
+                          wordStyle.transform = 'translateY(-10px)';
+                        } else if (hEffect === 'karaoke-fill') {
+                          wordStyle.backgroundColor = hBg;
+                          wordStyle.color = '#000';
+                          wordStyle.padding = '2px 6px';
+                          wordStyle.borderRadius = '4px';
+                        } else if (hEffect === 'karaoke-outline') {
+                          wordStyle.color = 'transparent';
+                          wordStyle.WebkitTextStroke = `2px ${hColor}`;
+                        } else if (hEffect === 'karaoke-shadow') {
+                          wordStyle.color = hColor;
+                          wordStyle.textShadow = '3px 3px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000';
+                        } else if (hEffect === 'karaoke-gradient') {
+                          wordStyle.background = `linear-gradient(90deg, ${hColor}, ${hBg})`;
+                          wordStyle.WebkitBackgroundClip = 'text';
+                          wordStyle.WebkitTextFillColor = 'transparent';
+                        } else if (hEffect === 'karaoke-wave') {
+                          wordStyle.color = hColor;
+                          wordStyle.animation = 'bounce 0.3s ease infinite';
+                        } else if (hEffect === 'karaoke-pill') {
+                          wordStyle.backgroundColor = hBg;
+                          wordStyle.color = '#000';
+                          wordStyle.padding = '4px 16px';
+                          wordStyle.borderRadius = '9999px';
+                        } else if (hEffect === 'karaoke-box') {
+                          wordStyle.backgroundColor = hBg;
+                          wordStyle.color = '#000';
+                          wordStyle.padding = '4px 8px';
+                          wordStyle.borderRadius = '0';
+                        } else if (hEffect === 'karaoke-rounded') {
+                          wordStyle.backgroundColor = hBg;
+                          wordStyle.color = '#000';
+                          wordStyle.padding = '4px 12px';
+                          wordStyle.borderRadius = '12px';
+                        }
+
+                        // Handle legacy color names by mapping them to use the custom color if user wants, 
+                        // or keep them hardcoded. For now, let's make them respect the custom color 
+                        // effectively treating the preset name as just a "style" of effect but allowing color override.
+                        // However, to keep it simple, I'll update the explicit color ones to use defaults BUT
+                        // since the user now has a color picker, they probably want that color to apply everywhere.
+                        // I will update the "karaoke-blue", "purple" etc to just be aliases for standard colored styling
+                        // but using the user's SELECTED color if they changed it, or defaults if they didn't.
+                        // actually, the prompt implies "pilihlah highlight effect ini untuk mengatur highlight font"
+                        // so all effects should respect the color picker.
+
+                        else if (['karaoke-blue', 'karaoke-purple', 'karaoke-green', 'karaoke-pink', 'karaoke-cyan', 'karaoke-glow-blue', 'karaoke-glow-pink'].includes(hEffect || '')) {
+                          wordStyle.color = hColor;
+                          wordStyle.textShadow = `0 0 10px ${hColor}`;
+                          if (hEffect?.includes('glow')) {
+                            wordStyle.textShadow = `0 0 5px ${hColor}, 0 0 15px ${hColor}, 0 0 30px ${hColor}`;
+                          }
+                        }
+                      }
+
+                      return (
+                        <span key={wIdx} className="inline-block" style={wordStyle}>
+                          {wText}
+                        </span>
+                      );
+                    });
+                  } else if (hEffect === 'karaoke' || hEffect?.startsWith('karaoke-')) {
+                    // Fallback Karaoke (Line Fill)
+                    const hColor = renderConfig.highlightColor || '#fb923c';
+                    const hBg = renderConfig.highlightBackground || '#fb923c';
+
+                    textEffectStyles.color = hColor;
+
+                    if (hEffect === 'karaoke-neon') textEffectStyles.textShadow = `0 0 10px ${hColor}, 0 0 20px ${hColor}`; // Simplify fallback neon
+                    if (hEffect === 'karaoke-scale') textEffectStyles.transform = (textEffectStyles.transform || '') + ' scale(1.1)';
+                    if (hEffect === 'karaoke-underline') textEffectStyles.textDecoration = 'underline';
+                    if (hEffect === 'karaoke-bounce') textEffectStyles.transform = (textEffectStyles.transform || '') + ' translateY(-5px)';
+                    if (hEffect === 'karaoke-fill') { textEffectStyles.backgroundColor = hBg; textEffectStyles.color = '#000'; textEffectStyles.padding = '4px 12px'; textEffectStyles.borderRadius = '6px'; }
+                    if (hEffect === 'karaoke-outline') { textEffectStyles.color = 'transparent'; (textEffectStyles as any).WebkitTextStroke = `2px ${hColor}`; }
+                    if (hEffect === 'karaoke-shadow') textEffectStyles.textShadow = `3px 3px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000`;
+                    if (hEffect === 'karaoke-gradient') { textEffectStyles.background = `linear-gradient(90deg, ${hColor}, ${hBg})`; (textEffectStyles as any).WebkitBackgroundClip = 'text'; (textEffectStyles as any).WebkitTextFillColor = 'transparent'; }
+
+                    if (['karaoke-pill', 'karaoke-box', 'karaoke-rounded'].includes(hEffect!)) {
+                      textEffectStyles.backgroundColor = hBg;
+                      textEffectStyles.color = '#000';
+                      textEffectStyles.padding = '4px 16px';
+                      textEffectStyles.borderRadius = hEffect === 'karaoke-pill' ? '9999px' : hEffect === 'karaoke-rounded' ? '12px' : '0';
+                    }
+                    if (hEffect?.includes('glow')) {
+                      textEffectStyles.textShadow = `0 0 10px ${hColor}, 0 0 20px ${hColor}`;
+                    }
+
+                  } else if (hEffect === 'scale') {
+                    textEffectStyles.color = renderConfig.highlightColor || '#fb923c';
+                  } else if (renderConfig.highlightEffect === 'background') {
+                    textEffectStyles.backgroundColor = (renderConfig.highlightBackground || '#fb923c') + '4D'; // 30% alpha roughly
+                    textEffectStyles.padding = '0 10px';
+                    textEffectStyles.borderRadius = '8px';
+                  }
+                }
+
                 return (
                   <p
                     key={idx}
@@ -2001,7 +2210,7 @@ function App() {
                       }
                     }}
                   >
-                    {textContent}
+                    {contentRender}
                   </p>
                 );
               })}
@@ -2077,7 +2286,7 @@ function App() {
                   <div className="flex items-center gap-1">
                     <label className={`p-2 rounded-lg hover:bg-white/10 cursor-pointer transition-colors ${lyrics.length > 0 ? 'text-purple-400' : 'text-zinc-400 hover:text-white'}`} title="Load Lyrics (.lrc, .srt)">
                       <FileText size={18} />
-                      <input type="file" accept=".lrc,.srt" className="hidden" onChange={handleLyricsUpload} disabled={isRendering} />
+                      <input type="file" accept=".lrc,.srt,.ttml,.xml" className="hidden" onChange={handleLyricsUpload} disabled={isRendering} />
                     </label>
                     {lyrics.length > 0 && (
                       <button
@@ -2252,6 +2461,15 @@ function App() {
                     >
                       {isBlurEnabled ? 'BLUR' : 'SHARP'}
                     </button>
+                    {/* Highlight Toggle */}
+                    <button
+                      onClick={() => setRenderConfig(prev => ({ ...prev, highlightEffect: prev.highlightEffect === 'none' ? 'karaoke' : 'none' }))}
+                      className={`p-2 rounded-full transition-all ${renderConfig.highlightEffect !== 'none' ? 'bg-orange-500 text-white shadow-[0_0_15px_rgba(249,115,22,0.5)]' : 'hover:bg-zinc-800 text-zinc-400'}`}
+                      title="Toggle Lyric Highlight"
+                    >
+                      <Type size={20} />
+                    </button>
+
                     {/* Resolution Toggle */}
                     <button
                       onClick={() => setResolution(prev => prev === '1080p' ? '720p' : '1080p')}
@@ -2300,7 +2518,8 @@ function App() {
                   </div>
 
                   {/* FPS Selection */}
-                  <div className="relative group">
+                  {/* FPS Selection (Hidden) */}
+                  {/* <div className="relative group">
                     <select
                       value={renderFps}
                       onChange={(e) => setRenderFps(parseInt(e.target.value))}
@@ -2317,7 +2536,7 @@ function App() {
                     <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-1 text-zinc-500">
                       <svg className="fill-current h-3 w-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" /></svg>
                     </div>
-                  </div>
+                  </div> */}
 
                   {/* Quality/Bitrate Selection */}
                   <div className="relative group">

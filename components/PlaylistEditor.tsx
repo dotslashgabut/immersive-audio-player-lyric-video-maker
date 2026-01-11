@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import { PlaylistItem, LyricLine } from '../types';
 import { Plus, Trash2, Play, Volume2, FileText, ListMusic, Shuffle, User, Disc, Music, X, Sparkles, Loader2, FileJson, FileType, FileDown, Key, Upload, Square } from './Icons';
-import { formatTime, parseLRC, parseSRT, parseTimestamp } from '../utils/parsers';
+import { formatTime, parseLRC, parseSRT, parseTTML, parseTimestamp } from '../utils/parsers';
 import { useUI } from '../contexts/UIContext';
 import { transcribeAudio } from '../services/geminiService';
 
@@ -35,6 +35,7 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
     const [transcribingIds, setTranscribingIds] = useState<Set<string>>(new Set());
     const [apiKey, setApiKey] = useState<string>(localStorage.getItem('gemini_api_key') || '');
     const [selectedModel, setSelectedModel] = useState<string>('gemini-2.5-flash');
+    const [transcriptionGranularity, setTranscriptionGranularity] = useState<'line' | 'word'>('line');
     const [showApiKeyInput, setShowApiKeyInput] = useState(false);
 
     // Manual lyric upload
@@ -182,7 +183,7 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
             // Simple extension check
             if (['mp3', 'wav', 'ogg', 'flac', 'm4a'].includes(ext || '')) {
                 group.audio = file;
-            } else if (['lrc', 'srt'].includes(ext || '')) {
+            } else if (['lrc', 'srt', 'ttml', 'xml'].includes(ext || '')) {
                 group.lyric = file;
             }
         });
@@ -238,6 +239,7 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
                 const ext = file.name.split('.').pop()?.toLowerCase();
                 if (ext === 'lrc') return parseLRC(text);
                 if (ext === 'srt') return parseSRT(text);
+                if (ext === 'ttml' || ext === 'xml') return parseTTML(text);
             } catch (e) {
                 console.error("Failed to parse lyrics", e);
             }
@@ -409,13 +411,19 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
                 base64Data,
                 item.audioFile.type,
                 keyToUse,
-                controller.signal
+                controller.signal,
+                transcriptionGranularity
             );
 
             let transcribedLyrics: LyricLine[] = segments.map(s => ({
                 time: parseTimestamp(s.startTime),
                 text: s.text,
-                endTime: parseTimestamp(s.endTime)
+                endTime: parseTimestamp(s.endTime),
+                words: s.words ? s.words.map(w => ({
+                    text: w.text,
+                    startTime: parseTimestamp(w.startTime),
+                    endTime: parseTimestamp(w.endTime)
+                })) : undefined
             }));
 
             // Filter out lyrics beyond duration
@@ -473,7 +481,7 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
         URL.revokeObjectURL(url);
     };
 
-    const exportLyrics = async (item: PlaylistItem, format: 'txt' | 'json' | 'srt' | 'lrc') => {
+    const exportLyrics = async (item: PlaylistItem, format: 'txt' | 'json' | 'srt' | 'lrc' | 'ttml') => {
         const rawLyrics = item.parsedLyrics || [];
         if (rawLyrics.length === 0) return;
 
@@ -555,7 +563,45 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
             }
 
             content = lrcLines.join("\n");
+        } else if (format === 'ttml') {
+            const toTTMLTime = (sec: number) => {
+                const hrs = Math.floor(sec / 3600).toString().padStart(2, '0');
+                const mins = Math.floor((sec % 3600) / 60).toString().padStart(2, '0');
+                const secs = Math.floor(sec % 60).toString().padStart(2, '0');
+                const ms = Math.floor((sec % 1) * 1000).toString().padStart(3, '0');
+                return `${hrs}:${mins}:${secs}.${ms}`;
+            };
+
+            content = `<?xml version="1.0" encoding="UTF-8"?>\n<tt xml:lang="en" xmlns="http://www.w3.org/ns/ttml" xmlns:tts="http://www.w3.org/ns/ttml#styling">\n  <body>\n    <div>`;
+
+            rawLyrics.forEach(l => {
+                const begin = toTTMLTime(l.time);
+                // Calculate end time: use line endTime if available, else try next line start, else default +3s
+                // However, rawLyrics here is a flat array, we can peek next if we want perfect line ends,
+                // but relying on l.endTime (which comes from transcription) is best for karaoke.
+                // Fallback to time + 3.0s if undefined.
+                const end = toTTMLTime(l.endTime || (l.time + 3.0));
+
+                content += `\n      <p begin="${begin}" end="${end}">`;
+
+                if (l.words && l.words.length > 0) {
+                    l.words.forEach((w) => {
+                        const wBegin = toTTMLTime(w.startTime);
+                        const wEnd = toTTMLTime(w.endTime);
+                        // Add trailing space to words for readability, except perhaps strictly necessary
+                        const textWithSpace = w.text.endsWith(' ') ? w.text : w.text + ' ';
+                        content += `\n        <span begin="${wBegin}" end="${wEnd}">${textWithSpace}</span>`;
+                    });
+                } else {
+                    // Fallback if no words, just wrap text in one span or just plain text?
+                    // Request implies structure: <p> <span>...</span> </p>
+                    content += `\n        <span begin="${begin}" end="${end}">${l.text}</span>`;
+                }
+                content += `\n      </p>`;
+            });
+            content += `\n    </div>\n  </body>\n</tt>`;
         }
+
 
         downloadFile(content, filename, 'application/octet-stream');
     };
@@ -583,6 +629,7 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
 
             if (ext === 'lrc') parsed = parseLRC(text);
             else if (ext === 'srt') parsed = parseSRT(text);
+            else if (ext === 'ttml' || ext === 'xml') parsed = parseTTML(text);
 
             if (parsed.length > 0) {
                 setPlaylist(prev => prev.map(p =>
@@ -617,7 +664,7 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
                     <div className="flex flex-col items-center gap-4 text-orange-500 animate-pulse">
                         <Upload size={48} />
                         <h3 className="text-xl font-bold">Drop Audio & Lyrics Here</h3>
-                        <p className="text-sm text-zinc-400">Supported formats: MP3, WAV, OGG, FLAC, M4A, LRC, SRT</p>
+                        <p className="text-sm text-zinc-400">Supported formats: MP3, WAV, OGG, FLAC, M4A, LRC, SRT, TTML</p>
                     </div>
                 </div>
             )}
@@ -625,7 +672,7 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
                 type="file"
                 ref={lyricFileInputRef}
                 className="hidden"
-                accept=".lrc,.srt"
+                accept=".lrc,.srt,.ttml,.xml"
                 onChange={handleManualLyricUpload}
             />
             {/* Header */}
@@ -638,7 +685,7 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
                     <div className="w-px h-4 bg-zinc-700"></div>
                     <label className="flex items-center gap-2 px-3 py-1 bg-orange-600 hover:bg-orange-500 rounded text-xs font-medium cursor-pointer transition-colors text-white whitespace-nowrap">
                         <Plus size={14} /> Add Audio & Lyrics
-                        <input type="file" className="hidden" accept="audio/*,.lrc,.srt" multiple onChange={handleFileUpload} />
+                        <input type="file" className="hidden" accept="audio/*,.lrc,.srt,.ttml,.xml" multiple onChange={handleFileUpload} />
                     </label>
                     <div className="w-px h-4 bg-zinc-700"></div>
                     {/* Sort Icons */}
@@ -715,6 +762,22 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
                         </select>
                     </div>
 
+                    {/* Mode Dropdown */}
+                    <div className="relative group">
+                        <select
+                            value={transcriptionGranularity}
+                            onChange={(e) => setTranscriptionGranularity(e.target.value as 'word' | 'line')}
+                            className="bg-zinc-800 text-[10px] text-zinc-300 border border-zinc-700 rounded px-1 py-1 focus:outline-none focus:border-orange-500 appearance-none cursor-pointer hover:bg-zinc-700 w-[60px]"
+                            title="Transcription Mode (Line vs Word)"
+                        >
+                            <option value="line">Line</option>
+                            <option value="word">Word</option>
+                        </select>
+                        <div className="hidden group-hover:block absolute bottom-full mb-1 left-1/2 -translate-x-1/2 whitespace-nowrap bg-black text-[9px] text-white px-2 py-1 rounded">
+                            Word mode is slower but supports TTML animations
+                        </div>
+                    </div>
+
                     <button
                         onClick={async () => {
                             if (playlist.length > 0 && await confirm("Clear entire playlist?", "Clear Playlist")) {
@@ -745,7 +808,7 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
                     <div className="h-full flex flex-col items-center justify-center text-zinc-500 text-xs">
                         <ListMusic size={32} className="mb-2 opacity-50" />
                         <p>Playlist is empty</p>
-                        <p className="opacity-50">Add audio files (matches .lrc/.srt by name)</p>
+                        <p className="opacity-50">Add audio files (matches .lrc/.srt/.ttml by name)</p>
                     </div>
                 ) : (
                     playlist.map((item, idx) => {
@@ -895,6 +958,7 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
                                             <button onClick={(e) => { e.stopPropagation(); exportLyrics(item, 'txt'); }} className="p-1 hover:bg-white/10 rounded text-[8px] text-zinc-400 font-bold" title="Download TXT">TXT</button>
                                             <button onClick={(e) => { e.stopPropagation(); exportLyrics(item, 'lrc'); }} className="p-1 hover:bg-white/10 rounded text-[8px] text-zinc-400 font-bold" title="Download LRC">LRC</button>
                                             <button onClick={(e) => { e.stopPropagation(); exportLyrics(item, 'srt'); }} className="p-1 hover:bg-white/10 rounded text-[8px] text-zinc-400 font-bold" title="Download SRT">SRT</button>
+                                            <button onClick={(e) => { e.stopPropagation(); exportLyrics(item, 'ttml'); }} className="p-1 hover:bg-white/10 rounded text-[8px] text-zinc-400 font-bold" title="Download TTML">TTML</button>
                                             <button onClick={(e) => { e.stopPropagation(); exportLyrics(item, 'json'); }} className="p-1 hover:bg-white/10 rounded text-[8px] text-zinc-400 font-bold" title="Download JSON">JSON</button>
                                             <div className="w-px h-3 bg-zinc-700 mx-0.5"></div>
                                             <button onClick={(e) => { e.stopPropagation(); handleClearLyrics(item); }} className="p-1 hover:bg-red-900/50 rounded text-[8px] text-red-500 hover:text-red-300 font-bold" title="Clear Lyrics">CLR</button>

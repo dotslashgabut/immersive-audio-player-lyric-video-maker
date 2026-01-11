@@ -33,6 +33,37 @@ const TRANSCRIPTION_SCHEMA = {
   required: ["segments"],
 };
 
+const WORD_LEVEL_SCHEMA = {
+  type: Type.OBJECT,
+  properties: {
+    segments: {
+      type: Type.ARRAY,
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          startTime: { type: Type.STRING },
+          endTime: { type: Type.STRING },
+          text: { type: Type.STRING },
+          words: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                text: { type: Type.STRING, description: "The single word" },
+                startTime: { type: Type.STRING, description: "Start time of the word" },
+                endTime: { type: Type.STRING, description: "End time of the word" }
+              },
+              required: ["text", "startTime", "endTime"]
+            }
+          }
+        },
+        required: ["startTime", "endTime", "text", "words"],
+      },
+    },
+  },
+  required: ["segments"],
+};
+
 /**
  * Robustly normalizes timestamp strings to HH:MM:SS.mmm
  */
@@ -95,7 +126,6 @@ function tryRepairJson(jsonString: string): any {
     if (parsed.segments && Array.isArray(parsed.segments)) {
       return parsed;
     }
-    // Handle if it returns array directly (legacy robustness)
     if (Array.isArray(parsed)) {
       return { segments: parsed };
     }
@@ -103,8 +133,23 @@ function tryRepairJson(jsonString: string): any {
     // Continue
   }
 
+  // Attempt to close truncated JSON
   const lastObjectEnd = trimmed.lastIndexOf('}');
   if (lastObjectEnd !== -1) {
+    // Try to close array and object if they look open
+    // This is a naive heuristic but works for many truncated array cases
+    // We try adding ]} and if that fails, maybe we just need }
+    const sets = ["]}", "}", "]}"];
+    for (const suffix of sets) {
+      try {
+        const repaired = trimmed + suffix;
+        const parsed = JSON.parse(repaired);
+        if (parsed.segments) return parsed;
+      } catch (e) { }
+    }
+
+    // As a fallback for simple line-based (not word-based) we can use regex
+    // but for word-based we rely on valid JSON structure mostly.
     const repaired = trimmed.substring(0, lastObjectEnd + 1) + "]}";
     try {
       const parsed = JSON.parse(repaired);
@@ -114,6 +159,11 @@ function tryRepairJson(jsonString: string): any {
     } catch (e) {
       // Continue
     }
+  }
+
+  // Regex fallback (Only for simple schema, skipping if it looks like word-level to avoid corruption)
+  if (trimmed.includes('"words"')) {
+    throw new Error("Complex nested JSON (word-level) could not be parsed. PLease try again.");
   }
 
   const segments = [];
@@ -149,61 +199,27 @@ export async function transcribeAudio(
   audioBase64: string,
   mimeType: string,
   apiKey?: string,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  granularity: 'word' | 'line' = 'line'
 ): Promise<TranscriptionSegment[]> {
   try {
     const ai = getAI(apiKey);
     const isGemini3 = modelName.includes('gemini-3');
 
-    const timingPolicy = `
-    STRICT TIMING POLICY:
-    1. FORMAT: Use **MM:SS.mmm** (e.g. 01:05.300).
-    2. ABSOLUTE & CUMULATIVE: Timestamps must be relative to the START of the file.
-    3. MONOTONICITY: Time MUST always move forward. startTime[n] >= endTime[n-1].
-    4. ACCURACY: Sync text exactly to when it is spoken.
-    `;
-
-    const verbatimPolicy = `
-    VERBATIM & FIDELITY:
-    1. STRICT VERBATIM: Transcribe EXACTLY what is spoken. Do not paraphrase, summarize, or "correct" grammar.
-    2. REPETITIONS: Include all repetitions (e.g. "I... I... I don't know").
-    3. NO CLEANUP: Do not remove filler words like "um", "ah", "uh".
-    `;
-
-    const completenessPolicy = `
-    COMPLETENESS POLICY (CRITICAL):
-    1. EXHAUSTIVE: You must transcribe the ENTIRE audio file from 00:00.000 until the end.
-    2. NO SKIPPING: Do not skip any sentences or words, even if they are quiet or fast.
-    3. NO DEDUPLICATION: If a speaker repeats the same sentence, you MUST transcribe it every time it is said.
-    `;
-
-    const segmentationPolicy = `
-    SEGMENTATION RULES (CRITICAL):
-    1. SPLIT REPETITIONS: If the audio contains repetitive sounds (e.g., "Eh eh eh", "Na na na", "La la la"), these MUST be in a separate segment from the main lyrics.
-       - WRONG: "Eh eh eh eh eh eh, Lorem ipsum dolor sit amet"
-       - CORRECT: 
-         Segment 1: "Eh eh eh eh eh eh"
-         Segment 2: "Lorem ipsum dolor sit amet"
-    2. SHORT SEGMENTS: Keep segments short (max 1 phrase or 4-6 seconds). Break at natural pauses (breaths, musical shifts).
-    3. NO RUN-ON SENTENCES: Do not combine multiple distinct lyrical lines into one segment.
-    `;
-
-    const antiHallucinationPolicy = `
-    ANTI-HALLUCINATION:
-    1. NO INVENTED TEXT: Do NOT output text if no speech is present.
-    2. NO GUESSING: If audio is absolutely unintelligible, skip it.
-    3. NO LABELS: Do not add speaker labels (like "Speaker 1:").
-    `;
-
-    const jsonSafetyPolicy = `
-    JSON FORMATTING SAFETY:
-    1. TEXT ESCAPING: The 'text' field MUST be wrapped in DOUBLE QUOTES (").
-    2. INTERNAL QUOTES: If the text contains a double quote, ESCAPE IT (e.g. \\"). 
+    // Condensed policies for faster processing
+    const policies = `
+    RULES:
+    1. TIMING: Use **MM:SS.mmm** (e.g. 01:05.300). Absolute from start. Sync EXACTLY to speech.
+    2. VERBATIM: Transcribe exactly what is spoken. Include repetitions (e.g. "Na na na"). Do not paraphrase.
+    3. COMPLETENESS: Transcribe the ENTIRE file. Do not skip fast sections.
+    4. SEGMENTATION: Split recurring phrases. Max segment length ~5s. Break at pauses.
+    5. NO HALLUCINATION: Only transcribe audible speech.
+    6. JSON SAFETY: Escape double quotes in text (e.g. \\").
     `;
 
     const requestConfig: any = {
       responseMimeType: "application/json",
-      responseSchema: TRANSCRIPTION_SCHEMA,
+      responseSchema: granularity === 'word' ? WORD_LEVEL_SCHEMA : TRANSCRIPTION_SCHEMA,
       temperature: 0,
     };
 
@@ -231,14 +247,11 @@ export async function transcribeAudio(
               {
                 text: `You are a high-fidelity, verbatim audio transcription engine optimized for **Lyrics**. Your output must be exhaustive, complete, and perfectly timed.
                 
-                ${timingPolicy}
-                ${segmentationPolicy}
-                ${verbatimPolicy}
-                ${completenessPolicy}
-                ${antiHallucinationPolicy}
-                ${jsonSafetyPolicy}
+                ${policies}
                 
                 REQUIRED FORMAT: JSON object with "segments" array. 
+                Granularity: ${granularity === 'word' ? '**WORD-LEVEL**' : 'Line-Level'}
+                ${granularity === 'word' ? 'You MUST include a "words" array for each segment containing every single word with its precise start/end time.' : ''}
                 Timestamps MUST be 'MM:SS.mmm'. Do not stop until you have reached the end of the audio.`,
               },
             ],
@@ -265,7 +278,12 @@ export async function transcribeAudio(
     return segments.map((s: any) => ({
       startTime: normalizeTimestamp(String(s.startTime)),
       endTime: normalizeTimestamp(String(s.endTime)),
-      text: String(s.text)
+      text: String(s.text),
+      words: s.words ? s.words.map((w: any) => ({
+        text: String(w.text),
+        startTime: normalizeTimestamp(String(w.startTime)),
+        endTime: normalizeTimestamp(String(w.endTime))
+      })) : undefined
     }));
   } catch (error: any) {
     if (error.name === 'AbortError') throw error;

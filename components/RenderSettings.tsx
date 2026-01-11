@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { X, Video, Settings, ImageIcon, Type, Layout, Palette, Music, FileText, Check, ListMusic, Bold, Italic, Underline, Strikethrough, AlignVerticalJustifyCenter, AlignVerticalJustifyStart, AlignVerticalJustifyEnd, Upload, Trash2, ChevronDown, Maximize, RotateCcw, Download, Keyboard as KeyboardIcon } from './Icons';
+import { X, Video, Settings, ImageIcon, Type, Layout, Palette, Music, FileText, Check, ListMusic, Bold, Italic, Underline, Strikethrough, AlignVerticalJustifyCenter, AlignVerticalJustifyStart, AlignVerticalJustifyEnd, Upload, Trash2, ChevronDown, Maximize, RotateCcw, Download, Keyboard as KeyboardIcon, Sparkles } from './Icons';
 import { RenderConfig, VideoPreset } from '../types';
 import { fontGroups } from '../utils/fonts';
 import { useUI } from '../contexts/UIContext';
@@ -34,6 +34,9 @@ const DEFAULT_CONFIG: RenderConfig = {
     introMode: 'auto',
     introText: '',
     textCase: 'none',
+    highlightEffect: 'karaoke',
+    highlightColor: '#fb923c', // Default Orange
+    highlightBackground: '#fb923c',
 };
 
 const textEffectGroups = [
@@ -182,6 +185,114 @@ const transitionGroups = [
             { label: "Motion Blur", value: "blur" },
             { label: "Shatter In", value: "shatter" },
             { label: "Typewriter", value: "typewriter" }
+        ]
+    }
+];
+
+const highlightEffectGroups = [
+    {
+        label: "Basic",
+        options: [
+            { label: "None", value: "none" },
+            { label: "Simple Color", value: "color" },
+            { label: "Scale Up", value: "scale" },
+            { label: "Intense Glow", value: "glow" },
+            { label: "Background Box", value: "background" }
+        ]
+    },
+    {
+        label: "Karaoke Standard",
+        options: [
+            { label: "Default (Line/Fill)", value: "karaoke" },
+            { label: "Fill Background", value: "karaoke-fill" },
+            { label: "Outline Only", value: "karaoke-outline" },
+            { label: "Underline", value: "karaoke-underline" },
+            { label: "Shadow", value: "karaoke-shadow" },
+            { label: "Gradient", value: "karaoke-gradient" }
+        ]
+    },
+    {
+        label: "Animations",
+        options: [
+            { label: "Bounce", value: "karaoke-bounce" },
+            { label: "Wave", value: "karaoke-wave" },
+            { label: "Zoom In", value: "karaoke-scale" }
+        ]
+    },
+    {
+        label: "Neon & Glow",
+        options: [
+            { label: "Neon White", value: "karaoke-neon" },
+            { label: "Glow Blue", value: "karaoke-glow-blue" },
+            { label: "Glow Pink", value: "karaoke-glow-pink" }
+        ]
+    },
+    {
+        label: "Solid Colors",
+        options: [
+            { label: "Blue", value: "karaoke-blue" },
+            { label: "Purple", value: "karaoke-purple" },
+            { label: "Green", value: "karaoke-green" },
+            { label: "Pink", value: "karaoke-pink" },
+            { label: "Cyan", value: "karaoke-cyan" }
+        ]
+    },
+    {
+        label: "Shapes",
+        options: [
+            { label: "Pill Shape", value: "karaoke-pill" },
+            { label: "Square Box", value: "karaoke-box" },
+            { label: "Rounded Box", value: "karaoke-rounded" }
+        ]
+    }
+];
+
+const backgroundSourceGroups = [
+    {
+        label: "Source",
+        options: [
+            { label: "From Timeline", value: "timeline" },
+            { label: "Metadata / Default", value: "custom" },
+            { label: "Smart Gradient", value: "smart-gradient" },
+            { label: "Gradient (Manual)", value: "gradient" },
+            { label: "Solid Color", value: "color" }
+        ]
+    }
+];
+
+const lyricDisplayGroups = [
+    {
+        label: "Display Modes",
+        options: [
+            { label: "Show All (Default)", value: "all" },
+            { label: "Prev & Next (Centered)", value: "previous-next" },
+            { label: "Current & Next", value: "next-only" },
+            { label: "Current Line Only", value: "active-only" }
+        ]
+    }
+];
+
+const infoStyleGroups = [
+    {
+        label: "Layout Styles",
+        options: [
+            { label: "Classic (Detailed)", value: "classic" },
+            { label: "Modern + Cover", value: "modern_art" },
+            { label: "Circle Cover", value: "circle_art" },
+            { label: "Modern (Text Only)", value: "modern" },
+            { label: "Boxed Cover", value: "box" },
+            { label: "Minimal (Text Only)", value: "minimal" }
+        ]
+    }
+];
+
+const fpsGroups = [
+    {
+        label: "Frame Rate",
+        options: [
+            { label: "24 FPS (Cinematic)", value: "24" },
+            { label: "30 FPS (Standard)", value: "30" },
+            { label: "60 FPS (Smooth)", value: "60" }
         ]
     }
 ];
@@ -405,7 +516,42 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
 
     const handleChange = (key: keyof RenderConfig, value: any) => {
         setPreset('custom');
-        setConfig({ ...config, [key]: value });
+
+        let newConfig = { ...config, [key]: value };
+
+        // Auto-set colors for specific highlight presets
+        if (key === 'highlightEffect') {
+            const effect = value as string;
+            let color = '';
+            let bg = '';
+
+            if (effect.includes('blue') || effect.includes('cyan')) {
+                color = effect.includes('cyan') ? '#06b6d4' : '#3b82f6';
+                bg = color;
+            } else if (effect.includes('purple')) {
+                color = '#a855f7';
+                bg = color;
+            } else if (effect.includes('green')) {
+                color = '#22c55e';
+                bg = color;
+            } else if (effect.includes('pink')) {
+                color = '#ec4899';
+                bg = color;
+            } else if (effect === 'karaoke-pill' || effect === 'karaoke-box' || effect === 'karaoke-rounded') {
+                // Default to orange for shapes if logic hits here without specific color
+                // But if user picks them, we might want to keep current color or reset to orange?
+                // Let's reset to orange for consistency with "Preset", or user can change after.
+                color = '#fb923c';
+                bg = '#fb923c';
+            }
+
+            if (color) {
+                newConfig.highlightColor = color;
+                newConfig.highlightBackground = bg;
+            }
+        }
+
+        setConfig(newConfig);
     };
 
     const handleReset = async () => {
@@ -456,6 +602,9 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                         renderFps: importedRenderFps,
                         renderQuality: importedRenderQuality,
                         preset: importedPreset, // Extract preset
+                        highlightColor: importedHighlightColor,
+                        highlightBackground: importedHighlightBackground,
+                        useCustomHighlightColors: importedUseCustomHighlightColors,
                         ...importedConfig
                     } = json;
 
@@ -468,6 +617,13 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                     if (newConfig.fontSizeScale) newConfig.fontSizeScale = Number(newConfig.fontSizeScale);
                     if (newConfig.infoMarginScale) newConfig.infoMarginScale = Number(newConfig.infoMarginScale);
                     if (newConfig.infoSizeScale) newConfig.infoSizeScale = Number(newConfig.infoSizeScale);
+
+                    // Restore custom Highlight colors if present
+                    if (importedHighlightColor) newConfig.highlightColor = importedHighlightColor;
+                    if (importedHighlightBackground) newConfig.highlightBackground = importedHighlightBackground;
+                    if (importedUseCustomHighlightColors !== undefined) {
+                        newConfig.useCustomHighlightColors = Boolean(importedUseCustomHighlightColors);
+                    }
 
                     setConfig(newConfig);
 
@@ -597,10 +753,9 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                     <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-2">
                         <ImageIcon size={14} /> Background Source
                     </h3>
-                    <select
+                    <GroupedSelection
                         value={config.backgroundSource}
-                        onChange={(e) => {
-                            const newSource = e.target.value;
+                        onChange={(newSource) => {
                             if (newSource === 'gradient' && !config.backgroundGradient) {
                                 setPreset('custom');
                                 setConfig({
@@ -626,14 +781,8 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                                 handleChange('backgroundSource', newSource);
                             }
                         }}
-                        className="w-full bg-zinc-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:ring-1 focus:ring-purple-500"
-                    >
-                        <option value="timeline">From Timeline</option>
-                        <option value="custom">Metadata / Default</option>
-                        <option value="smart-gradient">Smart Gradient</option>
-                        <option value="gradient">Gradient (Manual)</option>
-                        <option value="color">Solid Color</option>
-                    </select>
+                        groups={backgroundSourceGroups}
+                    />
 
                     {config.backgroundSource === 'smart-gradient' && (
                         <div className="flex items-center gap-3 bg-zinc-800/30 p-2 rounded-lg border border-white/5">
@@ -740,16 +889,81 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                     <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-2">
                         <FileText size={14} /> Lyric Display Mode
                     </h3>
-                    <select
+                    <GroupedSelection
                         value={config.lyricDisplayMode}
-                        onChange={(e) => handleChange('lyricDisplayMode', e.target.value)}
-                        className="w-full bg-zinc-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:ring-1 focus:ring-purple-500"
-                    >
-                        <option value="all">Show All (Default)</option>
-                        <option value="previous-next">Prev & Next (Centered)</option>
-                        <option value="next-only">Current & Next</option>
-                        <option value="active-only">Current Line Only</option>
-                    </select>
+                        onChange={(val) => handleChange('lyricDisplayMode', val)}
+                        groups={lyricDisplayGroups}
+                    />
+                </section>
+
+                {/* Highlight Effect */}
+                <section className="space-y-3">
+                    <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-2">
+                        <Sparkles size={14} /> Highlight Effect
+                    </h3>
+                    <GroupedSelection
+                        value={config.highlightEffect || 'none'}
+                        onChange={(val) => handleChange('highlightEffect', val)}
+                        groups={highlightEffectGroups}
+                    />
+
+                    {/* Highlight Color Pickers */}
+                    {(config.highlightEffect && config.highlightEffect !== 'none') && (
+                        <div className="mt-2 space-y-2 animate-in slide-in-from-top-2">
+                            <button
+                                onClick={() => handleChange('useCustomHighlightColors', !config.useCustomHighlightColors)}
+                                className={`w-full flex items-center justify-between p-2 rounded-lg border text-xs font-medium transition-all ${config.useCustomHighlightColors
+                                    ? 'bg-purple-900/30 border-purple-500/50 text-purple-200'
+                                    : 'bg-zinc-800 border-white/5 text-zinc-400 hover:bg-zinc-700'
+                                    }`}
+                            >
+                                <span>Custom Colors</span>
+                                <div className={`w-8 h-4 rounded-full p-0.5 transition-colors ${config.useCustomHighlightColors ? 'bg-purple-500' : 'bg-zinc-600'}`}>
+                                    <div className={`w-3 h-3 bg-white rounded-full shadow-sm transition-transform ${config.useCustomHighlightColors ? 'translate-x-4' : 'translate-x-0'}`} />
+                                </div>
+                            </button>
+
+                            {config.useCustomHighlightColors && (
+                                <div className="grid grid-cols-2 gap-3 animate-in fade-in duration-200">
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] text-zinc-400 font-bold uppercase">Text/Glow Color</label>
+                                        <div className="flex items-center gap-2 bg-zinc-800 p-1.5 rounded-lg border border-white/5">
+                                            <input
+                                                type="color"
+                                                value={config.highlightColor || '#fb923c'}
+                                                onChange={(e) => handleChange('highlightColor', e.target.value)}
+                                                className="w-8 h-6 rounded cursor-pointer bg-transparent border-none shrink-0"
+                                            />
+                                            <input
+                                                type="text"
+                                                value={config.highlightColor || '#fb923c'}
+                                                onChange={(e) => handleChange('highlightColor', e.target.value)}
+                                                className="bg-transparent border-none text-[10px] text-zinc-300 font-mono w-full focus:outline-none uppercase"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] text-zinc-400 font-bold uppercase">Back/Shape Color</label>
+                                        <div className="flex items-center gap-2 bg-zinc-800 p-1.5 rounded-lg border border-white/5">
+                                            <input
+                                                type="color"
+                                                value={config.highlightBackground || '#fb923c'}
+                                                onChange={(e) => handleChange('highlightBackground', e.target.value)}
+                                                className="w-8 h-6 rounded cursor-pointer bg-transparent border-none shrink-0"
+                                            />
+                                            <input
+                                                type="text"
+                                                value={config.highlightBackground || '#fb923c'}
+                                                onChange={(e) => handleChange('highlightBackground', e.target.value)}
+                                                className="bg-transparent border-none text-[10px] text-zinc-300 font-mono w-full focus:outline-none uppercase"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </section>
 
                 {/* Elements Visibility */}
@@ -876,18 +1090,11 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
 
                         <div className="space-y-1.5">
                             <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Style</label>
-                            <select
-                                value={config.infoStyle}
-                                onChange={(e) => handleChange('infoStyle', e.target.value)}
-                                className="w-full bg-zinc-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:ring-1 focus:ring-purple-500"
-                            >
-                                <option value="classic">Classic (Detailed)</option>
-                                <option value="modern_art">Modern + Cover</option>
-                                <option value="circle_art">Circle Cover</option>
-                                <option value="modern">Modern (Text Only)</option>
-                                <option value="box">Boxed Cover</option>
-                                <option value="minimal">Minimal (Text Only)</option>
-                            </select>
+                            <GroupedSelection
+                                value={config.infoStyle || 'classic'}
+                                onChange={(val) => handleChange('infoStyle', val)}
+                                groups={infoStyleGroups}
+                            />
                         </div>
 
                         <div className="space-y-1.5">
@@ -1200,15 +1407,11 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                             </div>
                             <div className="space-y-1.5">
                                 <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">FPS</label>
-                                <select
-                                    value={renderFps}
-                                    onChange={(e) => setRenderFps(parseInt(e.target.value))}
-                                    className="w-full bg-zinc-800 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-zinc-200 focus:outline-none focus:ring-1 focus:ring-purple-500"
-                                >
-                                    <option value="24">24 FPS</option>
-                                    <option value="30">30 FPS</option>
-                                    <option value="60">60 FPS</option>
-                                </select>
+                                <GroupedSelection
+                                    value={String(renderFps)}
+                                    onChange={(val) => setRenderFps(parseInt(val))}
+                                    groups={fpsGroups}
+                                />
                             </div>
                         </div>
 
@@ -1232,16 +1435,19 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
 
                         <div className="space-y-1.5">
                             <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Video Codec</label>
-                            <select
+                            <GroupedSelection
                                 value={renderCodec}
-                                onChange={(e) => setRenderCodec(e.target.value)}
-                                className="w-full bg-zinc-800 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-zinc-200 focus:outline-none focus:ring-1 focus:ring-purple-500"
-                            >
-                                <option value="auto">Auto Select (Best)</option>
-                                {supportedCodecs.map(c => (
-                                    <option key={c.value} value={c.value}>{c.label}</option>
-                                ))}
-                            </select>
+                                onChange={(val) => setRenderCodec(val)}
+                                groups={[
+                                    {
+                                        label: "Format",
+                                        options: [
+                                            { label: "Auto Select (Best)", value: "auto" },
+                                            ...supportedCodecs
+                                        ]
+                                    }
+                                ]}
+                            />
                         </div>
 
                         <div className="space-y-1.5">
@@ -1323,6 +1529,14 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                                         <div className="flex justify-between items-center"><span className="text-zinc-300">Lyric Display Mode</span> <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 font-mono text-[10px] border border-white/10">G</kbd></div>
                                         <div className="flex justify-between items-center"><span className="text-zinc-300">Text Case</span> <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 font-mono text-[10px] border border-white/10">C</kbd></div>
                                         <div className="flex justify-between items-center"><span className="text-zinc-300">Render Settings</span> <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 font-mono text-[10px] border border-white/10">D</kbd></div>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-3">
+                                    <h4 className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Visual Effects</h4>
+                                    <div className="grid grid-cols-2 gap-2 text-sm">
+                                        <div className="flex justify-between items-center"><span className="text-zinc-300">Toggle Highlight On/Off</span> <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 font-mono text-[10px] border border-white/10">X</kbd></div>
+                                        <div className="flex justify-between items-center"><span className="text-zinc-300">Cycle Next Highlight Effect</span> <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 font-mono text-[10px] border border-white/10">Z</kbd></div>
                                     </div>
                                 </div>
 

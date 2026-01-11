@@ -1,4 +1,4 @@
-import { LyricLine, VideoPreset, VisualSlide, AudioMetadata, RenderConfig } from '../types';
+import { LyricLine, VideoPreset, VisualSlide, AudioMetadata, RenderConfig, LyricWord } from '../types';
 
 export const drawCanvasFrame = (
     ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D,
@@ -205,7 +205,296 @@ export const drawCanvasFrame = (
         }
     };
 
+    const drawKaraokeText = (
+        ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D,
+        line: LyricLine,
+        x: number,
+        y: number,
+        maxWidth: number,
+        lineHeight: number,
+        time: number,
+        renderConfig: RenderConfig,
+        fontFamily: string,
+        baseFontSize: number,
+        weight: string,
+        style: string,
+        scale: number
+    ) => {
+        // 1. Prepare Words & Casing
+        const casing = renderConfig?.textCase || 'none';
+        const transformText = (txt: string, isFirstWord: boolean) => {
+            if (!txt) return txt;
+            if (casing === 'upper') return txt.toUpperCase();
+            if (casing === 'lower') return txt.toLowerCase();
+            if (casing === 'title') return txt.replace(/\w\S*/g, (t) => t.charAt(0).toUpperCase() + t.substr(1).toLowerCase());
+            if (casing === 'sentence') {
+                const lower = txt.toLowerCase();
+                return isFirstWord ? lower.charAt(0).toUpperCase() + lower.slice(1) : lower;
+            }
+            if (casing === 'invert') return txt.replace(/\w\S*/g, (t) => t.charAt(0).toLowerCase() + t.slice(1).toUpperCase());
+            return txt;
+        };
+
+        let words: LyricWord[] = line.words || [];
+
+        if (words.length === 0) {
+            // Fallback: Split by space if no timings
+            const rawWords = line.text.split(' ');
+            words = rawWords.map(t => ({ text: t, startTime: line.time, endTime: line.endTime || (line.time + 3) }));
+        }
+
+        const displayWords = words.map((w, index) => ({ ...w, text: transformText(w.text, index === 0) }));
+
+        // Explicitly set font for measurement
+        ctx.font = `${style} ${weight} ${baseFontSize}px ${fontFamily}`;
+
+        // 2. Wrap Words into Lines
+        const lines: LyricWord[][] = [];
+        let currentLine: LyricWord[] = [];
+        let currentLineWidth = 0;
+        const spaceWidth = ctx.measureText(' ').width;
+
+        displayWords.forEach(word => {
+            const wordWidth = ctx.measureText(word.text).width;
+            if (currentLineWidth + wordWidth > maxWidth && currentLine.length > 0) {
+                lines.push(currentLine);
+                currentLine = [];
+                currentLineWidth = 0;
+            }
+            currentLine.push(word);
+            currentLineWidth += wordWidth + spaceWidth;
+        });
+        if (currentLine.length > 0) lines.push(currentLine);
+
+        // 3. Draw Lines
+        const startY = y - ((lines.length - 1) * lineHeight) / 2;
+
+        // Resolve Colors
+        let highlightColor = renderConfig.highlightColor || '#ef4444';
+        let bgColor = renderConfig.highlightBackground || '#ffffff';
+        const effect = renderConfig.highlightEffect || 'none';
+
+        if (!renderConfig.useCustomHighlightColors) {
+            // Preset Colors Mapping
+            if (effect.includes('blue') || effect.includes('cyan')) { highlightColor = '#3b82f6'; bgColor = '#3b82f6'; }
+            else if (effect.includes('purple')) { highlightColor = '#a855f7'; bgColor = '#a855f7'; }
+            else if (effect.includes('green')) { highlightColor = '#22c55e'; bgColor = '#22c55e'; }
+            else if (effect.includes('pink')) { highlightColor = '#ec4899'; bgColor = '#ec4899'; }
+            else if (effect.includes('neon')) { highlightColor = '#ffffff'; bgColor = '#ffffff'; } // Neon usually white center
+            else if (effect === 'karaoke') { highlightColor = '#ef4444'; bgColor = '#ef4444'; } // Default Red
+        }
+
+        const baseColor = renderConfig.fontColor || '#ffffff';
+
+        lines.forEach((l, i) => {
+            const lineY = startY + (i * lineHeight);
+
+            // Calculate line width for alignment
+            let totalW = 0;
+            l.forEach((w, j) => {
+                totalW += ctx.measureText(w.text).width;
+                if (j < l.length - 1) totalW += spaceWidth;
+            });
+
+            let currentX = x;
+            if (ctx.textAlign === 'center') currentX = x - (totalW / 2);
+            else if (ctx.textAlign === 'right') currentX = x - totalW;
+
+
+            // Force Left Align for manual word positioning
+            ctx.save();
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'middle'; // Ensure vertical centering matches lineY calculation
+
+            // Draw words
+            l.forEach((word, j) => {
+                const wWidth = ctx.measureText(word.text).width;
+                const isPassed = time >= word.startTime;
+                const isCurrentWord = time >= word.startTime && time < word.endTime;
+
+                // Color Selection
+                let fill = baseColor;
+
+                // Determine if we should highlight this word
+                const isFillType = effect.includes('fill');
+                const shouldHighlight = isFillType ? isPassed : isCurrentWord;
+
+                if (shouldHighlight) fill = highlightColor;
+
+                // Effects
+                ctx.save();
+                ctx.fillStyle = fill;
+
+                // --- Background Shapes (Pill/Box/Fill) ---
+                if (isCurrentWord || (isFillType && isPassed)) {
+                    // Logic: 'fill' type fills history (isPassed). Shapes (Pill/Box) are Active Only (isCurrentWord).
+                    // We need to distinguish.
+                    // If effect is 'karaoke-fill', it respects isFillType (so all passed are filled).
+                    // If effect is 'karaoke-pill/box', it is NOT isFillType (so only current).
+
+                    if (effect.includes('pill') || effect.includes('box') || effect.includes('rounded') || effect.includes('fill')) {
+                        // Double check strictly for pill/box/rounded to be active only?
+                        // Previously I forced isFillType = includes('fill').
+                        // So 'karaoke-fill' IS fill type. 'karaoke-pill' is NOT.
+                        // So checking `shouldHighlight` covers this?
+                        // If `shouldHighlight` is true, we draw the background.
+
+                        if (shouldHighlight) {
+                            const padding = effect.includes('pill') ? baseFontSize * 0.4 : baseFontSize * 0.15;
+                            ctx.fillStyle = bgColor;
+
+                            let r = 4 * scale; // Default for 'fill'
+                            if (effect.includes('pill')) r = 999;
+                            else if (effect.includes('rounded')) r = 12 * scale;
+                            else if (effect.includes('box')) r = 0;
+
+                            ctx.beginPath();
+                            if (ctx.roundRect) {
+                                ctx.roundRect(currentX - padding, lineY - lineHeight / 2, wWidth + padding * 2, lineHeight, r);
+                            } else {
+                                ctx.rect(currentX - padding, lineY - lineHeight / 2, wWidth + padding * 2, lineHeight);
+                            }
+                            ctx.fill();
+
+                            // Reset fill to text color (which might be highlightColor or black for fill)
+                            if (effect.includes('fill') || effect.includes('pill') || effect.includes('box') || effect.includes('rounded')) {
+                                ctx.fillStyle = '#000000'; // CSS sets text to black for these backgrounds
+                                fill = '#000000'; // Ensure subsequent logic uses black
+                            } else {
+                                ctx.fillStyle = highlightColor;
+                            }
+                        }
+                    }
+                }
+
+                // --- Text Effects (Glow/Neon/Underline) ---
+                if (shouldHighlight) {
+                    if (effect.includes('underline')) {
+                        const underlineH = Math.max(2, baseFontSize * 0.08); // Thickness
+                        const underlineY = lineY + (baseFontSize * 0.6); // Position below baseline
+
+                        // Draw line
+                        ctx.fillStyle = highlightColor;
+                        ctx.fillRect(currentX, underlineY, wWidth, underlineH);
+
+                        // Restore fill for text
+                        ctx.fillStyle = fill;
+                    }
+
+                    if (effect.includes('glow') || effect.includes('neon')) {
+                        if (effect.includes('neon')) {
+                            ctx.fillStyle = '#ffffff'; // Neon core is white
+                            ctx.shadowColor = highlightColor;
+                            ctx.shadowBlur = 20;
+                        } else {
+                            ctx.shadowColor = highlightColor;
+                            ctx.shadowBlur = 10;
+                        }
+                    }
+                }
+
+                // --- Animations & Transforms ---
+                let wordY = lineY;
+                let wordX = currentX;
+                let rot = 0;
+                let scaleX = 1;
+                let scaleY = 1;
+
+                if (shouldHighlight) {
+                    if (effect.includes('bounce')) {
+                        // CSS is static translateY(-10px) (approx -0.2em)
+                        // If it's 'karaoke-bounce', static. If generic animation, maybe keep wave?
+                        // App.tsx: karaoke-bounce -> translateY(-10px).
+                        wordY -= 10 * scale;
+                    } else if (effect.includes('wave')) {
+                        wordY += Math.sin(time * 5 + j) * 8 * scale;
+                    } else if (effect.includes('scale')) {
+                        scaleX = 1.3;
+                        scaleY = 1.3;
+                    }
+                }
+
+                // Draw
+                // Handle Gradient / Outline / Shadow overrides
+                if (shouldHighlight) {
+                    if (effect.includes('gradient')) {
+                        const grad = ctx.createLinearGradient(wordX, wordY - lineHeight / 2, wordX + wWidth, wordY + lineHeight / 2);
+                        grad.addColorStop(0, highlightColor);
+                        grad.addColorStop(1, bgColor);
+                        ctx.fillStyle = grad;
+                    }
+                    if (effect.includes('shadow')) {
+                        // Retro shadow: 3px 3px 0 #000
+                        ctx.save();
+                        ctx.fillStyle = '#000000';
+                        ctx.fillText(word.text, wordX + 3 * scale, wordY + 3 * scale);
+                        ctx.fillText(word.text, wordX - 1 * scale, wordY - 1 * scale); // CSS has multiple shadows
+                        ctx.restore();
+                    }
+                }
+
+                // Apply Transforms
+                if (rot !== 0 || scaleX !== 1 || scaleY !== 1) {
+                    // Translate to center of word for scaling/rotation
+                    const cx = wordX + wWidth / 2;
+                    const cy = wordY;
+                    ctx.translate(cx, cy);
+                    ctx.rotate(rot);
+                    ctx.scale(scaleX, scaleY);
+                    ctx.translate(-cx, -cy);
+                }
+
+                if (shouldHighlight && effect.includes('outline')) {
+                    ctx.strokeStyle = highlightColor;
+                    ctx.lineWidth = 2 * scale;
+                    ctx.strokeText(word.text, wordX, wordY);
+                    // Transparent fill? CSS says color transparent.
+                    // So we do NOT fillText.
+                } else {
+                    ctx.fillText(word.text, wordX, wordY);
+                }
+
+                // --- Global Text Decoration (Underline/Line-through) ---
+                const decoration = renderConfig?.textDecoration || 'none';
+                if (decoration !== 'none') {
+                    ctx.lineWidth = Math.max(2, 3 * scale);
+                    ctx.strokeStyle = fill; // Use current word fill color
+                    ctx.beginPath();
+
+                    if (decoration.includes('underline')) {
+                        // Avoid conflict if effect is already underline?
+                        // If effect is 'karaoke-underline', we drew a box rect earlier.
+                        // But standard global underline is thin line.
+                        // Let's draw it if it's not the specific effect to avoid double drawing? 
+                        // Or just draw it.
+                        if (!effect.includes('underline')) {
+                            const dy = wordY + (baseFontSize * 0.45);
+                            ctx.moveTo(wordX, dy);
+                            ctx.lineTo(wordX + wWidth, dy);
+                        }
+                    }
+                    if (decoration.includes('line-through')) {
+                        ctx.moveTo(wordX, wordY);
+                        ctx.lineTo(wordX + wWidth, wordY);
+                    }
+                    ctx.stroke();
+                }
+
+                ctx.restore(); // Restore word-specific context (including transforms)
+
+                // Advance X (using ORIGINAL width to avoid spacing issues with scale)
+                currentX += wWidth + spaceWidth;
+            });
+
+            // Restore alignment and other line-specific context settings
+            ctx.restore();
+        });
+    };
+
+    // ... (Inside drawCanvasFrame)
+
     const drawWrappedText = (ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D, text: string, x: number, y: number, maxWidth: number, lineHeight: number, effect?: string, decoration?: string) => {
+        // ... (existing implementation)
         const lines = getWrappedLines(ctx, text, maxWidth);
         const startY = y - ((lines.length - 1) * lineHeight) / 2;
 
@@ -216,7 +505,8 @@ export const drawCanvasFrame = (
                 ctx.save();
                 ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
                 ctx.beginPath();
-                ctx.roundRect(x - (ctx.textAlign === 'center' ? textWidth / 2 : ctx.textAlign === 'right' ? textWidth : 0) - 10, lineY - lineHeight / 2, textWidth + 20, lineHeight, 8);
+                if (ctx.roundRect) ctx.roundRect(x - (ctx.textAlign === 'center' ? textWidth / 2 : ctx.textAlign === 'right' ? textWidth : 0) - 10, lineY - lineHeight / 2, textWidth + 20, lineHeight, 8);
+                else ctx.rect(x - (ctx.textAlign === 'center' ? textWidth / 2 : ctx.textAlign === 'right' ? textWidth : 0) - 10, lineY - lineHeight / 2, textWidth + 20, lineHeight);
                 ctx.fill();
                 ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
                 ctx.stroke();
@@ -709,7 +999,13 @@ export const drawCanvasFrame = (
 
                 } else {
                     const fs = isCurrent ? baseFontSize : secondaryFontSize;
-                    drawWrappedText(ctx, textToDraw, xPos, yPos, width * 0.9, fs * 1.2, textEffect, decoration);
+                    const isKaraokeMode = renderConfig && renderConfig.highlightEffect && renderConfig.highlightEffect !== 'none';
+
+                    if (isCurrent && isKaraokeMode && line) {
+                        drawKaraokeText(ctx, line, xPos, yPos, width * 0.9, fs * 1.2, time, renderConfig!, fontFamily, fs, weight, style, scale);
+                    } else {
+                        drawWrappedText(ctx, textToDraw, xPos, yPos, width * 0.9, fs * 1.2, textEffect, decoration);
+                    }
                 }
                 ctx.restore();
             }

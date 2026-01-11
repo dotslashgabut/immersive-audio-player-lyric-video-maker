@@ -123,3 +123,106 @@ export const parseSRT = (srtContent: string): LyricLine[] => {
 
   return lyrics;
 };
+
+export const parseTTML = (ttmlContent: string): LyricLine[] => {
+  const lyrics: LyricLine[] = [];
+  try {
+    const parser = new DOMParser();
+    const xmlDoc = parser.parseFromString(ttmlContent, 'text/xml');
+
+    // Robust way to find all <p> tags ignoring usage of namespace prefixes (e.g. tt:p or p)
+    const allElements = Array.from(xmlDoc.getElementsByTagName('*'));
+    const ps = allElements.filter(el => el.localName === 'p');
+
+    // Helper to get time in seconds from TTML format
+    const getTime = (t: string | null): number | undefined => {
+      if (!t) return undefined;
+      const val = t.trim();
+
+      // Handle unit suffixes
+      if (val.endsWith('ms')) {
+        return parseFloat(val.slice(0, -2)) / 1000;
+      }
+      if (val.endsWith('s')) {
+        return parseFloat(val.slice(0, -1));
+      }
+
+      // Standard timestamp parsing
+      return parseTimestamp(val);
+    };
+
+    // Helper to get attribute ignoring namespace
+    const getAttr = (el: Element, name: string): string | null => {
+      // 1. Try exact match
+      if (el.hasAttribute(name)) return el.getAttribute(name);
+
+      // 2. Try iteration for localName match (rarely needed for attributes but good for safety)
+      for (let i = 0; i < el.attributes.length; i++) {
+        if (el.attributes[i].localName === name) return el.attributes[i].value;
+      }
+      return null;
+    };
+
+    for (let i = 0; i < ps.length; i++) {
+      const p = ps[i];
+      const begin = getAttr(p, 'begin');
+      const end = getAttr(p, 'end');
+
+      // Get text content but handle spacing better? 
+      // Current robust approach: just use textContent. 
+      // If words are merged (e.g. <span>A</span><span>B</span> -> "AB"), 
+      // we can try to rely on the words array for rendering if available.
+      // Normalize whitespace: replace newlines and multiple spaces with a single space
+      const text = p.textContent?.replace(/\s+/g, ' ').trim();
+
+      if (begin && text) {
+        const time = getTime(begin);
+        const endTime = getTime(end);
+
+        // Extract word-level timing from spans
+        const words: { text: string; startTime: number; endTime: number }[] = [];
+
+        // Find child spans robustly
+        const pChildren = Array.from(p.getElementsByTagName('*'));
+        const spans = pChildren.filter(el => el.localName === 'span');
+
+        for (let j = 0; j < spans.length; j++) {
+          const s = spans[j];
+          const sBegin = getAttr(s, 'begin');
+          const sEnd = getAttr(s, 'end');
+          const sText = s.textContent?.trim();
+          // Usually strict trimming is fine for single words, but karaoke usually works best with "Word " convention.
+          // Let's trim and if empty skip.
+
+          if (sBegin && sEnd && sText && sText.trim()) {
+            const wStart = getTime(sBegin);
+            const wEnd = getTime(sEnd);
+            if (wStart !== undefined && wEnd !== undefined) {
+              words.push({
+                text: sText, // Keep original whitespace? or trim? 
+                // If we keep original, " " becomes " ".
+                // Let's keep it as is, but maybe trim start?
+                // Standard practice: trim() for the word logic usually.
+                // App.tsx rendering adds margin between spans.
+                startTime: wStart,
+                endTime: wEnd
+              });
+            }
+          }
+        }
+
+        if (time !== undefined) {
+          lyrics.push({
+            time,
+            text,
+            endTime: endTime,
+            words: words.length > 0 ? words : undefined
+          });
+        }
+      }
+    }
+  } catch (e) {
+    console.error("Failed to parse TTML", e);
+  }
+  return lyrics.sort((a, b) => a.time - b.time);
+};

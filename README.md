@@ -19,7 +19,7 @@
 ![Playlist Management](screenshot-playlist.jpg)
 
 ### 📝 Synchronized Lyrics
-- **Dual Format Support**: Compatible with both `.lrc` (Karaoke style) and `.srt` (Subtitle style) files.
+- **Multi-Format Support**: Compatible with `.lrc` (Karaoke style), `.srt` (Subtitle style), and **`.ttml` / `.xml`** (Word-level precision) files.
 - **Auto-Scroll & Centering**: Lyrics scroll automatically and active lines are perfectly centered.
 - **Lyric Offset Control**: Fine-tune sync issues with **+0.1s / -0.1s** buttons directly in the player.
 - **Click-to-Seek**: Click any lyric line to instantly jump to that exact time.
@@ -33,6 +33,7 @@
     - **Subtitle**: Cinematic bottom-centered text (No song metadata).
     - **Just Video**: Hides text content.
     - **None**: Hides everything (Lyrics, Titles, and Metadata).
+  - **Karaoke Styles**: **Neon**, **Glow**, **Bounce**, **Wave**, and **Color/Shape** highlights (Pill, Box, Rounded) with **customizable colors**.
   - **Text Animations**: Bounce, Pulse, Wave, Glitch, Shake, Typewriter, Heartbeat, Tada, Jello, and more.
   - **Display Modes**: Control lyric visibility (Show All, Previous-Active-Next, Next Only, Active Only).
 - **AI Transcription**: Built-in integration with **Google Gemini** (supports **Gemini 2.5 Flash** and **3.0 Flash Preview**) for automatic high-accuracy audio transcription.
@@ -147,6 +148,9 @@ Check out our other AI-powered tools for music and visuals:
 | **D** | Toggle Render Settings Panel |
 | **I** | Toggle Info Header |
 | **P** | Toggle Player Controls |
+| **H** | Toggle UI Auto-Hide Inhibit |
+| **X** | Toggle Highlight Effect On/Off |
+| **Z** | Cycle Next Highlight Effect |
 | **F** | Toggle Fullscreen |
 | **Delete** | Remove selected Playlist Item or Visual Slide |
 | **Ctrl + Z / Y** | Undo / Redo (Editor) |
@@ -207,6 +211,8 @@ This application is built with React + Vite and requires **Node.js** to run.
 - **Timeline Lirik Interaktif**: Lihat cuplikan lirik di playlist. Klik baris mana saja untuk langsung memutar lagu itu.
 - **Sorting Fleksibel**: Urutkan playlist berdasarkan Artis, Judul, Album (Bolak-balik Ascending/Descending), atau acak.
 - **Kontrol Akurasi**: Atur offset lirik (maju/mundur 0.1s) jika teks kurang pas dengan suara.
+- **Format Lirik Luas**: Dukungan untuk `.lrc`, `.srt`, dan **`.ttml` / `.xml`** untuk presisi per kata (Mode Karaoke).
+- **Karaoke Kustom**: Pilihan efek highlight baru (**Neon, Glow, Box, Pill**) dengan **Pewarnaan Kustom** (Text & Background Color).
 - **Visual Efek**: Fitur **Background Blur** (dengan **Slider Kekuatan Blur**), **Smart Gradient**, dan **Text Animation** (Bounce, Pulse, Glitch, dll).
 - **Kustomisasi Info Lagu**: Atur posisi, gaya tampilan, jarak tepi (padding), serta **Intro** teks (Auto/Manual).
 - **Mode Tampilan Lirik**: Pilih mau tampilkan semua baris, atau hanya aktif/berikutnya saja.
