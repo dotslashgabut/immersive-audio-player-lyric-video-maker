@@ -739,12 +739,14 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
                         </button>
                         {showApiKeyInput && (
                             <input
-                                type="password"
+                                type={apiKey ? "password" : "text"}
                                 value={apiKey}
                                 onChange={(e) => setApiKey(e.target.value)}
                                 placeholder="Paste API Key here"
                                 className="bg-transparent border-none outline-none text-xs text-zinc-200 w-32 placeholder:text-zinc-600"
                                 autoFocus
+                                autoComplete="off"
+                                spellCheck={false}
                             />
                         )}
                     </div>
