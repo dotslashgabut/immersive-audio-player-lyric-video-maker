@@ -257,7 +257,11 @@ export async function transcribeAudio(
     4. NATIVE SCRIPT STRICTNESS: Write EACH word in its native script.
        - Example: "Aku cinta kamu" (Indonesian) -> Latin.
        - Example: "愛してる" (Japanese) -> Kanji/Kana.
-    5. PROHIBITIONS:
+    5. MIXED SCRIPT PRESERVATION (IMPORTANT):
+       - If specific English/Latin words are spoken amidst Japanese/Chinese/etc., KEEP them in LATIN script.
+       - DO NOT transliterate English words into Katakana (e.g. if audio says "I love you", write "I love you", NOT "アイラブユー").
+       - Maintain mixed text (Kanji/Kana + Latin) exactly as spoken.
+    6. PROHIBITIONS:
        - DO NOT translate.
        - DO NOT romanize (unless explicitly spelled out).
        - DO NOT force English if it is not spoken.
