@@ -12,6 +12,7 @@ import PlaylistEditor from './components/PlaylistEditor';
 import RenderSettings from './components/RenderSettings';
 import { drawCanvasFrame } from './utils/canvasRenderer';
 import { loadGoogleFonts } from './utils/fonts';
+import { PRESET_CYCLE_LIST, PRESET_DEFINITIONS, videoPresetGroups } from './utils/presets';
 import { useUI } from './contexts/UIContext';
 
 
@@ -166,6 +167,7 @@ function App() {
   // Visibility Toggles (Shortcuts)
   const [showInfo, setShowInfo] = useState(true);
   const [showPlayer, setShowPlayer] = useState(true);
+  const [isMinimalMode, setIsMinimalMode] = useState(false);
 
   // Derived State
   const activeVisualSlides = useMemo(() => {
@@ -618,8 +620,18 @@ function App() {
     visualSlides.forEach(s => {
       if (s.type === 'video') loadPromises.push(loadVid(s.id, s.url));
       else if (s.type === 'audio') loadPromises.push(loadAudio(s.id, s.url));
+      else if (s.type === 'audio') loadPromises.push(loadAudio(s.id, s.url));
       else loadPromises.push(loadImg(s.id, s.url));
     });
+
+    // Load Channel Info Image
+    if (renderConfig.showChannelInfo && renderConfig.channelInfoImage) {
+      loadPromises.push(loadImg('__channel_info__', renderConfig.channelInfoImage));
+    }
+    // Load Custom Background Image
+    if (renderConfig.backgroundSource === 'image' && renderConfig.backgroundImage) {
+      loadPromises.push(loadImg('__custom_bg__', renderConfig.backgroundImage));
+    }
 
     await Promise.all(loadPromises);
 
@@ -1021,6 +1033,7 @@ function App() {
   };
 
   // Keyboard Shortcuts
+  // Keyboard Shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Check if the key shoud trigger UI wake-up
@@ -1041,27 +1054,43 @@ function App() {
         return; // Block other shortcuts during render
       }
 
+      const setPresetCustom = () => setPreset('custom');
+
       switch (e.key.toLowerCase()) {
         case ' ':
         case 'k':
           e.preventDefault();
           togglePlay();
+          toast.success(isPlaying ? "Paused" : "Playing", { id: 'play-pause' });
           break;
         case 's':
           e.preventDefault();
           stopPlayback();
+          toast.success("Stopped", { id: 'stop' });
           break;
         case 'n':
           e.preventDefault();
           playNextSong();
+          toast.success("Next Song", { id: 'next-song' });
+          break;
+        case 'o':
+          e.preventDefault();
+          const newVal = !isMinimalMode;
+          setIsMinimalMode(newVal);
+          toast.success(`Minimal Mode: ${newVal ? 'On' : 'Off'}`, { id: 'minimal-mode' });
           break;
         case 'b':
           e.preventDefault();
           playPreviousSong();
+          toast.success("Previous Song", { id: 'prev-song' });
           break;
         case 'r': // Loop (Repeat)
           e.preventDefault();
           toggleRepeat();
+          // We calculate the next mode based on current state to show correct toast
+          const nextRepMode = repeatMode === 'off' ? 'one' : repeatMode === 'one' ? 'all' : repeatMode === 'all' ? 'all_repeat' : 'off';
+          const repLabels: Record<string, string> = { off: 'Repeat Off', one: 'Loop One', all: 'Play All (Stop)', all_repeat: 'Loop Playlist' };
+          toast.success(`Repeat: ${repLabels[nextRepMode]}`, { id: 'repeat' });
           break;
         case 'l': // List (Playlist)
           e.preventDefault();
@@ -1071,7 +1100,9 @@ function App() {
           break;
         case 'h':
           e.preventDefault();
-          setBypassAutoHide(prev => !prev);
+          const nextBypass = !bypassAutoHide;
+          setBypassAutoHide(nextBypass);
+          toast.success(nextBypass ? "HUD: Always Visible" : "HUD: Auto-Hide", { id: 'hud-mode' });
           break;
         case 'g': // Cycle Lyric Display Mode
           e.preventDefault();
@@ -1082,7 +1113,8 @@ function App() {
           const nextMode = modes[nextIndex] as any;
 
           setRenderConfig(prev => ({ ...prev, lyricDisplayMode: nextMode }));
-          toast.success(`Lyric Mode: ${nextMode.replace('-', ' ')}`);
+          setPresetCustom();
+          toast.success(`Lyric Mode: ${nextMode.replace('-', ' ')}`, { id: 'lyric-mode' });
           break;
         case 'c': // Cycle Text Case
           e.preventDefault();
@@ -1093,7 +1125,8 @@ function App() {
           const nextCase = cases[nextCaseIndex] as any;
 
           setRenderConfig(prev => ({ ...prev, textCase: nextCase }));
-          toast.success(`Text Case: ${nextCase}`);
+          setPresetCustom();
+          toast.success(`Text Case: ${nextCase}`, { id: 'text-case' });
           break;
         case 'f':
           toggleFullscreen();
@@ -1118,15 +1151,19 @@ function App() {
           break;
         case 'm': // Mute
           e.preventDefault();
-          setIsMuted(prev => !prev);
+          const nextMute = !isMuted;
+          setIsMuted(nextMute);
+          toast.success(nextMute ? "Muted" : "Unmuted", { id: 'mute' });
           break;
         case 'x': // Toggle Highlight Effect
           e.preventDefault();
+          const isTurningOn = renderConfigRef.current.highlightEffect === 'none';
           setRenderConfig(prev => ({
             ...prev,
             highlightEffect: prev.highlightEffect === 'none' ? 'karaoke' : 'none'
           }));
-          toast.success(`Highlight: ${renderConfigRef.current.highlightEffect === 'none' ? 'On (Karaoke)' : 'Off'}`);
+          setPresetCustom();
+          toast.success(`Highlight: ${isTurningOn ? 'On (Karaoke)' : 'Off'}`, { id: 'highlight-toggle' });
           break;
         case 'z': // Cycle Highlight Effect
           e.preventDefault();
@@ -1138,27 +1175,69 @@ function App() {
             'karaoke-blue', 'karaoke-purple', 'karaoke-green', 'karaoke-pink', 'karaoke-cyan',
             'karaoke-pill', 'karaoke-box', 'karaoke-rounded'
           ];
+
+          const currentEffect = renderConfigRef.current.highlightEffect || 'none';
+          const idx = highlightEffects.indexOf(currentEffect as string);
+          const safeIdx = idx === -1 ? 0 : idx;
+          const nextIdxZ = (safeIdx + 1) % highlightEffects.length;
+          const nextEffectZ = highlightEffects[nextIdxZ] as string;
+
+          let color = '';
+          let bg = '';
+
+          if (nextEffectZ.includes('blue') || nextEffectZ.includes('cyan')) {
+            color = nextEffectZ.includes('cyan') ? '#06b6d4' : '#3b82f6';
+            bg = color;
+          } else if (nextEffectZ.includes('purple')) {
+            color = '#a855f7';
+            bg = color;
+          } else if (nextEffectZ.includes('green')) {
+            color = '#22c55e';
+            bg = color;
+          } else if (nextEffectZ.includes('pink')) {
+            color = '#ec4899';
+            bg = color;
+          } else if (nextEffectZ === 'karaoke-pill' || nextEffectZ === 'karaoke-box' || nextEffectZ === 'karaoke-rounded') {
+            color = '#fb923c';
+            bg = '#fb923c';
+          }
+
           setRenderConfig(prev => {
-            const currentEffect = prev.highlightEffect || 'none';
-            const idx = highlightEffects.indexOf(currentEffect as string);
-            const nextIdx = (idx + 1) % highlightEffects.length;
-            const nextEffect = highlightEffects[nextIdx] as any;
-            toast.success(`Effect: ${nextEffect.replace(/-/g, ' ')}`);
-            return { ...prev, highlightEffect: nextEffect };
+            const newConfig = { ...prev, highlightEffect: nextEffectZ };
+            if (color) {
+              newConfig.highlightColor = color;
+              newConfig.highlightBackground = bg;
+            }
+            return newConfig;
           });
+          setPresetCustom();
+
+          toast.success(`Effect: ${nextEffectZ.replace(/-/g, ' ')}`, { id: 'highlight-effect' });
           break;
         case 'j': // Cycle Preset
           e.preventDefault();
-          const presets: VideoPreset[] = [
-            'default', 'large', 'classic', 'large_upper', 'monospace',
-            'big_center', 'metal', 'kids', 'sad', 'romantic', 'tech',
-            'gothic', 'testing', 'testing_up', 'slideshow', 'just_video', 'subtitle', 'none'
-          ];
-          setPreset(prev => {
-            const idx = presets.indexOf(prev);
-            const nextIdx = (idx + 1) % presets.length;
-            return presets[nextIdx];
-          });
+          const pIdx = PRESET_CYCLE_LIST.indexOf(preset);
+          const nextPIdx = (pIdx + 1) % PRESET_CYCLE_LIST.length;
+          const nextP = PRESET_CYCLE_LIST[nextPIdx];
+
+          setPreset(nextP);
+
+          // Sync Config
+          const pConfig = PRESET_DEFINITIONS[nextP];
+          if (pConfig) {
+            setRenderConfig(curr => ({ ...curr, ...pConfig }));
+          }
+
+          // Notification
+          let pLabel: string = nextP;
+          for (const g of videoPresetGroups) {
+            const found = g.options.find(o => o.value === nextP);
+            if (found) {
+              pLabel = found.label;
+              break;
+            }
+          }
+          toast.success(`Preset: ${pLabel}`, { id: 'preset' });
           break;
         case 'arrowleft':
           e.preventDefault();
@@ -1191,11 +1270,19 @@ function App() {
         case '+':
         case '=': // For keyboards where + is Shift+=
           e.preventDefault();
-          setRenderConfig(prev => ({ ...prev, fontSizeScale: Math.min(prev.fontSizeScale + 0.1, 3.0) })); // Max 300%
+          const currentScaleUp = renderConfigRef.current.fontSizeScale;
+          const newValUp = Math.min(currentScaleUp + 0.1, 3.0);
+          setRenderConfig(prev => ({ ...prev, fontSizeScale: newValUp }));
+          toast.success(`Font Size: ${(newValUp * 100).toFixed(0)}%`, { id: 'font-size' });
+          setPresetCustom();
           break;
         case '-':
           e.preventDefault();
-          setRenderConfig(prev => ({ ...prev, fontSizeScale: Math.max(prev.fontSizeScale - 0.1, 0.1) })); // Min 10%
+          const currentScaleDown = renderConfigRef.current.fontSizeScale;
+          const newValDown = Math.max(currentScaleDown - 0.1, 0.1);
+          setRenderConfig(prev => ({ ...prev, fontSizeScale: newValDown }));
+          toast.success(`Font Size: ${(newValDown * 100).toFixed(0)}%`, { id: 'font-size' });
+          setPresetCustom();
           break;
         case 'e':
           if ((e.ctrlKey || e.metaKey) && e.shiftKey) {
@@ -1208,7 +1295,7 @@ function App() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isPlaying, repeatMode, activeTab, isRendering, resetIdleTimer, handleAbortRender, isPlaylistMode, playNextSong, playPreviousSong, toast]);
+  }, [isPlaying, repeatMode, activeTab, isRendering, resetIdleTimer, handleAbortRender, isPlaylistMode, playNextSong, playPreviousSong, toast, isMinimalMode, preset, bypassAutoHide, isMuted]);
 
   // Smooth Playback Animation Loop (Throttled to ~30fps)
   useEffect(() => {
@@ -1245,7 +1332,7 @@ function App() {
   // Combine manual visibility with mouse idle state
   // BypassAutoHide overrides mouse idle.
   const isHeaderVisible = showInfo && (!isMouseIdle || bypassAutoHide) && !isRendering;
-  const isFooterVisible = showPlayer && (!isMouseIdle || bypassAutoHide) && !isRendering;
+  const isFooterVisible = showPlayer && (!isMouseIdle || bypassAutoHide) && !isRendering && !isMinimalMode;
 
   const activeSlide = activeVisualSlides.length > 0 ? activeVisualSlides[0] : null;
 
@@ -1426,6 +1513,9 @@ function App() {
         {renderConfig.backgroundSource === 'gradient' && (
           <div className="absolute inset-0" style={{ background: renderConfig.backgroundGradient }} />
         )}
+        {renderConfig.backgroundSource === 'image' && renderConfig.backgroundImage && (
+          <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${renderConfig.backgroundImage})` }} />
+        )}
         {renderConfig.backgroundSource === 'smart-gradient' && (
           <div className="absolute inset-0"
             style={{
@@ -1532,8 +1622,123 @@ function App() {
       {/* --- Main Content Area --- */}
       <div className="relative z-10 flex-1 flex flex-col transition-all duration-500">
 
+        {/* Channel Info Overlay */}
+        {renderConfig.showChannelInfo && isMinimalMode && (
+          <div
+            className={`absolute z-[60] flex flex-col gap-2 p-6 pointer-events-none transition-all duration-500
+              ${renderConfig.channelInfoPosition === 'top-left' ? 'top-0 left-0 items-start text-left' :
+                renderConfig.channelInfoPosition === 'top-right' ? 'top-0 right-0 items-end text-right' :
+                  renderConfig.channelInfoPosition === 'bottom-left' ? 'bottom-0 left-0 items-start text-left' :
+                    'bottom-0 right-0 items-end text-right'}
+            `}
+            style={{
+              transform: `scale(${renderConfig.channelInfoSizeScale ?? 1})`,
+              transformOrigin: renderConfig.channelInfoPosition?.includes('top')
+                ? (renderConfig.channelInfoPosition?.includes('left') ? 'top left' : 'top right') // Corners
+                : (renderConfig.channelInfoPosition?.includes('left') ? 'bottom left' : 'bottom right'),
+              // Smart Margin: If center (future proof), only vertical. If corner, all sides.
+              ...(renderConfig.channelInfoPosition?.includes('center')
+                ? (renderConfig.channelInfoPosition?.includes('top') ? { marginTop: `${(renderConfig.channelInfoMarginScale ?? 1) * 1.5}rem` } : { marginBottom: `${(renderConfig.channelInfoMarginScale ?? 1) * 1.5}rem` })
+                : { margin: `${(renderConfig.channelInfoMarginScale ?? 1) * 1.5}rem` })
+            }}
+          >
+            {renderConfig.channelInfoImage && (
+              <img
+                src={renderConfig.channelInfoImage}
+                alt="Channel"
+                className="w-20 h-20 object-contain drop-shadow-lg"
+              />
+            )}
+            {renderConfig.channelInfoText && (
+              <p className="text-white font-bold drop-shadow-md text-lg px-2 py-1 bg-black/20 rounded-lg backdrop-blur-sm">
+                {renderConfig.channelInfoText}
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Minimal Mode Song Info Overlay */}
+        {isMinimalMode && (
+          <div
+            className={`absolute z-20 flex flex-col gap-2 p-6 transition-all duration-500 pointer-events-none
+              ${isHeaderVisible ? 'opacity-100' : 'opacity-0'}
+              ${renderConfig.infoPosition === 'top-left' ? 'top-0 left-0 items-start text-left' :
+                renderConfig.infoPosition === 'top-right' ? 'top-0 right-0 items-end text-right' :
+                  renderConfig.infoPosition === 'top-center' ? 'top-0 left-1/2 items-center text-center' :
+                    renderConfig.infoPosition === 'bottom-left' ? 'bottom-0 left-0 items-start text-left' :
+                      renderConfig.infoPosition === 'bottom-right' ? 'bottom-0 right-0 items-end text-right' :
+                        renderConfig.infoPosition === 'bottom-center' ? 'bottom-0 left-1/2 items-center text-center' :
+                          'top-0 left-0 items-start text-left'}
+            `}
+            style={{
+              transform: `${renderConfig.infoPosition?.includes('center') ? 'translateX(-50%)' : ''} scale(${renderConfig.infoSizeScale ?? 1})`,
+              transformOrigin: renderConfig.infoPosition?.includes('top')
+                ? (renderConfig.infoPosition?.includes('center') ? 'top center' : renderConfig.infoPosition?.includes('right') ? 'top right' : 'top left')
+                : (renderConfig.infoPosition?.includes('center') ? 'bottom center' : renderConfig.infoPosition?.includes('right') ? 'bottom right' : 'bottom left'),
+              // Smart Margin for Minimal Mode:
+              // For Center positions, we only want to push from the top/bottom edge, not shift horizontally (which standard margin does if not careful)
+              // For Corner positions, margin on all sides acts as inset padding nicely.
+              ...(renderConfig.infoPosition?.includes('center')
+                ? (renderConfig.infoPosition?.includes('top') ? { marginTop: `${(renderConfig.infoMarginScale ?? 1) * 1.5}rem` } : { marginBottom: `${(renderConfig.infoMarginScale ?? 1) * 1.5}rem` })
+                : { margin: `${(renderConfig.infoMarginScale ?? 1) * 1.5}rem` })
+            }}
+          >
+            {/* Inner Content Wrapper to handle layout styles */}
+            <div className={`
+              flex items-center gap-4 pointer-events-auto
+              ${renderConfig.infoPosition?.includes('center') ? 'flex-col justify-center' : ''}
+              ${renderConfig.infoPosition?.includes('right') ? 'flex-row-reverse' : 'flex-row'}
+              ${renderConfig.infoStyle === 'box' ? 'bg-black/40 backdrop-blur-md p-4 rounded-xl border border-white/10' : ''}
+              ${(renderConfig.infoStyle === 'modern' || renderConfig.infoStyle === 'minimal') ? '' : ''}
+            `}>
+
+              {/* Cover Art */}
+              <div className={`relative group shrink-0 transition-opacity duration-300 
+                ${!renderConfig.showCover || renderConfig.infoStyle === 'minimal' || renderConfig.infoStyle === 'modern' ? 'hidden' : 'block'}
+                ${renderConfig.infoStyle === 'circle_art' ? 'rounded-full' : 'rounded-md'}
+                overflow-hidden bg-zinc-800 shadow-lg border border-white/10
+                w-12 h-12 md:w-16 md:h-16
+              `}>
+                {metadata.coverUrl ? (
+                  metadata.backgroundType === 'video' ? (
+                    <video src={metadata.coverUrl} className="w-full h-full object-cover" muted loop onMouseOver={e => e.currentTarget.play()} onMouseOut={e => e.currentTarget.pause()} />
+                  ) : (
+                    <img src={metadata.coverUrl} alt="Cover" className="w-full h-full object-cover" />
+                  )
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-zinc-500">
+                    <Music size={24} />
+                  </div>
+                )}
+                <label className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity">
+                  <Upload size={20} className="text-white" />
+                  <input type="file" accept="image/*,video/*" className="hidden" onChange={handleMetadataUpload} />
+                </label>
+              </div>
+
+              {/* Text Info */}
+              <div className={`flex flex-col justify-center ${renderConfig.infoPosition?.includes('right') ? 'items-end' : renderConfig.infoPosition?.includes('center') ? 'items-center' : 'items-start'}`}>
+                {/* Title */}
+                <h1 className={`font-bold text-white drop-shadow-md line-clamp-1 transition-opacity duration-300 
+                  ${!renderConfig.showTitle ? 'opacity-0 h-0 w-0' : 'opacity-100'}
+                  ${renderConfig.infoStyle === 'minimal' ? 'text-sm' : renderConfig.infoStyle === 'modern' || renderConfig.infoStyle === 'modern_art' ? 'text-xl' : 'text-lg'}
+                `}>{metadata.title}</h1>
+
+                {/* Artist */}
+                <div className={`flex items-center gap-2 transition-opacity duration-300 
+                  ${!renderConfig.showArtist ? 'opacity-0 h-0 w-0' : 'opacity-100'}
+                `}>
+                  <p className={`drop-shadow-md
+                    ${renderConfig.infoStyle === 'minimal' ? 'text-zinc-400 text-[10px]' : (renderConfig.infoStyle === 'modern' || renderConfig.infoStyle === 'modern_art') ? 'text-white text-sm font-medium' : 'text-zinc-300 text-xs'}
+                  `}>{metadata.artist}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Top Bar (Song Info) */}
-        <div className={`transition-all duration-500 ease-in-out overflow-hidden ${isHeaderVisible ? 'max-h-80 md:max-h-40 opacity-100' : 'max-h-0 opacity-0'}`}>
+        <div className={`transition-all duration-500 ease-in-out overflow-hidden ${(isHeaderVisible && !isMinimalMode) ? 'max-h-80 md:max-h-40 opacity-100' : 'max-h-0 opacity-0'}`}>
           <div className="p-4 md:p-6 flex flex-col md:flex-row justify-between items-start gap-4 md:gap-0">
             <div className="flex gap-4">
               <div className="flex gap-4 items-center">
@@ -1563,7 +1768,7 @@ function App() {
               </div>
             </div>
 
-            <div className="flex gap-2 flex-wrap">
+            <div className={`flex gap-2 flex-wrap ${isMinimalMode ? 'hidden' : ''}`}>
               <a
                 href="https://ai.studio/apps/drive/1M1VfxdBlNB_eOPQqQiHspvVwizaEs0aI?fullscreenApplet=true"
                 target="_blank"
@@ -2069,8 +2274,17 @@ function App() {
                         wordStyle.opacity = 0.5;
                         wordStyle.transform = 'scale(1)';
                       } else if (isWordPast) {
-                        wordStyle.color = preset === 'custom' ? renderConfig.fontColor : 'white';
-                        wordStyle.opacity = 1;
+                        if (hEffect === 'karaoke-fill') {
+                          const hBg = renderConfig.highlightBackground || '#fb923c';
+                          wordStyle.backgroundColor = hBg;
+                          wordStyle.color = '#000';
+                          wordStyle.padding = '2px 6px';
+                          wordStyle.borderRadius = '4px';
+                          wordStyle.opacity = 1;
+                        } else {
+                          wordStyle.color = preset === 'custom' ? renderConfig.fontColor : 'white';
+                          wordStyle.opacity = 1;
+                        }
                       }
 
                       // Active State Per Effect
@@ -2127,7 +2341,135 @@ function App() {
                           wordStyle.backgroundColor = hBg;
                           wordStyle.color = '#000';
                           wordStyle.padding = '4px 12px';
+                          wordStyle.padding = '4px 12px';
                           wordStyle.borderRadius = '12px';
+                        } else if (hEffect === 'karaoke-glass') {
+                          // Glass Effect
+                          wordStyle.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+                          wordStyle.color = '#fff';
+                          wordStyle.padding = '4px 12px';
+                          wordStyle.borderRadius = '8px';
+                          wordStyle.backdropFilter = 'blur(4px)';
+                          wordStyle.border = '1px solid rgba(255, 255, 255, 0.3)';
+                          wordStyle.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.1)';
+                        } else if (hEffect === 'karaoke-neon-multi') {
+                          wordStyle.color = '#fff';
+                          wordStyle.textShadow = '0 0 5px #fff, 0 0 10px #fff, 0 0 20px #ff00de, 0 0 35px #00ffff, 0 0 40px #ff00de';
+                        } else if (hEffect === 'karaoke-soft-glow') {
+                          wordStyle.color = hColor;
+                          wordStyle.textShadow = `0 0 5px ${hColor}, 0 0 15px ${hColor}, 0 0 30px ${hColor}`;
+                        } else if (hEffect === 'karaoke-3d') {
+                          wordStyle.textShadow = `1px 1px 0px #ccc, 2px 2px 0px #bbb, 3px 3px 0px #aaa, 4px 4px 0px rgba(0,0,0,0.5)`;
+                        } else if (hEffect === 'karaoke-emboss') {
+                          wordStyle.color = '#ebebeb';
+                          wordStyle.textShadow = '1px 2px 3px rgba(255,255,255,0.8), -1px -2px 3px rgba(0,0,0,0.8)';
+                        } else if (hEffect === 'karaoke-chrome') {
+                          wordStyle.background = 'linear-gradient(to bottom, #ebebeb 50%, #616161 50%, #ebebeb)';
+                          (wordStyle as any).WebkitBackgroundClip = 'text';
+                          wordStyle.color = 'transparent';
+                        } else if (hEffect === 'karaoke-gold') {
+                          wordStyle.background = 'linear-gradient(to bottom, #d4af37, #C5A028)';
+                          (wordStyle as any).WebkitBackgroundClip = 'text';
+                          wordStyle.color = 'transparent';
+                        } else if (hEffect === 'karaoke-fire') {
+                          wordStyle.color = '#fff';
+                          wordStyle.textShadow = '0 -5px 4px #FFC107, 2px -10px 6px #FF9800, -2px -15px 11px #FF5722, 2px -25px 18px #795548';
+                        } else if (hEffect === 'karaoke-frozen') {
+                          wordStyle.color = '#fff';
+                          wordStyle.textShadow = '0 0 5px rgba(255,255,255,0.8), 0 0 10px rgba(255,255,255,0.5), 0 0 20px #03A9F4, 0 0 30px #03A9F4';
+                        } else if (hEffect === 'karaoke-rainbow') {
+                          wordStyle.background = 'linear-gradient(to left, violet, indigo, blue, green, yellow, orange, red)';
+                          (wordStyle as any).WebkitBackgroundClip = 'text';
+                          wordStyle.color = 'transparent';
+                        } else if (hEffect === 'karaoke-mirror') {
+                          wordStyle.transform = 'scaleY(1.3) perspective(500px) rotateX(-10deg)';
+                          wordStyle.textShadow = '0 15px 5px rgba(0,0,0,0.1), 0 -1px 3px rgba(0,0,0,0.3)';
+                        } else if (hEffect === 'karaoke-vhs') {
+                          wordStyle.textShadow = '2px 0 0 rgba(255,0,0,0.7), -2px 0 0 rgba(0,0,255,0.7)';
+                        } else if (hEffect === 'karaoke-retro') {
+                          wordStyle.fontFamily = "'Press Start 2P', cursive";
+                          wordStyle.color = '#ff00ff';
+                          wordStyle.textShadow = '4px 4px 0px #00ffff';
+                        } else if (hEffect === 'karaoke-cyberpunk') {
+                          wordStyle.color = '#fcee0a';
+                          wordStyle.textShadow = '2px 2px 0px #000, -1px -1px 0 #05d9e8';
+                        } else if (hEffect === 'karaoke-hologram') {
+                          wordStyle.color = 'rgba(0, 255, 255, 0.7)';
+                          wordStyle.textShadow = '0 0 5px rgba(0,255,255,0.5)';
+                        } else if (hEffect === 'karaoke-comic') {
+                          wordStyle.fontFamily = "'Bangers', cursive";
+                          wordStyle.color = '#ffcc00';
+                          wordStyle.textShadow = '2px 2px 0px #000, -1px -1px 0 #000';
+                        } else if (hEffect === 'karaoke-glitch-text') {
+                          wordStyle.animation = 'anim-glitch 0.4s infinite linear';
+                        } else if (hEffect === 'karaoke-pulse') {
+                          wordStyle.animation = 'anim-pulse 1s infinite ease-in-out';
+                        } else if (hEffect === 'karaoke-breathe') {
+                          wordStyle.animation = 'anim-breathe 2s infinite ease-in-out';
+                        } else if (hEffect === 'karaoke-float') {
+                          wordStyle.animation = 'anim-float 2s infinite ease-in-out';
+                        } else if (hEffect === 'karaoke-sway') {
+                          wordStyle.animation = 'anim-sway 2s infinite ease-in-out';
+                        } else if (hEffect === 'karaoke-flicker') {
+                          wordStyle.animation = 'anim-flicker 2s infinite linear';
+                        } else if (hEffect === 'karaoke-shake') {
+                          wordStyle.animation = 'anim-shake 0.2s infinite linear';
+                        } else if (hEffect === 'karaoke-wobble') {
+                          wordStyle.animation = 'anim-wobble 1s infinite ease-in-out';
+                        } else if (hEffect === 'karaoke-jello') {
+                          wordStyle.animation = 'anim-jello 1s infinite';
+                        } else if (hEffect === 'karaoke-rubberband') {
+                          wordStyle.animation = 'anim-rubberband 1s infinite';
+                        } else if (hEffect === 'karaoke-heartbeat') {
+                          wordStyle.animation = 'anim-heartbeat 1.3s infinite ease-in-out';
+                        } else if (hEffect === 'karaoke-flash') {
+                          wordStyle.animation = 'anim-flash 1s infinite';
+                        } else if (hEffect === 'karaoke-tada') {
+                          wordStyle.animation = 'anim-tada 1s infinite';
+                        } else if (hEffect === 'karaoke-swing') {
+                          wordStyle.animation = 'anim-swing 2s infinite';
+                        } else if (hEffect === 'karaoke-rotate') {
+                          wordStyle.animation = 'anim-rotate 4s infinite linear';
+                        } else if (hEffect === 'karaoke-spin') {
+                          wordStyle.animation = 'anim-rotate 1s infinite linear';
+                        } else if (hEffect === 'karaoke-glitch') {
+                          wordStyle.animation = 'anim-glitch 0.3s infinite linear';
+                        } else if (hEffect === 'karaoke-typewriter') {
+                          // Web Preview Approximation using clip-path steps
+                          wordStyle.animation = 'typewriter-reveal 0.5s steps(10, end) forwards';
+                          wordStyle.whiteSpace = 'nowrap';
+                          wordStyle.overflow = 'hidden';
+                          wordStyle.display = 'inline-block';
+                          wordStyle.verticalAlign = 'bottom';
+                          // Note: steps(10) is an approximation since we don't know char count here easily without more logic.
+                          // Ideally this would be dynamic style based on word length.
+                        }
+                        else if (hEffect === 'karaoke-fade') {
+                          wordStyle.animation = 'trans-fade-in 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards';
+                        } else if (hEffect === 'karaoke-slide') {
+                          wordStyle.animation = 'trans-slide-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards';
+                        } else if (hEffect === 'karaoke-drop') {
+                          wordStyle.animation = 'trans-drop-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards';
+                        } else if (hEffect === 'karaoke-lightspeed') {
+                          wordStyle.animation = 'trans-lightspeed-in 0.5s ease-out forwards';
+                        } else if (hEffect === 'karaoke-roll') {
+                          wordStyle.animation = 'trans-roll-in 0.5s ease-out forwards';
+                        } else if (hEffect === 'karaoke-zoom') {
+                          wordStyle.animation = 'trans-zoom-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards';
+                        } else if (hEffect === 'karaoke-elastic') {
+                          wordStyle.animation = 'trans-elastic-in 0.7s ease-out forwards';
+                        } else if (hEffect === 'karaoke-scale-rotate') {
+                          wordStyle.animation = 'trans-scale-rotate-in 0.5s ease-out forwards';
+                        } else if (hEffect === 'karaoke-flip') {
+                          wordStyle.animation = 'trans-flip-in 0.5s ease-out forwards';
+                        } else if (hEffect === 'karaoke-rotate-in') {
+                          wordStyle.animation = 'trans-rotate-in 0.5s ease-out forwards';
+                        } else if (hEffect === 'karaoke-spiral') {
+                          wordStyle.animation = 'trans-spiral-in 0.6s ease-out forwards';
+                        } else if (hEffect === 'karaoke-blur') {
+                          wordStyle.animation = 'trans-blur-in 0.4s ease-out forwards';
+                        } else if (hEffect === 'karaoke-shatter') {
+                          wordStyle.animation = 'trans-shatter-in 0.5s ease-out forwards';
                         }
 
                         // Handle legacy color names by mapping them to use the custom color if user wants, 

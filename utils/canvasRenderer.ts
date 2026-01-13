@@ -29,6 +29,20 @@ export const drawCanvasFrame = (
         } : { r: 255, g: 255, b: 255 };
     };
 
+    // Helper used for background scaling
+    const drawScaled = (img: ImageBitmap | HTMLImageElement | HTMLVideoElement) => {
+        let w = 0, h = 0;
+        if (img instanceof ImageBitmap) { w = img.width; h = img.height; }
+        else if (img instanceof HTMLVideoElement) { w = img.videoWidth; h = img.videoHeight; }
+        else { w = img.width; h = img.height; }
+        if (w && h) {
+            const imgScale = Math.max(width / w, height / h);
+            const x = (width / 2) - (w / 2) * imgScale;
+            const y = (height / 2) - (h / 2) * imgScale;
+            ctx.drawImage(img, x, y, w * imgScale, h * imgScale);
+        }
+    };
+
     // Helper for wrapping text
     const getWrappedLines = (ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D, text: string, maxWidth: number) => {
         if (text.includes('\n')) {
@@ -243,7 +257,7 @@ export const drawCanvasFrame = (
             words = rawWords.map(t => ({ text: t, startTime: line.time, endTime: line.endTime || (line.time + 3) }));
         }
 
-        const displayWords = words.map((w, index) => ({ ...w, text: transformText(w.text, index === 0) }));
+        const displayWords = words.map((w, index) => ({ ...w, text: transformText(w.text, index === 0).trim() }));
 
         // Explicitly set font for measurement
         ctx.font = `${style} ${weight} ${baseFontSize}px ${fontFamily}`;
@@ -280,7 +294,11 @@ export const drawCanvasFrame = (
             else if (effect.includes('purple')) { highlightColor = '#a855f7'; bgColor = '#a855f7'; }
             else if (effect.includes('green')) { highlightColor = '#22c55e'; bgColor = '#22c55e'; }
             else if (effect.includes('pink')) { highlightColor = '#ec4899'; bgColor = '#ec4899'; }
-            else if (effect.includes('neon')) { highlightColor = '#ffffff'; bgColor = '#ffffff'; } // Neon usually white center
+            else if (effect.includes('neon')) { highlightColor = '#ffffff'; bgColor = '#ffffff'; }
+            else if (effect.includes('gold')) { highlightColor = '#FFD700'; bgColor = '#B8860B'; }
+            else if (effect.includes('chrome')) { highlightColor = '#E0E0E0'; bgColor = '#757575'; }
+            else if (effect.includes('fire')) { highlightColor = '#FF4500'; bgColor = '#FF0000'; }
+            else if (effect.includes('glass')) { highlightColor = '#ffffff'; bgColor = 'rgba(255,255,255,0.1)'; }
             else if (effect === 'karaoke') { highlightColor = '#ef4444'; bgColor = '#ef4444'; } // Default Red
         }
 
@@ -313,7 +331,7 @@ export const drawCanvasFrame = (
                 const isCurrentWord = time >= word.startTime && time < word.endTime;
 
                 // Color Selection
-                let fill = baseColor;
+                let fill: string | CanvasGradient = baseColor;
 
                 // Determine if we should highlight this word
                 const isFillType = effect.includes('fill');
@@ -332,34 +350,37 @@ export const drawCanvasFrame = (
                     // If effect is 'karaoke-fill', it respects isFillType (so all passed are filled).
                     // If effect is 'karaoke-pill/box', it is NOT isFillType (so only current).
 
-                    if (effect.includes('pill') || effect.includes('box') || effect.includes('rounded') || effect.includes('fill')) {
-                        // Double check strictly for pill/box/rounded to be active only?
-                        // Previously I forced isFillType = includes('fill').
-                        // So 'karaoke-fill' IS fill type. 'karaoke-pill' is NOT.
-                        // So checking `shouldHighlight` covers this?
-                        // If `shouldHighlight` is true, we draw the background.
-
+                    if (effect.includes('pill') || effect.includes('box') || effect.includes('rounded') || effect.includes('fill') || effect.includes('glass')) {
                         if (shouldHighlight) {
                             const padding = effect.includes('pill') ? baseFontSize * 0.4 : baseFontSize * 0.15;
                             ctx.fillStyle = bgColor;
 
-                            let r = 4 * scale; // Default for 'fill'
+                            let r = 4 * scale;
                             if (effect.includes('pill')) r = 999;
-                            else if (effect.includes('rounded')) r = 12 * scale;
+                            else if (effect.includes('rounded') || effect.includes('glass')) r = 8 * scale;
                             else if (effect.includes('box')) r = 0;
 
-                            ctx.beginPath();
-                            if (ctx.roundRect) {
-                                ctx.roundRect(currentX - padding, lineY - lineHeight / 2, wWidth + padding * 2, lineHeight, r);
-                            } else {
-                                ctx.rect(currentX - padding, lineY - lineHeight / 2, wWidth + padding * 2, lineHeight);
+                            if (effect.includes('glass')) {
+                                ctx.fillStyle = 'rgba(255,255,255,0.1)';
+                                ctx.shadowColor = 'rgba(255,255,255,0.2)';
+                                ctx.shadowBlur = 10;
                             }
+
+                            ctx.beginPath();
+                            if (ctx.roundRect) ctx.roundRect(currentX - padding, lineY - lineHeight / 2, wWidth + padding * 2, lineHeight, r);
+                            else ctx.rect(currentX - padding, lineY - lineHeight / 2, wWidth + padding * 2, lineHeight);
                             ctx.fill();
 
-                            // Reset fill to text color (which might be highlightColor or black for fill)
+                            if (effect.includes('glass')) {
+                                ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+                                ctx.lineWidth = 1;
+                                ctx.stroke();
+                            }
+
+                            // Reset fill to text color
                             if (effect.includes('fill') || effect.includes('pill') || effect.includes('box') || effect.includes('rounded')) {
-                                ctx.fillStyle = '#000000'; // CSS sets text to black for these backgrounds
-                                fill = '#000000'; // Ensure subsequent logic uses black
+                                ctx.fillStyle = '#000000';
+                                fill = '#000000';
                             } else {
                                 ctx.fillStyle = highlightColor;
                             }
@@ -391,51 +412,94 @@ export const drawCanvasFrame = (
                             ctx.shadowBlur = 10;
                         }
                     }
+
+                    if (effect.includes('outline')) {
+                        ctx.strokeStyle = highlightColor;
+                        ctx.lineWidth = 2 * scale;
+                        ctx.strokeText(word.text, currentX, lineY);
+                        ctx.fillStyle = 'transparent'; // Outline only? Or Fill + Outline? 
+                        // App.tsx implies text is transparent with stroke.
+                        if (effect === 'karaoke-outline') {
+                            // Only stroke, transparent fill
+                            fill = 'transparent';
+                            ctx.fillStyle = 'transparent';
+                        }
+                    }
+
+                    if (effect.includes('shadow')) {
+                        ctx.shadowColor = '#000000';
+                        ctx.shadowOffsetX = 3 * scale;
+                        ctx.shadowOffsetY = 3 * scale;
+                        ctx.shadowBlur = 0;
+                    }
+
+                    if (effect.includes('gradient')) {
+                        const grad = ctx.createLinearGradient(currentX, lineY - lineHeight / 2, currentX + wWidth, lineY + lineHeight / 2);
+                        grad.addColorStop(0, highlightColor);
+                        grad.addColorStop(1, bgColor);
+                        ctx.fillStyle = grad;
+                        fill = grad;
+                    }
                 }
 
-                // --- Animations & Transforms ---
+                // --- Animations & Transforms (Continuous & One-Shot) ---
                 let wordY = lineY;
                 let wordX = currentX;
                 let rot = 0;
                 let scaleX = 1;
                 let scaleY = 1;
+                let animAlpha = 1;
+                let animBlur = 0;
 
                 if (shouldHighlight) {
-                    if (effect.includes('bounce')) {
-                        // CSS is static translateY(-10px) (approx -0.2em)
-                        // If it's 'karaoke-bounce', static. If generic animation, maybe keep wave?
-                        // App.tsx: karaoke-bounce -> translateY(-10px).
-                        wordY -= 10 * scale;
-                    } else if (effect.includes('wave')) {
-                        wordY += Math.sin(time * 5 + j) * 8 * scale;
+                    const elapsed = time - word.startTime;
+
+                    // -- Continuous Animations --
+                    if (effect.includes('bounce') || effect === 'karaoke-bounce') wordY -= 10 * scale;
+                    else if (effect.includes('wave')) wordY += Math.sin(time * 5 + j) * 8 * scale;
+                    else if (effect.includes('pulse')) { const s = 1 + Math.sin(time * 6) * 0.1; scaleX = s; scaleY = s; }
+                    else if (effect.includes('shake')) { wordX += (Math.random() - 0.5) * 6 * scale; wordY += (Math.random() - 0.5) * 6 * scale; }
+                    else if (effect.includes('wobble')) { rot = Math.sin(time * 6) * 0.1; }
+                    else if (effect.includes('rotate') && !effect.includes('in')) { rot = Math.sin(time * 3) * 0.1; }
+                    else if (effect.includes('spin')) { rot = (time * 3) % (Math.PI * 2); }
+                    else if (effect.includes('jello')) { scaleX = 1 + Math.sin(time * 8) * 0.15; scaleY = 1 - Math.sin(time * 8) * 0.15; }
+                    else if (effect.includes('heartbeat')) { const hb = (time * 2) % 1; if (hb < 0.15 || (hb > 0.3 && hb < 0.45)) { scaleX = 1.15; scaleY = 1.15; } }
+                    else if (effect.includes('flash')) { animAlpha = 0.5 + Math.sin(time * 10) * 0.5; }
+                    else if (effect.includes('tada')) { const t = (time * 2) % 1; if (t < 0.1) { rot = -0.05; scaleX = 0.9; } else if (t < 0.2) { rot = 0.05; scaleX = 1.1; } }
+                    else if (effect.includes('swing')) { rot = Math.sin(time * 4) * 0.15; }
+                    else if (effect.includes('glitch')) { if (Math.sin(time * 15) > 0.8) { wordX += (Math.random() - 0.5) * 10; wordY += (Math.random() - 0.5) * 10; } }
+
+                    // -- Feature (One-Shot) Transitions --
+                    const transDur = 0.3;
+                    if (elapsed < transDur) {
+                        const p = elapsed / transDur;
+                        const easeOut = (t: number) => 1 - Math.pow(1 - t, 3);
+                        const ep = easeOut(p);
+
+                        if (effect.includes('fade')) { animAlpha = p; }
+                        else if (effect.includes('slide')) { wordY += (1 - ep) * 30 * scale; animAlpha = ep; }
+                        else if (effect.includes('drop')) { wordY -= (1 - ep) * 50 * scale; animAlpha = ep; }
+                        else if (effect.includes('zoom') || effect.includes('scale')) { const s = 0.5 + 0.5 * ep; scaleX *= s; scaleY *= s; }
+                        else if (effect.includes('elastic')) { const s = p === 0 ? 0 : p === 1 ? 1 : Math.pow(2, -10 * p) * Math.sin((p * 10 - 0.75) * (2 * Math.PI) / 3) + 1; scaleX *= s; scaleY *= s; }
+                        else if (effect.includes('flip')) { scaleY *= ep; }
+                        else if (effect.includes('rotate-in')) { rot += (1 - ep) * -1; animAlpha = ep; }
+                        else if (effect.includes('roll')) { wordX -= (1 - ep) * 50 * scale; rot -= (1 - ep) * Math.PI; animAlpha = ep; }
+                        else if (effect.includes('lightspeed')) { wordX += (1 - ep) * 100 * scale; animAlpha = ep; }
+                        else if (effect.includes('blur')) { animBlur = (1 - ep) * 10; animAlpha = ep; }
+                        else if (effect.includes('shatter')) { const s = 1 + (1 - ep) * 2; scaleX *= s; scaleY *= s; animBlur = (1 - ep) * 10; animAlpha = ep; }
+                        else if (effect.includes('spiral')) { scaleX *= ep; scaleY *= ep; rot += (1 - ep) * Math.PI * 2; }
                     } else if (effect.includes('scale')) {
-                        scaleX = 1.3;
-                        scaleY = 1.3;
+                        scaleX *= 1.3; scaleY *= 1.3;
                     }
                 }
 
                 // Draw
-                // Handle Gradient / Outline / Shadow overrides
-                if (shouldHighlight) {
-                    if (effect.includes('gradient')) {
-                        const grad = ctx.createLinearGradient(wordX, wordY - lineHeight / 2, wordX + wWidth, wordY + lineHeight / 2);
-                        grad.addColorStop(0, highlightColor);
-                        grad.addColorStop(1, bgColor);
-                        ctx.fillStyle = grad;
-                    }
-                    if (effect.includes('shadow')) {
-                        // Retro shadow: 3px 3px 0 #000
-                        ctx.save();
-                        ctx.fillStyle = '#000000';
-                        ctx.fillText(word.text, wordX + 3 * scale, wordY + 3 * scale);
-                        ctx.fillText(word.text, wordX - 1 * scale, wordY - 1 * scale); // CSS has multiple shadows
-                        ctx.restore();
-                    }
-                }
+                ctx.save();
+                if (animAlpha < 1) ctx.globalAlpha *= animAlpha;
+                if (animBlur > 0) ctx.filter = `blur(${animBlur}px)`;
 
                 // Apply Transforms
                 if (rot !== 0 || scaleX !== 1 || scaleY !== 1) {
-                    // Translate to center of word for scaling/rotation
                     const cx = wordX + wWidth / 2;
                     const cy = wordY;
                     ctx.translate(cx, cy);
@@ -444,12 +508,76 @@ export const drawCanvasFrame = (
                     ctx.translate(-cx, -cy);
                 }
 
-                if (shouldHighlight && effect.includes('outline')) {
-                    ctx.strokeStyle = highlightColor;
-                    ctx.lineWidth = 2 * scale;
-                    ctx.strokeText(word.text, wordX, wordY);
-                    // Transparent fill? CSS says color transparent.
-                    // So we do NOT fillText.
+                if (shouldHighlight) {
+                    // Fancy Draws
+                    if (effect.includes('gradient') || effect.includes('chrome') || effect.includes('gold')) {
+                        const grad = ctx.createLinearGradient(wordX, wordY - lineHeight / 2, wordX, wordY + lineHeight / 2);
+                        if (effect.includes('gold')) { grad.addColorStop(0, '#d4af37'); grad.addColorStop(1, '#C5A028'); }
+                        else if (effect.includes('chrome')) { grad.addColorStop(0, '#ebebeb'); grad.addColorStop(0.5, '#616161'); grad.addColorStop(0.51, '#ebebeb'); grad.addColorStop(1, '#ebebeb'); }
+                        else { grad.addColorStop(0, highlightColor); grad.addColorStop(1, bgColor); }
+                        ctx.fillStyle = grad;
+                    }
+
+                    if (effect.includes('shadow')) {
+                        ctx.save();
+                        ctx.fillStyle = '#000000';
+                        ctx.fillText(word.text, wordX + 2 * scale, wordY + 2 * scale);
+                        ctx.restore();
+                    }
+
+                    if (effect.includes('3d')) {
+                        const c = ctx.fillStyle;
+                        ctx.fillStyle = 'rgba(0,0,0,0.5)';
+                        for (let k = 1; k <= 3; k++) ctx.fillText(word.text, wordX + k * scale, wordY + k * scale);
+                        ctx.fillStyle = c;
+                    }
+
+                    if (effect.includes('neon-multi')) {
+                        ctx.shadowBlur = 10; ctx.shadowColor = '#fff'; ctx.fillText(word.text, wordX, wordY);
+                        ctx.shadowBlur = 20; ctx.shadowColor = '#ff00de'; ctx.fillText(word.text, wordX, wordY);
+                        ctx.shadowBlur = 35; ctx.shadowColor = '#00ffff'; ctx.fillText(word.text, wordX, wordY);
+                    } else if (effect.includes('retro') || effect.includes('vhs')) {
+                        ctx.fillStyle = '#ff0000'; ctx.globalCompositeOperation = 'screen'; ctx.fillText(word.text, wordX - 2, wordY);
+                        ctx.fillStyle = '#00ff00'; ctx.fillText(word.text, wordX, wordY);
+                        ctx.fillStyle = '#0000ff'; ctx.fillText(word.text, wordX + 2, wordY);
+                    } else if (effect.includes('fire')) {
+                        ctx.shadowBlur = 5; ctx.shadowColor = '#ff0000'; ctx.fillStyle = '#ff4500'; ctx.fillText(word.text, wordX, wordY);
+                        ctx.shadowBlur = 2; ctx.shadowColor = '#ffff00'; ctx.fillStyle = '#ffcc00'; ctx.fillText(word.text, wordX + 1 * scale, wordY - 1 * scale);
+                    } else if (effect.includes('typewriter')) {
+                        const elapsed = time - word.startTime;
+                        // Duration of word play
+                        const duration = word.endTime - word.startTime;
+                        // 0 to 1 progress
+                        const p = Math.min(1, Math.max(0, elapsed / duration));
+
+                        // Calculate characters to show
+                        const charsToShow = Math.floor(word.text.length * p);
+                        const partialText = word.text.substring(0, charsToShow);
+
+                        // Draw only partial text
+                        if (effect.includes('outline')) {
+                            ctx.strokeStyle = highlightColor;
+                            ctx.strokeText(partialText, wordX, wordY);
+                        } else {
+                            ctx.fillText(partialText, wordX, wordY);
+                        }
+
+                        // Optional cursor?
+                        // const tw = ctx.measureText(partialText).width;
+                        // ctx.fillRect(wordX + tw, wordY - fontSize/2, 2, fontSize);
+                    } else {
+                        // Standard Draw
+                        if (!effect.includes('neon-multi') && !effect.includes('retro') && !effect.includes('vhs') && !effect.includes('fire')) {
+                            if (effect.includes('outline')) {
+                                ctx.strokeStyle = highlightColor;
+                                ctx.lineWidth = 2 * scale;
+                                ctx.strokeText(word.text, wordX, wordY);
+                            } else {
+                                ctx.fillText(word.text, wordX, wordY);
+                            }
+                        }
+                    }
+
                 } else {
                     ctx.fillText(word.text, wordX, wordY);
                 }
@@ -480,7 +608,8 @@ export const drawCanvasFrame = (
                     ctx.stroke();
                 }
 
-                ctx.restore(); // Restore word-specific context (including transforms)
+                ctx.restore(); // Restore transforms
+                ctx.restore(); // Restore styles
 
                 // Advance X (using ORIGINAL width to avoid spacing issues with scale)
                 currentX += wWidth + spaceWidth;
@@ -567,20 +696,16 @@ export const drawCanvasFrame = (
 
         ctx.fillStyle = grad;
         ctx.fillRect(0, 0, width, height);
+    } else if (renderConfig?.backgroundSource === 'image' && renderConfig.backgroundImage) {
+        // Draw custom background image
+        // We expect it to be loaded with key '__custom_bg__'
+        const img = images.get('__custom_bg__');
+        if (img) {
+            drawScaled(img);
+        }
     }
 
-    const drawScaled = (img: ImageBitmap | HTMLImageElement | HTMLVideoElement) => {
-        let w = 0, h = 0;
-        if (img instanceof ImageBitmap) { w = img.width; h = img.height; }
-        else if (img instanceof HTMLVideoElement) { w = img.videoWidth; h = img.videoHeight; }
-        else { w = img.width; h = img.height; }
-        if (w && h) {
-            const imgScale = Math.max(width / w, height / h);
-            const x = (width / 2) - (w / 2) * imgScale;
-            const y = (height / 2) - (h / 2) * imgScale;
-            ctx.drawImage(img, x, y, w * imgScale, h * imgScale);
-        }
-    };
+
 
     if (renderConfig && renderConfig.backgroundBlurStrength > 0) ctx.filter = `blur(${renderConfig.backgroundBlurStrength}px)`;
     else if (isBlurEnabled) ctx.filter = 'blur(12px)'; // Fallback for legacy
@@ -1312,7 +1437,100 @@ export const drawCanvasFrame = (
                         }
                     }
                 }
+
             }
         }
+    }
+
+    // 6. Channel Info / Watermark (Global Overlay)
+    if (renderConfig?.showChannelInfo && !['subtitle', 'just_video', 'none'].includes(activePreset)) {
+        const cPos = renderConfig.channelInfoPosition || 'bottom-right';
+        const cScale = (renderConfig.channelInfoSizeScale ?? 1.0);
+        const cImg = images.get('__channel_info__');
+        const cText = renderConfig.channelInfoText;
+
+        ctx.save();
+
+        const margin = 40 * scale * (renderConfig.channelInfoMarginScale ?? 1.0);
+        const imgBaseSize = 80 * scale * cScale;
+        const fontSize = 20 * scale * cScale;
+        const font = `bold ${fontSize}px sans-serif`;
+
+        ctx.font = font;
+        const textMetrics = cText ? ctx.measureText(cText) : { width: 0 };
+        const textWidth = textMetrics.width;
+        const textHeight = fontSize;
+
+        const gap = 10 * scale * cScale;
+        const padX = 8 * scale * cScale;
+        const padY = 4 * scale * cScale;
+
+        // Calculate Block Dimensions
+        let blockW = 0;
+        let blockH = 0;
+
+        const textFullW = cText ? textWidth + (padX * 2) : 0;
+        const textFullH = cText ? textHeight + (padY * 2) : 0;
+
+        if (cImg && cText) {
+            blockW = Math.max(imgBaseSize, textFullW);
+            blockH = imgBaseSize + gap + textFullH;
+        } else if (cImg) {
+            blockW = imgBaseSize;
+            blockH = imgBaseSize;
+        } else if (cText) {
+            blockW = textFullW;
+            blockH = textFullH;
+        }
+
+        // Position Block
+        let startX = 0;
+        let startY = 0;
+
+        if (cPos.includes('left')) startX = margin;
+        else if (cPos.includes('right')) startX = width - margin - blockW;
+        else startX = (width - blockW) / 2;
+
+        if (cPos.includes('top')) startY = margin;
+        else if (cPos.includes('bottom')) startY = height - margin - blockH;
+
+        // Draw Image
+        if (cImg) {
+            let imgX = startX;
+            if (cPos.includes('right')) imgX = startX + blockW - imgBaseSize; // Right align inside block
+
+            // Draw
+            ctx.drawImage(cImg, imgX, startY, imgBaseSize, imgBaseSize);
+        }
+
+        // Draw Text
+        if (cText) {
+            let txtY = startY;
+            if (cImg) txtY += imgBaseSize + gap;
+
+            let pillX = startX;
+            if (cPos.includes('right')) pillX = startX + blockW - textFullW;
+
+            // Pill Background
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+            if (ctx.roundRect) {
+                ctx.beginPath();
+                ctx.roundRect(pillX, txtY, textFullW, textFullH, 8 * scale * cScale);
+                ctx.fill();
+            } else {
+                ctx.fillRect(pillX, txtY, textFullW, textFullH);
+            }
+
+            // Text
+            ctx.fillStyle = '#ffffff';
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'top';
+            ctx.shadowColor = 'rgba(0,0,0,0.5)';
+            ctx.shadowBlur = 4;
+            ctx.fillText(cText, pillX + padX, txtY + padY);
+            ctx.shadowColor = 'transparent';
+        }
+
+        ctx.restore();
     }
 };

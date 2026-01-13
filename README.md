@@ -5,7 +5,7 @@
 
 **Immersive Audio Player & Lyric Video Maker** is a powerful all-in-one web tool designed for music lovers and content creators. It combines a distraction-free audio player with a professional-grade timeline editor, allowing you to create stunning, synchronized lyric videos directly in your browser. Whether you want to enjoy your local music library with beautiful visuals or create viral content for TikTok, Instagram, and YouTube, this app delivers high-quality results without watermarks or server uploads.
 
-![Immersive Audio Player Main Screen](screenshot-main-screen.jpg)
+![Immersive Audio Player Main Screen](screenshot-main-page.jpg)
 
 ## Key Features
 
@@ -84,6 +84,7 @@
 - **Rendering Scope**: Batch export the entire playlist or just the current song.
 - **Advanced Backgrounds**:
   - **Timeline Media**: Use your custom images and videos from the timeline.
+  - **Custom Image**: Direct support for single custom background images.
   - **Smart Gradient**: Generate beautiful gradients from a single color.
   - **Custom Gradient**: Manually define complex linear gradients.
   - **Solid Color**: Simple, clean backgrounds.
@@ -103,7 +104,7 @@
 - **Song Info Customization**:
   - **Positioning**: 9-point grid automatic positioning (Top-Left to Bottom-Right).
   - **Styles**: Classic (Detailed), Modern + Cover, Circle Cover, Boxed Cover, Minimal (Text Only).
-  - **Padding**: Fine-tune margin from screen edges.
+  - **Padding**: Fine-tune margin from screen edges for both **Song Info** and **Channel Info** (Visible in Minimal Mode).
 - **Smart Overlays**: Automatically generates metadata overlays for "Now Playing" visuals.
 - **Dynamic Blur**: Apply real-time Gaussian-style blur to background images or videos for better lyric readability.
 - **High-Fidelity Rendering**: Native **Canvas 2D** rendering allows for pixel-perfect text at any frame rate.
@@ -147,8 +148,8 @@ Check out our other AI-powered tools for music and visuals:
 | **T** | Open/Close Timeline Editor |
 | **D** | Toggle Render Settings Panel |
 | **I** | Toggle Info Header |
+| **O** | Toggle Minimal Mode |
 | **P** | Toggle Player Controls |
-| **H** | Toggle UI Auto-Hide Inhibit |
 | **X** | Toggle Highlight Effect On/Off |
 | **Z** | Cycle Next Highlight Effect |
 | **F** | Toggle Fullscreen |
@@ -214,12 +215,12 @@ This application is built with React + Vite and requires **Node.js** to run.
 - **Format Lirik Luas**: Dukungan untuk `.lrc`, `.srt`, dan **`.ttml` / `.xml`** untuk presisi per kata (Mode Karaoke).
 - **Karaoke Kustom**: Pilihan efek highlight baru (**Neon, Glow, Box, Pill**) dengan **Pewarnaan Kustom** (Text & Background Color).
 - **Visual Efek**: Fitur **Background Blur** (dengan **Slider Kekuatan Blur**), **Smart Gradient**, dan **Text Animation** (Bounce, Pulse, Glitch, dll).
-- **Kustomisasi Info Lagu**: Atur posisi, gaya tampilan, jarak tepi (padding), serta **Intro** teks (Auto/Manual).
+- **Kustomisasi Info Lagu**: Atur posisi, gaya tampilan, jarak tepi (padding) untuk **Info Lagu & Channel**, serta **Intro** teks (Auto/Manual).
 - **Mode Tampilan Lirik**: Pilih mau tampilkan semua baris, atau hanya aktif/berikutnya saja.
 - **AI Transkripsi**: Dukungan model **Gemini 2.5 Flash** dan **3.0 Flash Preview** untuk transkripsi audio otomatis yang presisi.
 - **Ekspor Lirik**: Simpan hasil transkripsi dalam format `.lrc`, `.srt`, `.json`, atau `.txt`.
 - **Timeline Canggih**: Dukungan **Multi-Layer** (2 Visual + 2 Audio), **Undo/Redo**, **Cut/Copy/Paste**, **Drag Selection**, dan **Snapping** otomatis.
-- **Shortcut Baru**: Tekan **D** (Render Settings), **N**/**B** (Next/Prev), **M** (Mute), **R** (Repeat), **L** (Playlist), **+/-** (Font), dan **Ctrl/Cmd+Shift+E** (Export).
+- **Shortcut Baru**: Tekan **D** (Render Settings), **O** (Minimal Mode), **N**/**B** (Next/Prev), **M** (Mute), **R** (Repeat), **L** (Playlist), **+/-** (Font), dan **Ctrl/Cmd+Shift+E** (Export).
 
 ### Cara Install & Jalan
 1.  Pastikan sudah install **Node.js**.

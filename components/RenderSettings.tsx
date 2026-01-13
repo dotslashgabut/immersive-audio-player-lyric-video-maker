@@ -2,6 +2,7 @@ import React, { useRef, useEffect, useState } from 'react';
 import { X, Video, Settings, ImageIcon, Type, Layout, Palette, Music, FileText, Check, ListMusic, Bold, Italic, Underline, Strikethrough, AlignVerticalJustifyCenter, AlignVerticalJustifyStart, AlignVerticalJustifyEnd, Upload, Trash2, ChevronDown, Maximize, RotateCcw, Download, Keyboard as KeyboardIcon, Sparkles } from './Icons';
 import { RenderConfig, VideoPreset } from '../types';
 import { fontGroups } from '../utils/fonts';
+import { PRESET_DEFINITIONS, videoPresetGroups } from '../utils/presets';
 import { useUI } from '../contexts/UIContext';
 
 const DEFAULT_CONFIG: RenderConfig = {
@@ -37,7 +38,17 @@ const DEFAULT_CONFIG: RenderConfig = {
     highlightEffect: 'karaoke',
     highlightColor: '#fb923c', // Default Orange
     highlightBackground: '#fb923c',
+    showChannelInfo: false,
+    channelInfoText: 'Music Channel',
+    channelInfoPosition: 'bottom-right',
+    channelInfoSizeScale: 1.0,
+    channelInfoMarginScale: 1.0,
+    channelInfoImage: undefined,
+    useCustomHighlightColors: false,
+    backgroundImage: undefined,
 };
+
+
 
 const textEffectGroups = [
     {
@@ -224,7 +235,75 @@ const highlightEffectGroups = [
         options: [
             { label: "Neon White", value: "karaoke-neon" },
             { label: "Glow Blue", value: "karaoke-glow-blue" },
-            { label: "Glow Pink", value: "karaoke-glow-pink" }
+            { label: "Glow Pink", value: "karaoke-glow-pink" },
+            { label: "Multi-Color Neon", value: "karaoke-neon-multi" },
+            { label: "Soft Glow", value: "karaoke-soft-glow" }
+        ]
+    },
+    {
+        label: "3D & Artistic",
+        options: [
+            { label: "3D Pop", value: "karaoke-3d" },
+            { label: "Embossed", value: "karaoke-emboss" },
+            { label: "Chrome Metallic", value: "karaoke-chrome" },
+            { label: "Gold Foil", value: "karaoke-gold" },
+            { label: "Glassmorphism", value: "karaoke-glass" },
+            { label: "Gradient Fill", value: "karaoke-gradient-fill" },
+            { label: "Fire", value: "karaoke-fire" },
+            { label: "Frozen Ice", value: "karaoke-frozen" },
+            { label: "Rainbow", value: "karaoke-rainbow" },
+            { label: "Reflection", value: "karaoke-mirror" }
+        ]
+    },
+    {
+        label: "Retro & Stylized",
+        options: [
+            { label: "VHS Glitch", value: "karaoke-vhs" },
+            { label: "Retro 80s", value: "karaoke-retro" },
+            { label: "Cyberpunk", value: "karaoke-cyberpunk" },
+            { label: "Hologram", value: "karaoke-hologram" },
+            { label: "Comic Book", value: "karaoke-comic" },
+            { label: "Digital Glitch", value: "karaoke-glitch-text" }
+        ]
+    },
+    {
+        label: "Detailed Animations",
+        options: [
+            { label: "Pulse", value: "karaoke-pulse" },
+            { label: "Breathe", value: "karaoke-breathe" },
+            { label: "Float", value: "karaoke-float" },
+            { label: "Sway", value: "karaoke-sway" },
+            { label: "Flicker", value: "karaoke-flicker" },
+            { label: "Shake", value: "karaoke-shake" },
+            { label: "Wobble", value: "karaoke-wobble" },
+            { label: "Jello", value: "karaoke-jello" },
+            { label: "Rubber Band", value: "karaoke-rubberband" },
+            { label: "Heartbeat", value: "karaoke-heartbeat" },
+            { label: "Flash", value: "karaoke-flash" },
+            { label: "Tada!", value: "karaoke-tada" },
+            { label: "Swing", value: "karaoke-swing" },
+            { label: "Gentle Rotate", value: "karaoke-rotate" },
+            { label: "Spin", value: "karaoke-spin" },
+            { label: "Glitch Anim", value: "karaoke-glitch" },
+            { label: "Typewriter", value: "karaoke-typewriter" }
+        ]
+    },
+    {
+        label: "Motion & Transitions",
+        options: [
+            { label: "Smooth Fade", value: "karaoke-fade" },
+            { label: "Slide In", value: "karaoke-slide" },
+            { label: "Drop In", value: "karaoke-drop" },
+            { label: "Lightspeed", value: "karaoke-lightspeed" },
+            { label: "Roll In", value: "karaoke-roll" },
+            { label: "Zoom In", value: "karaoke-zoom" },
+            { label: "Elastic Pop", value: "karaoke-elastic" },
+            { label: "Scale + Rotate", value: "karaoke-scale-rotate" },
+            { label: "Flip In", value: "karaoke-flip" },
+            { label: "Rotate In", value: "karaoke-rotate-in" },
+            { label: "Spiral In", value: "karaoke-spiral" },
+            { label: "Motion Blur", value: "karaoke-blur" },
+            { label: "Shatter", value: "karaoke-shatter" }
         ]
     },
     {
@@ -255,7 +334,8 @@ const backgroundSourceGroups = [
             { label: "Metadata / Default", value: "custom" },
             { label: "Smart Gradient", value: "smart-gradient" },
             { label: "Gradient (Manual)", value: "gradient" },
-            { label: "Solid Color", value: "color" }
+            { label: "Solid Color", value: "color" },
+            { label: "Custom Image", value: "image" }
         ]
     }
 ];
@@ -382,7 +462,7 @@ const getFontLabel = (value: string, groups: typeof fontGroups, customName: stri
     return 'Select Font';
 };
 
-const FontSelector: React.FC<{ value: string; onChange: (val: string) => void; customFontName: string | null }> = ({ value, onChange, customFontName }) => {
+const FontSelector: React.FC<{ value: string; onChange: (val: string) => void; customFontName: string | null; groups?: typeof fontGroups }> = ({ value, onChange, customFontName, groups = fontGroups }) => {
     const [isExpanded, setIsExpanded] = useState(false);
     const [originalValue, setOriginalValue] = useState(value);
 
@@ -415,7 +495,7 @@ const FontSelector: React.FC<{ value: string; onChange: (val: string) => void; c
                 title={isExpanded ? "Close Font List" : "Expand Font List"}
             >
                 <span className="truncate" style={{ fontFamily: value }}>
-                    {getFontLabel(value, fontGroups, customFontName)}
+                    {getFontLabel(value, groups, customFontName)}
                 </span>
                 <ChevronDown size={14} className={`transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
             </button>
@@ -434,7 +514,7 @@ const FontSelector: React.FC<{ value: string; onChange: (val: string) => void; c
                             </button>
                         </div>
                     )}
-                    {fontGroups.map((group) => (
+                    {groups.map((group) => (
                         <div key={group.label} className="px-2 py-1.5 border-b border-white/5 last:border-0">
                             <div className="text-[10px] text-zinc-500 font-bold uppercase mb-1 px-2">{group.label}</div>
                             <div className="grid grid-cols-1 gap-0.5">
@@ -483,6 +563,26 @@ interface RenderSettingsProps {
     setRenderFps: (fps: number) => void;
 }
 
+// Generate font options from presets
+const presetFontOptions = Object.values(PRESET_DEFINITIONS)
+    .filter(p => p.fontFamily)
+    .reduce((acc, p) => {
+        if (!acc.find(x => x.value === p.fontFamily)) {
+            let label = p.fontFamily!.split(',')[0].replace(/['"]/g, '');
+            if (label.includes('ui-serif')) label = "Classic Serif";
+            else if (label.includes('ui-monospace')) label = "Monospace";
+            else if (label === 'sans-serif') label = "Default Sans";
+
+            acc.push({ label: `${label} (Preset)`, value: p.fontFamily! });
+        }
+        return acc;
+    }, [] as { label: string; value: string }[]);
+
+const fullFontGroups = [
+    { label: "Visual Presets", options: presetFontOptions },
+    ...fontGroups
+];
+
 const RenderSettings: React.FC<RenderSettingsProps> = ({
     config,
     setConfig,
@@ -510,6 +610,8 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
     const { toast, confirm } = useUI();
     const sidebarRef = useRef<HTMLDivElement>(null);
     const fontInputRef = useRef<HTMLInputElement>(null);
+    const channelImageInputRef = useRef<HTMLInputElement>(null);
+    const backgroundImageInputRef = useRef<HTMLInputElement>(null);
     const settingsInputRef = useRef<HTMLInputElement>(null);
     const [showShortcuts, setShowShortcuts] = useState(false);
 
@@ -518,6 +620,26 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
         setPreset('custom');
 
         let newConfig = { ...config, [key]: value };
+
+        // Handle specific toggles resets to defaults when disabled
+        if (key === 'showChannelInfo' && value === false) {
+            newConfig = {
+                ...newConfig,
+                channelInfoText: DEFAULT_CONFIG.channelInfoText,
+                channelInfoPosition: DEFAULT_CONFIG.channelInfoPosition,
+                channelInfoSizeScale: DEFAULT_CONFIG.channelInfoSizeScale,
+                channelInfoMarginScale: DEFAULT_CONFIG.channelInfoMarginScale,
+                channelInfoImage: undefined,
+            };
+        }
+
+        if (key === 'showIntro' && value === false) {
+            newConfig = {
+                ...newConfig,
+                introMode: DEFAULT_CONFIG.introMode,
+                introText: DEFAULT_CONFIG.introText,
+            };
+        }
 
         // Auto-set colors for specific highlight presets
         if (key === 'highlightEffect') {
@@ -554,6 +676,43 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
         setConfig(newConfig);
     };
 
+    const handlePresetSelect = (newPreset: VideoPreset) => {
+        setPreset(newPreset);
+        const presetConfig = PRESET_DEFINITIONS[newPreset];
+        if (presetConfig) {
+            setConfig({ ...config, ...presetConfig });
+            // Note: No toast here to avoid notification spam during "Live Preview" (hover)
+        }
+    };
+
+    const handleChannelImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                if (event.target?.result) {
+                    handleChange('channelInfoImage', event.target.result as string);
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+        e.target.value = '';
+    };
+
+    const handleBackgroundImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                if (event.target?.result) {
+                    handleChange('backgroundImage', event.target.result as string);
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+        e.target.value = '';
+    };
+
     const handleReset = async () => {
         if (await confirm('Reset all render settings to default?', "Reset Settings")) {
             setConfig(DEFAULT_CONFIG);
@@ -563,6 +722,13 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
             setRenderCodec('auto');
             setRenderFps(30);
             setRenderQuality('med');
+
+            // Reset File Inputs
+            if (channelImageInputRef.current) channelImageInputRef.current.value = '';
+            if (backgroundImageInputRef.current) backgroundImageInputRef.current.value = '';
+
+            // Reset Custom Font
+            onClearCustomFont();
         }
     };
 
@@ -574,8 +740,18 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
             aspectRatio,
             renderCodec,
             renderFps,
-            renderQuality
-        };
+            renderQuality,
+            customFontName // Include custom font name meta-data
+        } as any;
+
+        // Cleanup unused large data to keep file size down
+        if (exportData.backgroundSource !== 'image') {
+            exportData.backgroundImage = undefined;
+        }
+        if (!exportData.showChannelInfo) {
+            exportData.channelInfoImage = undefined;
+        }
+
         const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportData, null, 2));
         const downloadAnchorNode = document.createElement('a');
         downloadAnchorNode.setAttribute("href", dataStr);
@@ -594,46 +770,52 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
             try {
                 const json = JSON.parse(e.target?.result as string);
                 if (json && typeof json === 'object') {
-                    // Extract new props separate from config
+                    // Extract Output Settings and meta that are NOT part of RenderConfig
                     const {
                         resolution: importedResolution,
                         aspectRatio: importedAspectRatio,
                         renderCodec: importedRenderCodec,
                         renderFps: importedRenderFps,
                         renderQuality: importedRenderQuality,
-                        preset: importedPreset, // Extract preset
-                        highlightColor: importedHighlightColor,
-                        highlightBackground: importedHighlightBackground,
-                        useCustomHighlightColors: importedUseCustomHighlightColors,
+                        preset: importedPreset,
+                        customFontName: _importedCustomFontName, // Not used yet as we can't load the file
                         ...importedConfig
                     } = json;
 
-                    // Start with default config, overwrite with imported json, preserve validity
-                    // In a real app we might want to validate schema using zod or similar
+                    // Start with default config, overwrite with imported json
                     const newConfig = { ...DEFAULT_CONFIG, ...importedConfig };
 
                     // Ensure numeric values are numbers
-                    if (newConfig.backgroundBlurStrength) newConfig.backgroundBlurStrength = Number(newConfig.backgroundBlurStrength);
-                    if (newConfig.fontSizeScale) newConfig.fontSizeScale = Number(newConfig.fontSizeScale);
-                    if (newConfig.infoMarginScale) newConfig.infoMarginScale = Number(newConfig.infoMarginScale);
-                    if (newConfig.infoSizeScale) newConfig.infoSizeScale = Number(newConfig.infoSizeScale);
+                    const numericFields: (keyof RenderConfig)[] = [
+                        'backgroundBlurStrength',
+                        'fontSizeScale',
+                        'infoMarginScale',
+                        'infoSizeScale',
+                        'channelInfoSizeScale',
+                        'channelInfoMarginScale'
+                    ];
 
-                    // Restore custom Highlight colors if present
-                    if (importedHighlightColor) newConfig.highlightColor = importedHighlightColor;
-                    if (importedHighlightBackground) newConfig.highlightBackground = importedHighlightBackground;
-                    if (importedUseCustomHighlightColors !== undefined) {
-                        newConfig.useCustomHighlightColors = Boolean(importedUseCustomHighlightColors);
+                    numericFields.forEach(field => {
+                        if (newConfig[field] !== undefined) {
+                            (newConfig as any)[field] = Number(newConfig[field]);
+                        }
+                    });
+
+                    // Ensure boolean values
+                    if (newConfig.useCustomHighlightColors !== undefined) {
+                        newConfig.useCustomHighlightColors = Boolean(newConfig.useCustomHighlightColors);
                     }
 
                     setConfig(newConfig);
 
-                    // Update Output Settings if present, otherwise reset to defaults
-                    setResolution((importedResolution as any) || '1080p');
-                    setAspectRatio((importedAspectRatio as any) || '16:9');
-                    setRenderCodec((importedRenderCodec as string) || 'auto');
-                    setRenderFps(Number(importedRenderFps) || 30);
-                    setRenderQuality((importedRenderQuality as any) || 'med');
+                    // Update Output Settings if present
+                    if (importedResolution) setResolution(importedResolution as any);
+                    if (importedAspectRatio) setAspectRatio(importedAspectRatio as any);
+                    if (importedRenderCodec) setRenderCodec(importedRenderCodec as string);
+                    if (importedRenderFps) setRenderFps(Number(importedRenderFps));
+                    if (importedRenderQuality) setRenderQuality(importedRenderQuality as any);
 
+                    // Set Preset State (without overwriting config again)
                     if (importedPreset) {
                         setPreset(importedPreset as VideoPreset);
                     } else {
@@ -719,6 +901,18 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
 
             {/* Content */}
             <div className="flex-1 overflow-y-auto p-3 md:p-4 space-y-6 custom-scrollbar">
+
+                {/* Visual Preset */}
+                <section className="space-y-3">
+                    <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-2">
+                        <Sparkles size={14} /> Visual Preset
+                    </h3>
+                    <GroupedSelection
+                        value={preset}
+                        onChange={(val) => handlePresetSelect(val as VideoPreset)}
+                        groups={videoPresetGroups}
+                    />
+                </section>
 
                 {/* Render Mode */}
                 <section className="space-y-3">
@@ -832,6 +1026,51 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                             placeholder="linear-gradient(to bottom right, #312e81, #581c87, #000000)"
                             className="w-full bg-zinc-800 border border-white/10 rounded-lg px-3 py-2 text-xs font-mono text-zinc-300 focus:outline-none focus:ring-1 focus:ring-purple-500"
                         />
+                    )}
+
+                    {config.backgroundSource === 'image' && (
+                        <div className="space-y-3 animate-in slide-in-from-top-1 fade-in duration-200">
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Custom Background Image</label>
+                                <input
+                                    ref={backgroundImageInputRef}
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={handleBackgroundImageUpload}
+                                    className="hidden"
+                                />
+                                {config.backgroundImage ? (
+                                    <div className="flex items-center gap-3 bg-zinc-800 p-2 rounded-lg border border-white/10">
+                                        <div className="w-10 h-10 rounded bg-zinc-700/50 flex items-center justify-center overflow-hidden border border-white/5">
+                                            <img src={config.backgroundImage} alt="Background" className="w-full h-full object-cover" />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-xs text-zinc-300 truncate">Image Loaded</p>
+                                            <button
+                                                onClick={() => handleChange('backgroundImage', undefined)}
+                                                className="text-[10px] text-red-400 hover:text-red-300"
+                                            >
+                                                Remove
+                                            </button>
+                                        </div>
+                                        <button
+                                            onClick={() => backgroundImageInputRef.current?.click()}
+                                            className="p-1.5 hover:bg-white/10 rounded-md text-zinc-400 hover:text-white"
+                                        >
+                                            <Settings size={14} />
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <button
+                                        onClick={() => backgroundImageInputRef.current?.click()}
+                                        className="w-full flex items-center justify-center gap-2 bg-zinc-800/50 border border-dashed border-white/10 hover:border-purple-500/50 rounded-lg px-3 py-3 text-zinc-400 hover:text-purple-300 transition-colors"
+                                    >
+                                        <Upload size={14} />
+                                        <span className="text-xs">Upload Background</span>
+                                    </button>
+                                )}
+                            </div>
+                        </div>
                     )}
                 </section>
 
@@ -1030,6 +1269,140 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                                     placeholder="Enter intro text..."
                                     className="w-full bg-zinc-900 border border-white/10 rounded-md px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:ring-1 focus:ring-purple-500 min-h-[60px]"
                                 />
+                            </div>
+                        )}
+                    </div>
+
+                </section>
+
+                {/* Channel Info / Watermark */}
+                <section className="space-y-3">
+                    <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-2">
+                        <ImageIcon size={14} /> Channel Info / Watermark
+                    </h3>
+                    <div className="bg-zinc-800/30 border border-white/5 rounded-lg p-3 space-y-3">
+                        <label className="flex items-center justify-between cursor-pointer">
+                            <span className="text-xs text-zinc-300 font-medium">Show Channel Info</span>
+                            <div className="relative inline-flex items-center cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    checked={config.showChannelInfo ?? false}
+                                    onChange={(e) => handleChange('showChannelInfo', e.target.checked)}
+                                    className="sr-only peer"
+                                />
+                                <div className="w-8 h-4 bg-zinc-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-purple-600"></div>
+                            </div>
+                        </label>
+
+                        {config.showChannelInfo && (
+                            <div className="space-y-3 animate-in slide-in-from-top-1 fade-in duration-200 pt-2 border-t border-white/5">
+                                {/* Image Upload */}
+                                <div className="space-y-1.5">
+                                    <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Channel Logo / Image</label>
+                                    <input
+                                        ref={channelImageInputRef}
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={handleChannelImageUpload}
+                                        className="hidden"
+                                    />
+                                    {config.channelInfoImage ? (
+                                        <div className="flex items-center gap-3 bg-zinc-800 p-2 rounded-lg border border-white/10">
+                                            <div className="w-10 h-10 rounded bg-zinc-700/50 flex items-center justify-center overflow-hidden border border-white/5">
+                                                <img src={config.channelInfoImage} alt="Channel" className="w-full h-full object-cover" />
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-xs text-zinc-300 truncate">Image Loaded</p>
+                                                <button
+                                                    onClick={() => handleChange('channelInfoImage', undefined)}
+                                                    className="text-[10px] text-red-400 hover:text-red-300"
+                                                >
+                                                    Remove
+                                                </button>
+                                            </div>
+                                            <button
+                                                onClick={() => channelImageInputRef.current?.click()}
+                                                className="p-1.5 hover:bg-white/10 rounded-md text-zinc-400 hover:text-white"
+                                            >
+                                                <Settings size={14} />
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <button
+                                            onClick={() => channelImageInputRef.current?.click()}
+                                            className="w-full flex items-center justify-center gap-2 bg-zinc-800/50 border border-dashed border-white/10 hover:border-purple-500/50 rounded-lg px-3 py-3 text-zinc-400 hover:text-purple-300 transition-colors"
+                                        >
+                                            <Upload size={14} />
+                                            <span className="text-xs">Upload Image</span>
+                                        </button>
+                                    )}
+                                </div>
+
+                                {/* Text Input */}
+                                <div className="space-y-1.5">
+                                    <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Channel Name / Text</label>
+                                    <input
+                                        type="text"
+                                        value={config.channelInfoText ?? ''}
+                                        onChange={(e) => handleChange('channelInfoText', e.target.value)}
+                                        placeholder="Display Name"
+                                        className="w-full bg-zinc-900 border border-white/10 rounded-md px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                                    />
+                                </div>
+
+                                {/* Position */}
+                                <div className="space-y-1.5">
+                                    <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Position</label>
+                                    <div className="grid grid-cols-3 gap-2">
+                                        <button onClick={() => handleChange('channelInfoPosition', 'top-left')} className={`h-8 rounded-md border flex items-start justify-start p-1 transition-all ${config.channelInfoPosition === 'top-left' ? 'bg-purple-600 border-purple-500 text-white' : 'bg-zinc-800 border-white/5 text-zinc-500 hover:border-white/20'}`} title="Top Left"><div className="w-2 h-2 bg-current rounded-sm" /></button>
+                                        <button onClick={() => handleChange('channelInfoPosition', 'top-center')} className={`h-8 rounded-md border flex items-start justify-center p-1 transition-all ${config.channelInfoPosition === 'top-center' ? 'bg-purple-600 border-purple-500 text-white' : 'bg-zinc-800 border-white/5 text-zinc-500 hover:border-white/20'}`} title="Top Center"><div className="w-2 h-2 bg-current rounded-sm" /></button>
+                                        <button onClick={() => handleChange('channelInfoPosition', 'top-right')} className={`h-8 rounded-md border flex items-start justify-end p-1 transition-all ${config.channelInfoPosition === 'top-right' ? 'bg-purple-600 border-purple-500 text-white' : 'bg-zinc-800 border-white/5 text-zinc-500 hover:border-white/20'}`} title="Top Right"><div className="w-2 h-2 bg-current rounded-sm" /></button>
+
+                                        <button onClick={() => handleChange('channelInfoPosition', 'bottom-left')} className={`h-8 rounded-md border flex items-end justify-start p-1 transition-all ${config.channelInfoPosition === 'bottom-left' ? 'bg-purple-600 border-purple-500 text-white' : 'bg-zinc-800 border-white/5 text-zinc-500 hover:border-white/20'}`} title="Bottom Left"><div className="w-2 h-2 bg-current rounded-sm" /></button>
+                                        <button onClick={() => handleChange('channelInfoPosition', 'bottom-center')} className={`h-8 rounded-md border flex items-end justify-center p-1 transition-all ${config.channelInfoPosition === 'bottom-center' ? 'bg-purple-600 border-purple-500 text-white' : 'bg-zinc-800 border-white/5 text-zinc-500 hover:border-white/20'}`} title="Bottom Center"><div className="w-2 h-2 bg-current rounded-sm" /></button>
+                                        <button onClick={() => handleChange('channelInfoPosition', 'bottom-right')} className={`h-8 rounded-md border flex items-end justify-end p-1 transition-all ${config.channelInfoPosition === 'bottom-right' ? 'bg-purple-600 border-purple-500 text-white' : 'bg-zinc-800 border-white/5 text-zinc-500 hover:border-white/20'}`} title="Bottom Right"><div className="w-2 h-2 bg-current rounded-sm" /></button>
+                                    </div>
+                                </div>
+
+                                {/* Margin Scale */}
+                                <div className="space-y-1.5">
+                                    <div className="flex justify-between items-center">
+                                        <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Edge Margin</label>
+                                        <span className="text-[10px] text-zinc-400 font-mono">{(config.channelInfoMarginScale ?? 1.0).toFixed(1)}x</span>
+                                    </div>
+                                    <div className="flex items-center gap-2 bg-zinc-800 border border-white/10 rounded-lg px-2 py-1.5">
+                                        <span className="text-zinc-500"><Maximize size={12} /></span>
+                                        <input
+                                            type="range"
+                                            min="0.0"
+                                            max="5.0"
+                                            step="0.1"
+                                            value={config.channelInfoMarginScale ?? 1.0}
+                                            onChange={(e) => handleChange('channelInfoMarginScale', parseFloat(e.target.value))}
+                                            className="w-full h-1 bg-zinc-600 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full hover:[&::-webkit-slider-thumb]:bg-purple-400 transition-all"
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Size Scale */}
+                                <div className="space-y-1.5">
+                                    <div className="flex justify-between items-center">
+                                        <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Size</label>
+                                        <span className="text-[10px] text-zinc-400 font-mono">{(config.channelInfoSizeScale ?? 1.0).toFixed(1)}x</span>
+                                    </div>
+                                    <div className="flex items-center gap-2 bg-zinc-800 border border-white/10 rounded-lg px-2 py-1.5">
+                                        <span className="text-zinc-500"><Maximize size={12} /></span>
+                                        <input
+                                            type="range"
+                                            min="0.5"
+                                            max="3.0"
+                                            step="0.1"
+                                            value={config.channelInfoSizeScale ?? 1.0}
+                                            onChange={(e) => handleChange('channelInfoSizeScale', parseFloat(e.target.value))}
+                                            className="w-full h-1 bg-zinc-600 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full hover:[&::-webkit-slider-thumb]:bg-purple-400 transition-all"
+                                        />
+                                    </div>
+                                </div>
                             </div>
                         )}
                     </div>
@@ -1269,6 +1642,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                                 value={config.fontFamily}
                                 onChange={(val) => handleChange('fontFamily', val)}
                                 customFontName={customFontName}
+                                groups={fullFontGroups}
                             />
                         </div>
 
@@ -1332,6 +1706,13 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                                 <span className="text-zinc-300"><Type size={16} /></span>
                             </div>
                         </div>
+
+                        {/* Font Style Warning */}
+                        {config.fontFamily !== 'sans-serif' && config.fontFamily !== 'CustomFont' && (
+                            <div className="text-[10px] text-zinc-500 bg-zinc-800/30 p-2 rounded border border-white/5">
+                                Some presets like Gothic, Metal, or Tech use specific fonts. Changing Font Family here might override that look.
+                            </div>
+                        )}
 
                         <div className="space-y-1.5">
                             <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Color</label>
@@ -1526,6 +1907,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                                         <div className="flex justify-between items-center"><span className="text-zinc-300">Toggle Info</span> <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 font-mono text-[10px] border border-white/10">I</kbd></div>
                                         <div className="flex justify-between items-center"><span className="text-zinc-300">Toggle Player</span> <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 font-mono text-[10px] border border-white/10">P</kbd></div>
                                         <div className="flex justify-between items-center"><span className="text-zinc-300">Auto-Hide HUD</span> <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 font-mono text-[10px] border border-white/10">H</kbd></div>
+                                        <div className="flex justify-between items-center"><span className="text-zinc-300">Minimal Mode</span> <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 font-mono text-[10px] border border-white/10">O</kbd></div>
                                         <div className="flex justify-between items-center"><span className="text-zinc-300">Lyric Display Mode</span> <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 font-mono text-[10px] border border-white/10">G</kbd></div>
                                         <div className="flex justify-between items-center"><span className="text-zinc-300">Text Case</span> <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 font-mono text-[10px] border border-white/10">C</kbd></div>
                                         <div className="flex justify-between items-center"><span className="text-zinc-300">Render Settings</span> <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 font-mono text-[10px] border border-white/10">D</kbd></div>

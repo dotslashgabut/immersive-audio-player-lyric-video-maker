@@ -21,7 +21,7 @@ const ToastItem: React.FC<{ toast: ToastMessage; onRemove: () => void }> = ({ to
   useEffect(() => {
     const timer = setTimeout(() => {
       handleClose();
-    }, toast.duration || 3000);
+    }, toast.duration || 500);
 
     return () => clearTimeout(timer);
   }, []);
@@ -50,7 +50,7 @@ const ToastItem: React.FC<{ toast: ToastMessage; onRemove: () => void }> = ({ to
   return (
     <div
       className={`
-        flex items-center gap-3 bg-zinc-900/90 backdrop-blur-md border ${getBorderColor()} 
+        flex items-center gap-3 bg-zinc-900/60 backdrop-blur-xl border ${getBorderColor()} 
         text-zinc-100 px-4 py-3 rounded-xl shadow-2xl min-w-[300px] max-w-md
         transition-all duration-300 transform
         ${isExiting ? 'opacity-0 translate-x-full' : 'opacity-100 translate-x-0'}
@@ -62,7 +62,7 @@ const ToastItem: React.FC<{ toast: ToastMessage; onRemove: () => void }> = ({ to
         {getIcon()}
       </div>
       <p className="text-sm font-medium flex-1">{toast.message}</p>
-      <button 
+      <button
         onClick={handleClose}
         className="text-zinc-500 hover:text-white transition-colors"
       >

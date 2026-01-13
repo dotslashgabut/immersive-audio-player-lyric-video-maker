@@ -1,5 +1,32 @@
 # Release Notes
 
+# v2.2.1
+
+## What's New
+- **Advanced Backgrounds**:
+    - **Custom Image Source**: You can now select "Custom Image" directly from the Background Source dropdown in Render Settings, allowing for easier single-image background setup.
+- **Minimal Mode Refinements**:
+    - **UI Polish**: Improved positioning, sizing, and margins for Channel Info and Song Info elements in Minimal Mode.
+    - **Visual Consistency**: Aligned album art and text in the web view to perfectly match the final video export.
+    - **Shortcut**: Added **O** shortcut to quickly toggle Minimal Mode on/off.
+- **Channel Info Control**:
+    - **Adjustable Margins**: New slider setting to fine-tune the edge margin of the Channel Info display.
+    - **Z-Index Fix**: Resolved issues where channel info could be obstructed by other elements.
+- **Render Settings**:
+    - **Settings Sync**: Fixed synchronization issues between shortcuts and the Render Settings panel (e.g., Highlight Effect 'Z').
+    - **Visual Preset Dropdown**: Added a dedicated dropdown menu to apply visual presets (Simple, Large, Social, etc.) directly from the panel. The dropdown is now fully synchronized with the **J** keyboard shortcut.
+    - **Robust Import/Export**: Settings export/import now correctly handles custom fonts and ensures all render configurations (resolution, FPS, quality) are preserved.
+- **System Notifications**:
+    - **Expanded Feedback**: Added toast notifications for major keyboard shortcuts (e.g., 'H' for UI Inhibit) to confirm actions.
+    - **Improved UX**: Optimized notification duration and removed duplicates for a cleaner experience.
+- **Clean UI**:
+    - **Smart Channel Info**: Channel Info overlay is now hidden by default on the main player view and only appears when **Minimal Mode** (O) is active, keeping the main interface clutter-free.
+
+## Bug Fixes
+- **Lyric Alignment**: Fixed text alignment issues where wrapped second lines were not correctly centered in Canvas and Video export.
+- **Sync**: Fixed double notifications when changing effects via shortcuts.
+- **Defaults**: Fixed issue where toggling off settings (Channel Info/Intro) didn't correctly reset their sub-settings to defaults.
+
 # v2.2.0
 
 ## What's New

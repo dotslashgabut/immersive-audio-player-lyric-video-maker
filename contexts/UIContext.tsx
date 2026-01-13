@@ -2,11 +2,16 @@ import React, { createContext, useContext, useState, ReactNode, useCallback } fr
 import { ToastContainer, ToastMessage, ToastType } from '../components/Toast';
 import ConfirmModal from '../components/ConfirmModal';
 
+export interface ToastOptions {
+    duration?: number;
+    id?: string;
+}
+
 interface UIContextType {
     toast: {
-        success: (message: string, duration?: number) => void;
-        error: (message: string, duration?: number) => void;
-        info: (message: string, duration?: number) => void;
+        success: (message: string, options?: number | ToastOptions) => void;
+        error: (message: string, options?: number | ToastOptions) => void;
+        info: (message: string, options?: number | ToastOptions) => void;
     };
     confirm: (message: string, title?: string) => Promise<boolean>;
 }
@@ -25,9 +30,24 @@ export const UIProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     // Toast State
     const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
-    const addToast = useCallback((type: ToastType, message: string, duration?: number) => {
-        const id = Math.random().toString(36).substr(2, 9);
-        setToasts(prev => [...prev, { id, type, message, duration }]);
+    const addToast = useCallback((type: ToastType, message: string, options?: number | ToastOptions) => {
+        let duration: number | undefined;
+        let customId: string | undefined;
+
+        if (typeof options === 'number') {
+            duration = options;
+        } else if (typeof options === 'object') {
+            duration = options.duration;
+            customId = options.id;
+        }
+
+        const id = customId || Math.random().toString(36).substr(2, 9);
+
+        setToasts(prev => {
+            // If ID exists, remove old one first (replace/update)
+            const filtered = prev.filter(t => t.id !== id);
+            return [...filtered, { id, type, message, duration }];
+        });
     }, []);
 
     const removeToast = useCallback((id: string) => {
@@ -35,9 +55,9 @@ export const UIProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     }, []);
 
     const toast = {
-        success: (msg: string, dur?: number) => addToast('success', msg, dur),
-        error: (msg: string, dur?: number) => addToast('error', msg, dur),
-        info: (msg: string, dur?: number) => addToast('info', msg, dur),
+        success: (msg: string, opt?: number | ToastOptions) => addToast('success', msg, opt),
+        error: (msg: string, opt?: number | ToastOptions) => addToast('error', msg, opt),
+        info: (msg: string, opt?: number | ToastOptions) => addToast('info', msg, opt),
     };
 
     // Confirm Modal State
