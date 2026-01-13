@@ -49,7 +49,7 @@ const WORD_LEVEL_SCHEMA = {
             items: {
               type: Type.OBJECT,
               properties: {
-                text: { type: Type.STRING, description: "The single word" },
+                text: { type: Type.STRING, description: "The single word, or character (for Chinese), or linguistic unit." },
                 startTime: { type: Type.STRING, description: "Start time of the word" },
                 endTime: { type: Type.STRING, description: "End time of the word" }
               },
@@ -206,29 +206,76 @@ export async function transcribeAudio(
     const ai = getAI(apiKey);
     const isGemini3 = modelName.includes('gemini-3');
 
-    // Condensed policies for faster processing
-    const policies = `
-    RULES:
-    1. TIMING: Use **MM:SS.mmm** (e.g. 01:05.300). Absolute from start. Sync EXACTLY to speech.
-    2. VERBATIM: Transcribe exactly what is spoken. Include repetitions (e.g. "Na na na"). Do not paraphrase.
-    3. COMPLETENESS: Transcribe the ENTIRE file. Do not skip fast sections.
-    4. SEGMENTATION: Split recurring phrases. Max segment length ~5s. Break at pauses.
-    5. NO HALLUCINATION: Only transcribe audible speech.
-    6. JSON SAFETY: Escape double quotes in text (e.g. \\").
-    7. MULTI-LANGUAGE: Transcribe in the original language spoken in the audio. Detect the language automatically.
-    8. NON-LATIN SCRIPTS: For logographic languages (Chinese, Japanese) or other non-Latin scripts (Arabic, etc.):
-       - Breaking by "word" should follow the language's natural segmentation (e.g. characters for Chinese, phrases/bunsetsu for Japanese, words for Arabic).
-       - Ensure strictly valid Unicode characters are used.
+    const timingPolicy = `
+    TIMING RULES:
+    1. FORMAT: strictly **MM:SS.mmm** (e.g., 01:23.450).
+    2. CONTINUITY: Timestamps must be strictly chronological.
+    3. ACCURACY: Sync text exactly to the audio.
+    `;
+
+    let segmentationPolicy = "";
+
+    if (granularity === 'word') {
+      segmentationPolicy = `
+    SEGMENTATION: HIERARCHICAL WORD-LEVEL (TTML/KARAOKE)
+    ---------------------------------------------------
+    CRITICAL: You are generating data for rich TTML export.
+    
+    1. STRUCTURE: Group words into natural lines/phrases (this is the parent object).
+    2. DETAILS: Inside each line object, you MUST provide a "words" array.
+    3. WORDS: The "words" array must contain EVERY single word from that line with its own precise start/end time.
+    4. CJK HANDLING: For Chinese, Japanese, or Korean scripts, treat each character (or logical block of characters) as a separate "word" for the purposes of karaoke timing.
+      `;
+    } else {
+      segmentationPolicy = `
+    SEGMENTATION: LINE-LEVEL (SUBTITLE/LRC MODE)
+    ---------------------------------------------------
+    CRITICAL: You are generating subtitles for a movie/music video.
+
+    1. PHRASES: Group words into complete sentences or musical phrases.
+    2. CLARITY: Do not break a sentence in the middle unless there is a pause.
+    3. REPETITIONS: Separate repetitive vocalizations (e.g. "Oh oh oh") from the main lyrics into their own lines.
+    4. LENGTH: Keep segments between 2 and 6 seconds for readability.
+    5. WORDS ARRAY: You may omit the "words" array in this mode to save tokens.
+      `;
+    }
+
+    const systemInstructions = `
+    You are an expert Audio Transcription AI specialized in generating timed lyrics.
+    
+    TASK: Transcribe the audio file into JSON segments.
+    MODE: ${granularity.toUpperCase()} LEVEL.
+    
+    ${timingPolicy}
+    
+    ${segmentationPolicy}
+
+    LANGUAGE HANDLING (CRITICAL):
+    1. RAPID CODE-SWITCHING: Audio often contains multiple languages mixed within the SAME sentence.
+    2. MULTI-LINGUAL EQUALITY: The languages might NOT include English (e.g. Indonesian mixed with Japanese, Chinese mixed with Japanese). Treat all detected languages as equally probable.
+    3. WORD-LEVEL DETECTION: Detect the language of every individual word.
+    4. NATIVE SCRIPT STRICTNESS: Write EACH word in its native script.
+       - Example: "Aku cinta kamu" (Indonesian) -> Latin.
+       - Example: "愛してる" (Japanese) -> Kanji/Kana.
+    5. PROHIBITIONS:
+       - DO NOT translate.
+       - DO NOT romanize (unless explicitly spelled out).
+       - DO NOT force English if it is not spoken.
+    
+    GENERAL RULES:
+    - Verbatim: Transcribe exactly what is heard. Include fillers (um, ah) if sung.
+    - Completeness: Transcribe from 00:00 to the very end. Do not summarize.
+    - JSON Only: Output pure JSON. No markdown fences.
     `;
 
     const requestConfig: any = {
       responseMimeType: "application/json",
       responseSchema: granularity === 'word' ? WORD_LEVEL_SCHEMA : TRANSCRIPTION_SCHEMA,
-      temperature: 0,
+      temperature: 0.1,
     };
 
     if (isGemini3) {
-      requestConfig.thinkingConfig = { thinkingBudget: 2048 };
+      requestConfig.thinkingConfig = { thinkingBudget: 1024 };
     }
 
     const abortPromise = new Promise<never>((_, reject) => {
@@ -249,14 +296,7 @@ export async function transcribeAudio(
                 },
               },
               {
-                text: `You are a high-fidelity, verbatim audio transcription engine optimized for **Lyrics**. Your output must be exhaustive, complete, and perfectly timed.
-                
-                ${policies}
-                
-                REQUIRED FORMAT: JSON object with "segments" array. 
-                Granularity: ${granularity === 'word' ? '**WORD-LEVEL**' : 'Line-Level'}
-                ${granularity === 'word' ? 'You MUST include a "words" array for each segment containing every single word with its precise start/end time.' : ''}
-                Timestamps MUST be 'MM:SS.mmm'. Do not stop until you have reached the end of the audio.`,
+                text: systemInstructions,
               },
             ],
           },
