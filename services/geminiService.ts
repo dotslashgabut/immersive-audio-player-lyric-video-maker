@@ -215,6 +215,10 @@ export async function transcribeAudio(
     4. SEGMENTATION: Split recurring phrases. Max segment length ~5s. Break at pauses.
     5. NO HALLUCINATION: Only transcribe audible speech.
     6. JSON SAFETY: Escape double quotes in text (e.g. \\").
+    7. MULTI-LANGUAGE: Transcribe in the original language spoken in the audio. Detect the language automatically.
+    8. NON-LATIN SCRIPTS: For logographic languages (Chinese, Japanese) or other non-Latin scripts (Arabic, etc.):
+       - Breaking by "word" should follow the language's natural segmentation (e.g. characters for Chinese, phrases/bunsetsu for Japanese, words for Arabic).
+       - Ensure strictly valid Unicode characters are used.
     `;
 
     const requestConfig: any = {

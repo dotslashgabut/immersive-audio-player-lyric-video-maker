@@ -1,5 +1,13 @@
 import { LyricLine } from '../types';
 
+
+// Helper to remove spaces between CJK characters (preserves spaces for Latin/mixed)
+const fixCJKSpacing = (text: string): string => {
+  // Ranges: CJK Unified Ideographs, Hiragana, Katakana, Fullwidth forms
+  const cjkRegex = /([\u4E00-\u9FFF\u3040-\u309F\u30A0-\u30FF\uFF00-\uFFEF])\s+([\u4E00-\u9FFF\u3040-\u309F\u30A0-\u30FF\uFF00-\uFFEF])/g;
+  return text.replace(cjkRegex, '$1$2');
+};
+
 export const parseTimestamp = (timeStr: string): number => {
   if (!timeStr) return 0;
 
@@ -103,7 +111,8 @@ export const parseSRT = (srtContent: string): LyricLine[] => {
       // Line 2 is time range
       const timeLine = lines[1];
       const textLines = lines.slice(2);
-      const text = textLines.join(' ').trim();
+      const rawText = textLines.join(' ').trim();
+      const text = fixCJKSpacing(rawText);
 
       const times = timeLine.split(' --> ');
       if (times.length >= 2) {
@@ -173,7 +182,9 @@ export const parseTTML = (ttmlContent: string): LyricLine[] => {
       // If words are merged (e.g. <span>A</span><span>B</span> -> "AB"), 
       // we can try to rely on the words array for rendering if available.
       // Normalize whitespace: replace newlines and multiple spaces with a single space
-      const text = p.textContent?.replace(/\s+/g, ' ').trim();
+      // Normalize whitespace: replace newlines and multiple spaces with a single space
+      // Also apply CJK spacing fix
+      const text = fixCJKSpacing(p.textContent?.replace(/\s+/g, ' ').trim() || '');
 
       if (begin && text) {
         const time = getTime(begin);

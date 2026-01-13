@@ -88,6 +88,16 @@ export const fontGroups = [
             { label: "Rubik Moonrocks", value: "'Rubik Moonrocks', cursive" },
             { label: "Nabla", value: "'Nabla', cursive" }
         ]
+    },
+    {
+        label: "International & Multilingual",
+        options: [
+            { label: "Noto Sans SC (Chinese)", value: "'Noto Sans SC', sans-serif" },
+            { label: "Noto Sans JP (Japanese)", value: "'Noto Sans JP', sans-serif" },
+            { label: "Noto Sans KR (Korean)", value: "'Noto Sans KR', sans-serif" },
+            { label: "Noto Sans Arabic (Arabic)", value: "'Noto Sans Arabic', sans-serif" },
+            { label: "Noto Sans Devanagari (Hindi)", value: "'Noto Sans Devanagari', sans-serif" }
+        ]
     }
 ];
 
