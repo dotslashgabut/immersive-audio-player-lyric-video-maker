@@ -22,7 +22,7 @@
 - **Multi-Format Support**: Compatible with `.lrc` (Karaoke style), `.srt` (Subtitle style), and **`.ttml` / `.xml`** (Word-level precision) files.
 - **Auto-Scroll & Centering**: Lyrics scroll automatically and active lines are perfectly centered.
 - **Lyric Offset Control**: Fine-tune sync issues with **+0.1s / -0.1s** buttons directly in the player.
-- **Click-to-Seek**: Click any lyric line to instantly jump to that exact time.
+- **Click-to-Seek & Copy**: Click any lyric line to instantly jump to that exact time. **Click the active line** to copy its text to the clipboard.
 - **Adjustable Font Size**: Use **+** / **-** hotkeys to adjust lyric size on the fly.
 - **Visual Presets**: Choose from a wide variety of display styles:
   - **Standard**: Default, Big Text, Big Text (UP), Big Center (UP).
@@ -37,6 +37,7 @@
   - **Text Animations**: Bounce, Pulse, Wave, Glitch, Shake, Typewriter, Heartbeat, Tada, Jello, and more.
   - **Display Modes**: Control lyric visibility (Show All, Previous-Active-Next, Next Only, Active Only).
 - **AI Transcription**: Built-in integration with **Google Gemini** (supports **Gemini 2.5 Flash** and **3.0 Flash Preview**) for automatic high-accuracy audio transcription.
+  - **Mixed-Language Support**: Expertly handles code-switching (e.g., K-Pop, J-Pop with English) and preserves native scripts (No forced transliteration).
 - **Export Lyrics**: Save your transcribed or edited lyrics as `.lrc`, `.srt`, `.json`, or `.txt` files.
 - **Manual Management**: Manually load external `.lrc` / `.srt` files or clear existing lyrics for any track.
 

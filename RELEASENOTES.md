@@ -21,6 +21,12 @@
     - **Improved UX**: Optimized notification duration and removed duplicates for a cleaner experience.
 - **Clean UI**:
     - **Smart Channel Info**: Channel Info overlay is now hidden by default on the main player view and only appears when **Minimal Mode** (O) is active, keeping the main interface clutter-free.
+- **Lyric Interactions**:
+    - **Copy to Clipboard**: Clicking the current/active lyric line now copies the text to the clipboard.
+- **AI & Transcription (Gemini)**:
+    - **Mixed-Language Mastery**: Significantly improved handling of multi-lingual audio (Code-Switching). The AI now accurately distinguishes between mixed languages (e.g., Japanese + English) within the same sentence.
+    - **Native Script Preservation**: Enforced strict rules to keep words in their native script (e.g., English words in a Japanese song remain in Latin script, avoiding unnecessary Katakana conversion).
+    - **Resilience**: Added robust JSON repair logic and timestamp normalization to handle truncated or malformed API responses, ensuring fewer failures on long audio files.
 
 ## Bug Fixes
 - **Lyric Alignment**: Fixed text alignment issues where wrapped second lines were not correctly centered in Canvas and Video export.

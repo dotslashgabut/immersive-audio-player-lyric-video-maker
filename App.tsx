@@ -2539,6 +2539,10 @@ function App() {
                     className={`${containerClass} ${isActive ? activeClass : inactiveClass} ${isActive && renderConfig.textAnimation !== 'none' && renderConfig.textAnimation !== 'typewriter' ? `text-anim-${renderConfig.textAnimation}` : ''}`}
                     style={textEffectStyles}
                     onClick={() => {
+                      if (isActive) {
+                        navigator.clipboard.writeText(line.text);
+                        toast.success('Lyric copied to clipboard', 1500);
+                      }
                       if (audioRef.current && !isRendering) {
                         audioRef.current.currentTime = line.time;
                         // If we want to jump to the EXACT point in audio where this lyric is SUPPOSED to play now:
