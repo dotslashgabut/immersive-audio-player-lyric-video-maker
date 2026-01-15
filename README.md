@@ -85,6 +85,8 @@
   - **21:9** (Landscape - Ultra Widescreen)
   - **1:2** (Vertical - Split Screen)
 - **Rendering Scope**: Batch export the entire playlist or just the current song.
+- **Settings Management**:
+  - **JSON Import/Export**: Backup, share, or restore your exact render configurations (visuals, fonts, layouts) with a single click.
 - **Advanced Backgrounds**:
   - **Timeline Media**: Use your custom images and videos from the timeline.
   - **Custom Image**: Direct support for single custom background images.

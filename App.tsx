@@ -1078,6 +1078,9 @@ function App() {
           e.preventDefault();
           const newVal = !isMinimalMode;
           setIsMinimalMode(newVal);
+          if (newVal) {
+            setBypassAutoHide(true);
+          }
           toast.success(`Minimal Mode: ${newVal ? 'On' : 'Off'}`, { id: 'minimal-mode' });
           break;
         case 'b':
@@ -1626,7 +1629,9 @@ function App() {
         {/* Channel Info Overlay */}
         {renderConfig.showChannelInfo && isMinimalMode && (
           <div
-            className={`absolute z-[60] flex flex-col gap-2 p-6 pointer-events-none transition-all duration-500
+            className={`absolute z-[60] flex gap-2 p-6 pointer-events-none transition-all duration-500
+              ${renderConfig.channelInfoStyle === 'modern' ? 'flex-col items-center' : 'flex-row items-center'}
+              ${renderConfig.channelInfoStyle === 'box' ? 'bg-black/40 backdrop-blur-md rounded-xl border border-white/10' : ''}
               ${renderConfig.channelInfoPosition === 'top-left' ? 'top-0 left-0 items-start text-left' :
                 renderConfig.channelInfoPosition === 'top-right' ? 'top-0 right-0 items-end text-right' :
                   renderConfig.channelInfoPosition === 'bottom-left' ? 'bottom-0 left-0 items-start text-left' :
@@ -1643,15 +1648,16 @@ function App() {
                 : { margin: `${(renderConfig.channelInfoMarginScale ?? 1) * 1.5}rem` })
             }}
           >
-            {renderConfig.channelInfoImage && (
+            {renderConfig.channelInfoImage && renderConfig.channelInfoStyle !== 'minimal' && (
               <img
                 src={renderConfig.channelInfoImage}
                 alt="Channel"
-                className="w-20 h-20 object-contain drop-shadow-lg"
+                className={`w-20 h-20 object-contain drop-shadow-lg ${renderConfig.channelInfoStyle === 'circle' ? 'rounded-full' : ''}`}
               />
             )}
-            {renderConfig.channelInfoText && (
-              <p className="text-white font-bold drop-shadow-md text-lg px-2 py-1 bg-black/20 rounded-lg backdrop-blur-sm">
+            {renderConfig.channelInfoText && renderConfig.channelInfoStyle !== 'logo' && (
+              <p className={`text-white font-bold drop-shadow-md text-lg 
+                ${(renderConfig.channelInfoStyle === 'minimal' || renderConfig.channelInfoStyle === 'box') ? '' : 'px-2 py-1 bg-black/20 rounded-lg backdrop-blur-sm'}`}>
                 {renderConfig.channelInfoText}
               </p>
             )}

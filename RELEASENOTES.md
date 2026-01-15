@@ -19,10 +19,15 @@
 - **Channel Info Control**:
     - **Center Position**: Added **Top-Center** and **Bottom-Center** positioning options for watermark/logo placement.
     - **Styling**: Introduced new layout styles: `Classic` (Row), `Modern` (Column), `Minimal` (Text Only), `Logo Only`, and `Boxed`.
+- **Render Settings**:
+    - **JSON Import/Export**: Added robust **JSON Import/Export** functionality. Users can now backup, share, and restore their exact render configurations (including custom fonts and complex visual effects).
+    - **Minimal Mode Automation**: Activating **Minimal Mode** (O) now automatically enables **UI Inhibit** (preventing controls from auto-hiding) for a stable viewing experience. This preference is remembered.
 
 ## Bug Fixes
 - **Settings Export**: Fixed precision issues in exported JSON settings (rounding floating-point values) to ensure cleaner configuration files.
 - **Search Functionality**: Resolved "Could not find suitable search function" errors when fetching synchronized lyrics.
+- **Text Rendering**: Fixed handling of hyphenated words (e.g. "semi-automatic") to prevent incorrect spacing splits in Web and Video rendering.
+- **Channel Info**: Fixed layout consistency for 'Minimal' style in render output to match web preview.
 - **Transcription State**: Fixed an infinite loading state if an API key was not provided.
 - **Internal Cleanup**: Removed unused code and comments for better performance and maintainability.
 

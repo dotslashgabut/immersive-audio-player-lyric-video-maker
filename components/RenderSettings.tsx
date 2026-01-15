@@ -374,6 +374,7 @@ const channelInfoStyleGroups = [
             { label: "Classic (Row)", value: "classic" },
             { label: "Modern (Col)", value: "modern" },
             { label: "Minimal (Text Only)", value: "minimal" },
+            { label: "Circle (Avatar)", value: "circle" },
             { label: "Logo Only", value: "logo" },
             { label: "Boxed", value: "box" }
         ]
@@ -741,10 +742,12 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
 
             // Reset Custom Font
             onClearCustomFont();
+            toast.success("All settings have been reset to default.");
         }
     };
 
     const handleExportSettings = () => {
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
         const exportData = {
             ...config,
             // Fix potential floating point precision issues in export
@@ -771,13 +774,22 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
             exportData.channelInfoImage = undefined;
         }
 
-        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportData, null, 2));
-        const downloadAnchorNode = document.createElement('a');
-        downloadAnchorNode.setAttribute("href", dataStr);
-        downloadAnchorNode.setAttribute("download", "render_settings.json");
-        document.body.appendChild(downloadAnchorNode);
-        downloadAnchorNode.click();
-        downloadAnchorNode.remove();
+        try {
+            const jsonString = JSON.stringify(exportData, null, 2);
+            const blob = new Blob([jsonString], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+
+            const downloadAnchorNode = document.createElement('a');
+            downloadAnchorNode.setAttribute("href", url);
+            downloadAnchorNode.setAttribute("download", `render_settings_${timestamp}.json`);
+            document.body.appendChild(downloadAnchorNode);
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+            URL.revokeObjectURL(url);
+        } catch (err) {
+            console.error("Export failed:", err);
+            toast.error("Failed to export settings.");
+        }
     };
 
     const handleImportSettings = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -797,7 +809,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                         renderFps: importedRenderFps,
                         renderQuality: importedRenderQuality,
                         preset: importedPreset,
-                        customFontName: _importedCustomFontName, // Not used yet as we can't load the file
+                        customFontName: importedCustomFontName,
                         ...importedConfig
                     } = json;
 
@@ -862,7 +874,12 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                     } else {
                         setPreset('custom');
                     }
-                    toast.success('Settings loaded successfully!');
+
+                    if (importedCustomFontName && importedCustomFontName !== customFontName) {
+                        toast.success(`Settings loaded. Note: Config used font "${importedCustomFontName}".`);
+                    } else {
+                        toast.success('Settings loaded successfully!');
+                    }
                 }
             } catch (err) {
                 console.error(err);

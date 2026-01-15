@@ -1541,7 +1541,7 @@ export const drawCanvasFrame = (
                 w = finalImgSize;
                 h = finalImgSize;
             } else {
-                // Classic (Row with Pill Text)
+                // Classic (Row with Pill Text) or Circle (Avatar Row)
                 w = (showImg ? finalImgSize : 0) + (showImg && showText ? gap : 0) + (showText ? (textW + padX * 2) : 0);
                 h = Math.max(showImg ? finalImgSize : 0, showText ? (textH + padY * 2) : 0);
             }
@@ -1572,7 +1572,7 @@ export const drawCanvasFrame = (
             // Helper for Text Pill
             const drawPill = (px: number, py: number, contentW: number, contentH: number, label: string) => {
                 // Background
-                if (cStyle !== 'box') {
+                if (cStyle !== 'box' && cStyle !== 'minimal') {
                     ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
                     if (ctx.roundRect) {
                         ctx.beginPath(); ctx.roundRect(px, py, contentW, contentH, 8 * scale * cScale); ctx.fill();
@@ -1606,17 +1606,11 @@ export const drawCanvasFrame = (
                     drawPill(tx, cy, tw, th, cText!);
                 }
             } else {
-                // Row Layout
-                // Check Flip for Right Align (only if NOT box, usually logos float to edge)
-                // But for 'classic', consistent ordering (Img Left) is usually better unless extreme corner.
-                // Let's stick to Img -> Text for Left/Center, Text -> Img for Right.
+                // Row Layout (Classic, Box, Circle)
                 const isRight = cPos.includes('right');
 
                 let curX = x + (cStyle === 'box' ? padX : 0);
                 const midY = y + h / 2;
-
-                // For Box, we just fill left-to-right inside the padding
-                // For Classic, we might flip.
 
                 if (isRight && cStyle === 'classic') {
                     // Text -> Gap -> Img
@@ -1627,17 +1621,38 @@ export const drawCanvasFrame = (
                         curX += tw + gap;
                     }
                     if (showImg) {
-                        ctx.drawImage(cImg!, curX, midY - finalImgSize / 2, finalImgSize, finalImgSize);
+                        if (cStyle === 'circle') {
+                            ctx.save();
+                            ctx.beginPath();
+                            ctx.arc(curX + finalImgSize / 2, midY, finalImgSize / 2, 0, Math.PI * 2);
+                            ctx.closePath();
+                            ctx.clip();
+                            ctx.drawImage(cImg!, curX, midY - finalImgSize / 2, finalImgSize, finalImgSize);
+                            ctx.restore();
+                        } else {
+                            ctx.drawImage(cImg!, curX, midY - finalImgSize / 2, finalImgSize, finalImgSize);
+                        }
                     }
                 } else {
                     // Img -> Gap -> Text
                     if (showImg) {
-                        ctx.drawImage(cImg!, curX, midY - finalImgSize / 2, finalImgSize, finalImgSize);
+                        if (cStyle === 'circle') {
+                            ctx.save();
+                            ctx.beginPath();
+                            ctx.arc(curX + finalImgSize / 2, midY, finalImgSize / 2, 0, Math.PI * 2);
+                            ctx.closePath();
+                            ctx.clip();
+                            ctx.drawImage(cImg!, curX, midY - finalImgSize / 2, finalImgSize, finalImgSize);
+                            ctx.restore();
+                        } else {
+                            ctx.drawImage(cImg!, curX, midY - finalImgSize / 2, finalImgSize, finalImgSize);
+                        }
                         curX += finalImgSize + gap;
                     }
                     if (showText) {
                         const tw = textW + (cStyle === 'box' ? 0 : padX * 2);
                         const th = textH + (cStyle === 'box' ? 0 : padY * 2);
+
                         // If box, no pill bg, just text draw
                         if (cStyle === 'box') {
                             ctx.fillStyle = '#ffffff'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
