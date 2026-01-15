@@ -271,8 +271,24 @@ export const drawCanvasFrame = (
         // Reverted manual reduction. Now respecting file spacing.
         const spaceWidth = ctx.measureText(' ').width;
 
-        displayWords.forEach(word => {
+        displayWords.forEach((word, index) => {
             const wordWidth = ctx.measureText(word.text).width;
+
+            // Check spacing with next word
+            const hasTrailingSpace = word.text.endsWith(' ');
+            let addSpace = !hasTrailingSpace;
+
+            // Regex for various hyphens (Hyphen, Hyphen-Minus, Figure Dash, En Dash, Em Dash, Horizontal Bar)
+            const hyphenEndRegex = /[-‐‑‒–—―]$/;
+            const hyphenStartRegex = /^[-‐‑‒–—―]/;
+
+            if (hyphenEndRegex.test(word.text.trim())) addSpace = false;
+
+            const nextWord = displayWords[index + 1];
+            if (nextWord && hyphenStartRegex.test(nextWord.text.trim())) addSpace = false;
+
+            const spaceToAdd = addSpace ? spaceWidth : 0;
+
             if (currentLineWidth + wordWidth > maxWidth && currentLine.length > 0) {
                 lines.push(currentLine);
                 currentLine = [];
@@ -280,10 +296,8 @@ export const drawCanvasFrame = (
             }
             currentLine.push(word);
 
-            // Smart Spacing: If word already has a space at end (from file), don't add another.
-            // If it doesn't, add one (standard 1 space).
-            const hasTrailingSpace = word.text.endsWith(' ');
-            currentLineWidth += wordWidth + (hasTrailingSpace ? 0 : spaceWidth);
+            // Smart Spacing
+            currentLineWidth += wordWidth + spaceToAdd;
         });
         if (currentLine.length > 0) lines.push(currentLine);
 
@@ -320,7 +334,16 @@ export const drawCanvasFrame = (
                 totalW += ctx.measureText(w.text).width;
                 if (j < l.length - 1) {
                     const hasTrailingSpace = w.text.endsWith(' ');
-                    totalW += (hasTrailingSpace ? 0 : spaceWidth);
+                    let addSpace = !hasTrailingSpace;
+
+                    const hyphenEndRegex = /[-‐‑‒–—―]$/;
+                    const hyphenStartRegex = /^[-‐‑‒–—―]/;
+
+                    if (hyphenEndRegex.test(w.text.trim())) addSpace = false;
+                    const nextW = l[j + 1];
+                    if (nextW && hyphenStartRegex.test(nextW.text.trim())) addSpace = false;
+
+                    totalW += (addSpace ? spaceWidth : 0);
                 }
             });
 
@@ -623,7 +646,18 @@ export const drawCanvasFrame = (
 
                 // Advance X (using ORIGINAL width to avoid spacing issues with scale)
                 const hasTrailingSpace = word.text.endsWith(' ');
-                currentX += wWidth + (hasTrailingSpace ? 0 : spaceWidth);
+
+                let addSpace = !hasTrailingSpace;
+
+                const hyphenEndRegex = /[-‐‑‒–—―]$/;
+                const hyphenStartRegex = /^[-‐‑‒–—―]/;
+
+                if (hyphenEndRegex.test(word.text.trim())) addSpace = false;
+                // Peek next word in this line
+                const nextWordInLine = l[j + 1];
+                if (nextWordInLine && hyphenStartRegex.test(nextWordInLine.text.trim())) addSpace = false;
+
+                currentX += wWidth + (addSpace ? spaceWidth : 0);
             });
 
             // Restore alignment and other line-specific context settings

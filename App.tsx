@@ -2237,6 +2237,9 @@ function App() {
                   textContent = textContent.replace(/\w\S*/g, (txt) => txt.charAt(0).toLowerCase() + txt.slice(1).toUpperCase());
                 }
 
+                // Fix spacing around hyphens for display (e.g. "Eh- eh" -> "Eh-eh")
+                textContent = textContent.replace(/\s*([-‐‑‒–—―])\s*/g, '$1');
+
                 // Apply Typewriter effect if active
                 if (isActive && renderConfig.textAnimation === 'typewriter') {
                   textContent = textContent.substring(0, Math.max(0, Math.floor((currentTime - line.time) * 35)));
@@ -2272,8 +2275,16 @@ function App() {
                         const isWordActive = currentTime >= wStart && currentTime < wEnd;
                         const isWordPast = currentTime >= wEnd;
 
-                        const hasSpace = wText.endsWith(' ');
-                        const marginRight = hasSpace ? '0px' : '0.3em'; // Standard space width if missing
+                        const hyphenEndRegex = /[-‐‑‒–—―]$/;
+                        const hyphenStartRegex = /^[-‐‑‒–—―]/;
+
+                        let shouldAddSpace = !wText.endsWith(' ');
+                        if (hyphenEndRegex.test(wText.trim())) shouldAddSpace = false;
+
+                        const nextW = line.words![wIdx + 1];
+                        if (nextW && hyphenStartRegex.test(nextW.text.trim())) shouldAddSpace = false;
+
+                        const marginRight = shouldAddSpace ? '0.3em' : '0px';
                         let wordStyle: React.CSSProperties = { display: 'inline-block', marginRight: marginRight, transition: 'all 0.1s ease' }; // Base style
 
                         // Apply Global Decoration
