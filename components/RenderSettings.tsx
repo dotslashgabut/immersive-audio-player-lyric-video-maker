@@ -41,6 +41,7 @@ const DEFAULT_CONFIG: RenderConfig = {
     showChannelInfo: false,
     channelInfoText: 'Music Channel',
     channelInfoPosition: 'bottom-right',
+    channelInfoStyle: 'classic',
     channelInfoSizeScale: 1.0,
     channelInfoMarginScale: 1.0,
     channelInfoImage: undefined,
@@ -366,6 +367,19 @@ const infoStyleGroups = [
     }
 ];
 
+const channelInfoStyleGroups = [
+    {
+        label: "Layout Styles",
+        options: [
+            { label: "Classic (Row)", value: "classic" },
+            { label: "Modern (Col)", value: "modern" },
+            { label: "Minimal (Text Only)", value: "minimal" },
+            { label: "Logo Only", value: "logo" },
+            { label: "Boxed", value: "box" }
+        ]
+    }
+];
+
 const fpsGroups = [
     {
         label: "Frame Rate",
@@ -621,12 +635,13 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
 
         let newConfig = { ...config, [key]: value };
 
-        // Handle specific toggles resets to defaults when disabled
+
         if (key === 'showChannelInfo' && value === false) {
             newConfig = {
                 ...newConfig,
                 channelInfoText: DEFAULT_CONFIG.channelInfoText,
                 channelInfoPosition: DEFAULT_CONFIG.channelInfoPosition,
+                channelInfoStyle: DEFAULT_CONFIG.channelInfoStyle,
                 channelInfoSizeScale: DEFAULT_CONFIG.channelInfoSizeScale,
                 channelInfoMarginScale: DEFAULT_CONFIG.channelInfoMarginScale,
                 channelInfoImage: undefined,
@@ -641,7 +656,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
             };
         }
 
-        // Auto-set colors for specific highlight presets
+
         if (key === 'highlightEffect') {
             const effect = value as string;
             let color = '';
@@ -660,9 +675,6 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                 color = '#ec4899';
                 bg = color;
             } else if (effect === 'karaoke-pill' || effect === 'karaoke-box' || effect === 'karaoke-rounded') {
-                // Default to orange for shapes if logic hits here without specific color
-                // But if user picks them, we might want to keep current color or reset to orange?
-                // Let's reset to orange for consistency with "Preset", or user can change after.
                 color = '#fb923c';
                 bg = '#fb923c';
             }
@@ -714,7 +726,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
     };
 
     const handleReset = async () => {
-        if (await confirm('Reset all render settings to default?', "Reset Settings")) {
+        if (await confirm('Reset all render settings, including styles and watermark, to default values?', "Reset All Settings")) {
             setConfig(DEFAULT_CONFIG);
             setPreset('default');
             setResolution('1080p');
@@ -735,6 +747,13 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
     const handleExportSettings = () => {
         const exportData = {
             ...config,
+            // Fix potential floating point precision issues in export
+            fontSizeScale: typeof config.fontSizeScale === 'number' ? Number(config.fontSizeScale.toFixed(6)) : config.fontSizeScale,
+            infoSizeScale: typeof config.infoSizeScale === 'number' ? Number(config.infoSizeScale.toFixed(6)) : config.infoSizeScale,
+            infoMarginScale: typeof config.infoMarginScale === 'number' ? Number(config.infoMarginScale.toFixed(6)) : config.infoMarginScale,
+            channelInfoSizeScale: typeof config.channelInfoSizeScale === 'number' ? Number(config.channelInfoSizeScale.toFixed(6)) : config.channelInfoSizeScale,
+            channelInfoMarginScale: typeof config.channelInfoMarginScale === 'number' ? Number(config.channelInfoMarginScale.toFixed(6)) : config.channelInfoMarginScale,
+
             preset, // Include preset in export
             resolution,
             aspectRatio,
@@ -804,6 +823,28 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                     // Ensure boolean values
                     if (newConfig.useCustomHighlightColors !== undefined) {
                         newConfig.useCustomHighlightColors = Boolean(newConfig.useCustomHighlightColors);
+                    }
+
+                    // Validate Enums for Channel Info
+                    const validChannelPositions = ['top-left', 'top-right', 'bottom-left', 'bottom-right', 'top-center', 'bottom-center'];
+                    if (newConfig.channelInfoPosition && !validChannelPositions.includes(newConfig.channelInfoPosition)) {
+                        newConfig.channelInfoPosition = 'bottom-right';
+                    }
+
+                    const validChannelStyles = ['classic', 'modern', 'minimal', 'logo', 'box'];
+                    if (newConfig.channelInfoStyle && !validChannelStyles.includes(newConfig.channelInfoStyle)) {
+                        newConfig.channelInfoStyle = 'classic';
+                    }
+
+                    // Validate Enums for Song Info
+                    const validInfoPositions = ['top-left', 'top-right', 'bottom-left', 'bottom-right', 'top-center', 'bottom-center'];
+                    if (newConfig.infoPosition && !validInfoPositions.includes(newConfig.infoPosition)) {
+                        newConfig.infoPosition = 'top-left';
+                    }
+
+                    const validInfoStyles = ['classic', 'modern', 'box', 'minimal', 'modern_art', 'circle_art'];
+                    if (newConfig.infoStyle && !validInfoStyles.includes(newConfig.infoStyle)) {
+                        newConfig.infoStyle = 'classic';
                     }
 
                     setConfig(newConfig);
@@ -1362,6 +1403,16 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                                         <button onClick={() => handleChange('channelInfoPosition', 'bottom-center')} className={`h-8 rounded-md border flex items-end justify-center p-1 transition-all ${config.channelInfoPosition === 'bottom-center' ? 'bg-purple-600 border-purple-500 text-white' : 'bg-zinc-800 border-white/5 text-zinc-500 hover:border-white/20'}`} title="Bottom Center"><div className="w-2 h-2 bg-current rounded-sm" /></button>
                                         <button onClick={() => handleChange('channelInfoPosition', 'bottom-right')} className={`h-8 rounded-md border flex items-end justify-end p-1 transition-all ${config.channelInfoPosition === 'bottom-right' ? 'bg-purple-600 border-purple-500 text-white' : 'bg-zinc-800 border-white/5 text-zinc-500 hover:border-white/20'}`} title="Bottom Right"><div className="w-2 h-2 bg-current rounded-sm" /></button>
                                     </div>
+                                </div>
+
+                                {/* Style */}
+                                <div className="space-y-1.5">
+                                    <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Style</label>
+                                    <GroupedSelection
+                                        value={config.channelInfoStyle || 'classic'}
+                                        onChange={(val) => handleChange('channelInfoStyle', val)}
+                                        groups={channelInfoStyleGroups}
+                                    />
                                 </div>
 
                                 {/* Margin Scale */}

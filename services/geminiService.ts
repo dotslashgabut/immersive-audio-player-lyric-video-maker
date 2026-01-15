@@ -211,20 +211,27 @@ export async function transcribeAudio(
     1. FORMAT: strictly **MM:SS.mmm** (e.g., 01:23.450).
     2. CONTINUITY: Timestamps must be strictly chronological.
     3. ACCURACY: Sync text exactly to the audio.
+    4. PRECISION: For fast speech/rap, ensure word-level timestamps are millisecond-accurate.
     `;
 
     let segmentationPolicy = "";
 
     if (granularity === 'word') {
       segmentationPolicy = `
-    SEGMENTATION: HIERARCHICAL WORD-LEVEL (TTML/KARAOKE)
+    SEGMENTATION: HIERARCHICAL WORD-LEVEL (TTML/KARAOKE/Enhanced LRC)
     ---------------------------------------------------
-    CRITICAL: You are generating data for rich TTML export.
+    CRITICAL: You are generating data for rich TTML or Karaoke display.
     
-    1. STRUCTURE: Group words into natural lines/phrases (this is the parent object).
-    2. DETAILS: Inside each line object, you MUST provide a "words" array.
-    3. WORDS: The "words" array must contain EVERY single word from that line with its own precise start/end time.
-    4. CJK HANDLING: For Chinese, Japanese, or Korean scripts, treat each character (or logical block of characters) as a separate "word" for the purposes of karaoke timing.
+    1. STRUCTURE: Group words into short, natural lines/phrases (this is the parent object).
+    2. LINE LENGTH: **CRITICAL** Keep lines SHORT (approx 3-8 words). Split long sentences into multiple lines.
+       - Example: "I will love you forever and ever" -> Line 1: "I will love you", Line 2: "forever and ever".
+    3. DETAILS: Inside each line object, you MUST provide a "words" array.
+    4. WORDS: The "words" array must contain EVERY single word from that line with its own precise start/end time.
+    5. CJK HANDLING: For Chinese, Japanese, or Korean scripts, treat each character (or logical block of characters) as a separate "word" for the purposes of karaoke timing.
+    6. FAST SPEECH / RAP HANDLING:
+       - Anticipate RAPID speech delivery (high words-per-minute).
+       - Ensure NO DRIFT: Align every word's start/end exactly to its pronunciation.
+       - For rapid-fire lyrics, word segments should be distinct and tightly packed.
       `;
     } else {
       segmentationPolicy = `

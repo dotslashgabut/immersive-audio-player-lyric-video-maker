@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import { PlaylistItem, LyricLine } from '../types';
-import { Plus, Trash2, Play, Volume2, FileText, ListMusic, Shuffle, User, Disc, Music, X, Sparkles, Loader2, FileJson, FileType, FileDown, Key, Upload, Square } from './Icons';
+import { Plus, Trash2, Play, Volume2, FileText, ListMusic, Shuffle, User, Disc, Music, X, Sparkles, Loader2, FileJson, FileType, FileDown, Key, Upload, Square, Search } from './Icons';
 import { formatTime, parseLRC, parseSRT, parseTTML, parseTimestamp } from '../utils/parsers';
 import { useUI } from '../contexts/UIContext';
 import { transcribeAudio } from '../services/geminiService';
@@ -24,7 +24,7 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
     const containerRef = useRef<HTMLDivElement>(null);
     const abortControllersRef = useRef<Map<string, AbortController>>(new Map());
 
-    // Helper for LRC display
+
     const formatLrcTimeDisplay = (sec: number) => {
         const mins = Math.floor(sec / 60).toString().padStart(2, '0');
         const secs = (sec % 60).toFixed(2).padStart(5, '0');
@@ -33,12 +33,12 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
     const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
     const [sortConfig, setSortConfig] = useState<{ key: string | null; direction: 'asc' | 'desc' }>({ key: null, direction: 'asc' });
     const [transcribingIds, setTranscribingIds] = useState<Set<string>>(new Set());
+    const [searchingIds, setSearchingIds] = useState<Set<string>>(new Set());
     const [apiKey, setApiKey] = useState<string>(localStorage.getItem('gemini_api_key') || '');
     const [selectedModel, setSelectedModel] = useState<string>('gemini-2.5-flash');
     const [transcriptionGranularity, setTranscriptionGranularity] = useState<'line' | 'word'>('line');
     const [showApiKeyInput, setShowApiKeyInput] = useState(false);
 
-    // Manual lyric upload
     const lyricFileInputRef = useRef<HTMLInputElement>(null);
     const [manualLyricTargetId, setManualLyricTargetId] = useState<string | null>(null);
 
@@ -48,7 +48,7 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
         }
     }, [apiKey]);
 
-    // Auto-scroll active lyric
+
     const currentItem = currentTrackIndex >= 0 ? playlist[currentTrackIndex] : null;
     const currentLyrics = currentItem?.parsedLyrics || [];
 
@@ -118,7 +118,7 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
     };
 
 
-    // Handle keyboard shortcuts
+
     const handleKeyDown = useCallback((e: KeyboardEvent) => {
         if (selectedIndex !== null && e.key === 'Delete') {
             e.preventDefault();
@@ -190,7 +190,7 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
 
         const newItems: PlaylistItem[] = [];
 
-        // Helper function to extract metadata using jsmediatags
+
         const extractMetadata = async (file: File, fallbackTitle: string): Promise<{ title: string; artist: string; album?: string; coverUrl: string | null }> => {
             return new Promise((resolve) => {
                 // @ts-ignore
@@ -232,7 +232,7 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
             });
         };
 
-        // Helper function to parse lyrics from file
+
         const parseLyrics = async (file: File): Promise<LyricLine[]> => {
             try {
                 const text = await file.text();
@@ -246,7 +246,7 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
             return [];
         };
 
-        // Process all audio files and extract metadata
+
         for (const [basename, group] of fileGroups.entries()) {
             if (group.audio) {
                 const metadata = await extractMetadata(group.audio, basename);
@@ -283,7 +283,7 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
         }
     };
 
-    // Drag and Drop handlers
+
     const [isDragging, setIsDragging] = useState(false);
 
     const handleDragOver = (e: React.DragEvent) => {
@@ -334,13 +334,13 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
     };
 
     const handleTranscribe = async (item: PlaylistItem) => {
-        // Check connectivity first
+
         if (!navigator.onLine) {
             alert("Unable to transcribe: No internet connection.");
             return;
         }
 
-        // If already transcribing, abort properly
+
         if (transcribingIds.has(item.id)) {
             const controller = abortControllersRef.current.get(item.id);
             if (controller) {
@@ -349,11 +349,26 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
             return;
         }
 
+        // Validate API Key before starting to prevent "stuck loading" state
+        // Try to get key from state, or process.env (defined in vite.config.ts)
+        const keyToUse = apiKey || process.env.GEMINI_API_KEY || process.env.API_KEY || import.meta.env.VITE_GEMINI_API_KEY || '';
+
+        // Simple validation for API Key length (approx 39 chars for Gemini)
+        if (!keyToUse || keyToUse.trim().length !== 39) {
+            if (!keyToUse) {
+                alert("Please set your Gemini API Key first!");
+            } else {
+                alert(`Invalid API Key length (${keyToUse.trim().length}). It must be exactly 39 characters.`);
+            }
+            setShowApiKeyInput(true);
+            return;
+        }
+
         setTranscribingIds(prev => new Set(prev).add(item.id));
         const controller = new AbortController();
         abortControllersRef.current.set(item.id, controller);
 
-        // Check file size (Gemini Inline Data limit is ~20MB)
+
         const MAX_SIZE_BYTES = 19.5 * 1024 * 1024; // slightly under 20MB for safety
         if (item.audioFile.size > MAX_SIZE_BYTES) {
             alert(`File is too large (${(item.audioFile.size / 1024 / 1024).toFixed(1)}MB). Gemini inline audio limit is ~20MB.\n\nPlease convert to MP3/M4A or use a smaller file.`);
@@ -387,22 +402,6 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
                 } catch (e) {
                     console.warn("Could not determine duration for AI validation", e);
                 }
-            }
-
-            // Try to get key from state, or process.env (defined in vite.config.ts)
-            // Note: vite.config.ts replacements make process.env.GEMINI_API_KEY valid
-            // we also check VITE_ prefixed vars for standard Vite behavior
-            const keyToUse = apiKey || process.env.GEMINI_API_KEY || process.env.API_KEY || import.meta.env.VITE_GEMINI_API_KEY || '';
-
-            if (!keyToUse) {
-                alert("Please set your Gemini API Key first!");
-                setTranscribingIds(prev => {
-                    const next = new Set(prev);
-                    next.delete(item.id);
-                    return next;
-                });
-                setShowApiKeyInput(true);
-                return;
             }
 
             // Use service
@@ -469,6 +468,178 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
         }
     };
 
+    const handleSearchLyrics = async (item: PlaylistItem) => {
+        if (!navigator.onLine) {
+            alert("No internet connection.");
+            return;
+        }
+
+        setSearchingIds(prev => new Set(prev).add(item.id));
+
+        try {
+
+            // @ts-ignore
+            const module = await import('@stef-0012/synclyrics');
+
+            let searchFn: (opts: any) => Promise<string | null>;
+            const Mod = (module.default || module) as any;
+
+            console.log("SyncLyrics Module:", module);
+
+            const sourcesOption = ["musixmatch", "lrclib", "netease"];
+
+            // Determine if it's a Class, Instance, or Function
+            if (typeof Mod === 'function' && Mod.prototype && Mod.prototype.getLyrics) {
+                // Class usage
+                console.log("Detected Class usage");
+                const instance = new Mod({ sources: sourcesOption });
+                searchFn = (opts) => instance.getLyrics(opts);
+            } else if (Mod.getLyrics && typeof Mod.getLyrics === 'function') {
+                // Instance usage
+                console.log("Detected Instance usage");
+                // If Mod is already an instance, we might not be able to re-configure sources unless there's a setSources method.
+                // But we can check if it takes options in getLyrics or if we can re-instantiate if it exposes the class.
+                searchFn = (opts) => Mod.getLyrics(opts);
+            } else if (Mod.SyncLyrics) {
+                // Named export usage
+                console.log("Detected Mod.SyncLyrics export");
+                const SL = Mod.SyncLyrics;
+                if (typeof SL === 'function' && SL.prototype && SL.prototype.getLyrics) {
+                    console.log("Using SyncLyrics as Class");
+                    const instance = new SL({ sources: sourcesOption });
+                    searchFn = (opts) => instance.getLyrics(opts);
+                } else if (typeof SL === 'function') {
+                    console.log("Using SyncLyrics as Function");
+                    searchFn = SL;
+                } else {
+                    throw new Error("Mod.SyncLyrics found but is not a function or class.");
+                }
+            } else if (typeof Mod === 'function') {
+                // Direct function usage
+                console.log("Detected Function usage");
+                searchFn = Mod;
+            } else {
+                throw new Error(`Could not find suitable search function. Mod type: ${typeof Mod}. Keys: ${typeof Mod === 'object' ? JSON.stringify(Object.keys(Mod)) : 'N/A'}`);
+            }
+
+            const searchOptions = {
+                track: item.metadata.title,
+                artist: item.metadata.artist,
+                album: item.metadata.album,
+                // Some versions of synclyrics might take sources here too?
+                // But normally it's constructor. 
+                // We'll pass it here just in case the flexible API supports it.
+                sources: sourcesOption
+            };
+            console.log("Searching lyrics with options:", searchOptions);
+
+            const result = await searchFn(searchOptions);
+
+            if (result && typeof result === 'string') {
+                processResult(result, item);
+            } else {
+                console.warn("npm package returned no result. Attempting fallback to LrcLib.net API directly...");
+
+                // Get duration for better matching
+                let duration = item.duration || 0;
+                if (duration === 0) {
+                    try {
+                        duration = await new Promise<number>((resolve) => {
+                            const audio = new Audio(URL.createObjectURL(item.audioFile));
+                            audio.onloadedmetadata = () => {
+                                const d = audio.duration;
+                                URL.revokeObjectURL(audio.src);
+                                resolve(d);
+                            };
+                            audio.onerror = () => resolve(0);
+                        });
+                    } catch (e) {
+                        console.warn("Could not determine duration for search", e);
+                    }
+                }
+
+                const params = new URLSearchParams({
+                    artist_name: item.metadata.artist,
+                    track_name: item.metadata.title,
+                    album_name: item.metadata.album || '',
+                    duration: duration.toString()
+                });
+
+                const response = await fetch(`https://lrclib.net/api/get?${params.toString()}`);
+                if (!response.ok) {
+                    // Try search endpoint if exact get fails
+                    const searchResponse = await fetch(`https://lrclib.net/api/search?q=${encodeURIComponent(item.metadata.title + ' ' + item.metadata.artist)}`);
+                    if (searchResponse.ok) {
+                        const searchData = await searchResponse.json();
+                        // Find best match with duration if possible
+                        if (Array.isArray(searchData) && searchData.length > 0) {
+
+                            const best = searchData.find((t: any) => t.syncedLyrics);
+                            if (best) {
+                                processResult(best.syncedLyrics, item);
+                                return;
+                            } else if (searchData[0].plainLyrics) {
+                                processResult(searchData[0].plainLyrics, item);
+                                return;
+                            }
+                        }
+                    }
+
+                    throw new Error("No lyrics found in fallback source.");
+                }
+
+                const data = await response.json();
+                if (data.syncedLyrics) {
+                    processResult(data.syncedLyrics, item);
+                } else if (data.plainLyrics) {
+                    processResult(data.plainLyrics, item);
+                } else {
+                    alert("No lyrics found.");
+                }
+            }
+
+        } catch (err: any) {
+            console.error("Search failed:", err);
+            if (err.message?.includes("CORS") || err.message?.includes("etwork") || err.message?.includes("Failed to fetch")) {
+                alert("Network Error: Could not connect to lyric services. \n(Possible CORS blocking in browser).");
+            } else {
+                alert("Search failed: " + err.message);
+            }
+        } finally {
+            setSearchingIds(prev => {
+                const next = new Set(prev);
+                next.delete(item.id);
+                return next;
+            });
+        }
+    };
+
+    const processResult = (content: string, targetItem: PlaylistItem) => {
+        let parsed = parseLRC(content);
+        // If standard LRC empty, try SRT
+        if (parsed.length === 0) parsed = parseSRT(content);
+
+        if (parsed.length > 0) {
+            // Check if we got word-level lyrics
+            const hasWordLevel = parsed.some(l => l.words && l.words.length > 0);
+            if (hasWordLevel) {
+                console.log("Word-level (enhanced) lyrics found!");
+            } else {
+                console.log("Line-level lyrics found.");
+            }
+
+            setPlaylist(prev => prev.map(p =>
+                p.id === targetItem.id ? {
+                    ...p,
+                    parsedLyrics: parsed,
+                    lyricFile: new File([content], `synched-lyrics${hasWordLevel ? '.lrc-enhanced' : '.lrc'}`, { type: 'text/plain' })
+                } : p
+            ));
+        } else {
+            alert("Lyrics found but could not be parsed.");
+        }
+    };
+
     const downloadFile = (content: string, filename: string, mimeType: string) => {
         const blob = new Blob([content], { type: 'application/octet-stream' });
         const url = URL.createObjectURL(blob);
@@ -481,12 +652,13 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
         URL.revokeObjectURL(url);
     };
 
-    const exportLyrics = async (item: PlaylistItem, format: 'txt' | 'json' | 'srt' | 'lrc' | 'ttml') => {
+    const exportLyrics = async (item: PlaylistItem, format: 'txt' | 'json' | 'srt' | 'lrc' | 'lrc-enhanced' | 'ttml') => {
         const rawLyrics = item.parsedLyrics || [];
         if (rawLyrics.length === 0) return;
 
         let content = "";
-        const filename = `${item.metadata.title || 'lyrics'}.${format}`;
+        const ext = format === 'lrc-enhanced' ? 'lrc' : format;
+        const filename = `${item.metadata.title || 'lyrics'}.${ext}`;
 
         // Get duration if missing
         let duration = item.duration || 0;
@@ -557,6 +729,50 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
                         }
                     } else {
                         // Always add blank line for the last transcript line
+                        lrcLines.push(`${formatLrcTime(blankTime)}`);
+                    }
+                }
+            }
+
+            content = lrcLines.join("\n");
+        } else if (format === 'lrc-enhanced') {
+            const lrcLines: string[] = [];
+
+            const formatLrcTime = (sec: number) => {
+                const mins = Math.floor(sec / 60).toString().padStart(2, '0');
+                const secs = (sec % 60).toFixed(2).padStart(5, '0');
+                return `[${mins}:${secs}]`;
+            };
+
+            const formatWordTime = (sec: number) => {
+                const mins = Math.floor(sec / 60).toString().padStart(2, '0');
+                const secs = (sec % 60).toFixed(2).padStart(5, '0');
+                return `<${mins}:${secs}>`;
+            };
+
+            for (let i = 0; i < rawLyrics.length; i++) {
+                const current = rawLyrics[i];
+                const next = rawLyrics[i + 1];
+
+                let lineContent = "";
+                if (current.words && current.words.length > 0) {
+                    lineContent = current.words.map(w => `${formatWordTime(w.startTime)}${w.text}`).join(" ");
+                } else {
+                    lineContent = current.text;
+                }
+
+                lrcLines.push(`${formatLrcTime(current.time)}${lineContent}`);
+
+                const endTime = current.endTime ?? (current.time + 3);
+                const blankTime = endTime + 4;
+                const isWithinDuration = duration > 0 ? blankTime <= duration : true;
+
+                if (isWithinDuration) {
+                    if (next) {
+                        if (next.time > blankTime) {
+                            lrcLines.push(`${formatLrcTime(blankTime)}`);
+                        }
+                    } else {
                         lrcLines.push(`${formatLrcTime(blankTime)}`);
                     }
                 }
@@ -770,14 +986,11 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
                             value={transcriptionGranularity}
                             onChange={(e) => setTranscriptionGranularity(e.target.value as 'word' | 'line')}
                             className="bg-zinc-800 text-[10px] text-zinc-300 border border-zinc-700 rounded px-1 py-1 focus:outline-none focus:border-orange-500 appearance-none cursor-pointer hover:bg-zinc-700 w-[60px]"
-                            title="Transcription Mode (Line vs Word)"
+                            title="Transcription Mode (Line or Word Level)"
                         >
                             <option value="line">Line</option>
                             <option value="word">Word</option>
                         </select>
-                        <div className="hidden group-hover:block absolute bottom-full mb-1 left-1/2 -translate-x-1/2 whitespace-nowrap bg-black text-[9px] text-white px-2 py-1 rounded">
-                            Word mode is slower but supports TTML animations
-                        </div>
                     </div>
 
                     <button
@@ -927,7 +1140,7 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
                                     )}
                                 </div>
 
-                                <div className="flex items-center gap-1 shrink-0 px-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <div className="flex items-center gap-1 shrink-0 px-1">
                                     <button
                                         onClick={(e) => {
                                             e.stopPropagation();
@@ -939,6 +1152,18 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
                                         title="Load Lyrics Manually"
                                     >
                                         <Upload size={14} />
+                                    </button>
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); handleSearchLyrics(item); }}
+                                        className={`group/btn relative p-1.5 rounded bg-cyan-900/30 border border-cyan-500/30 text-cyan-400 hover:bg-cyan-800/50 transition-colors ${searchingIds.has(item.id) ? 'animate-pulse' : ''}`}
+                                        title="Search Lyrics (Online)"
+                                        disabled={searchingIds.has(item.id)}
+                                    >
+                                        {searchingIds.has(item.id) ? (
+                                            <Loader2 size={14} className="animate-spin" />
+                                        ) : (
+                                            <Search size={14} />
+                                        )}
                                     </button>
                                     <button
                                         onClick={(e) => { e.stopPropagation(); handleTranscribe(item); }}
@@ -959,6 +1184,7 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
                                         <div className="flex items-center gap-0.5 bg-zinc-800/50 rounded p-0.5 border border-zinc-700/50">
                                             <button onClick={(e) => { e.stopPropagation(); exportLyrics(item, 'txt'); }} className="p-1 hover:bg-white/10 rounded text-[8px] text-zinc-400 font-bold" title="Download TXT">TXT</button>
                                             <button onClick={(e) => { e.stopPropagation(); exportLyrics(item, 'lrc'); }} className="p-1 hover:bg-white/10 rounded text-[8px] text-zinc-400 font-bold" title="Download LRC">LRC</button>
+                                            <button onClick={(e) => { e.stopPropagation(); exportLyrics(item, 'lrc-enhanced'); }} className="p-1 hover:bg-white/10 rounded text-[8px] text-zinc-400 font-bold" title="Download Enhanced LRC (Word Level)">eLRC</button>
                                             <button onClick={(e) => { e.stopPropagation(); exportLyrics(item, 'srt'); }} className="p-1 hover:bg-white/10 rounded text-[8px] text-zinc-400 font-bold" title="Download SRT">SRT</button>
                                             <button onClick={(e) => { e.stopPropagation(); exportLyrics(item, 'ttml'); }} className="p-1 hover:bg-white/10 rounded text-[8px] text-zinc-400 font-bold" title="Download TTML">TTML</button>
                                             <button onClick={(e) => { e.stopPropagation(); exportLyrics(item, 'json'); }} className="p-1 hover:bg-white/10 rounded text-[8px] text-zinc-400 font-bold" title="Download JSON">JSON</button>
@@ -971,7 +1197,7 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
                                 {/* Delete Button */}
                                 <button
                                     onClick={(e) => { e.stopPropagation(); removeTrack(idx); }}
-                                    className="p-1 text-zinc-600 hover:text-red-400 hover:bg-red-900/20 rounded opacity-0 group-hover:opacity-100 transition-opacity self-start"
+                                    className="p-1 text-zinc-600 hover:text-red-400 hover:bg-red-900/20 rounded self-start"
                                     title="Remove Track"
                                 >
                                     <Trash2 size={12} />

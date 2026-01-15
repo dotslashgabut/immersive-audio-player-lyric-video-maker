@@ -1,5 +1,31 @@
 # Release Notes
 
+# v2.2.2
+
+## What's New
+- **Lyric Editor & Formats**:
+    - **Enhanced LRC Export**: Added support for exporting **Enhanced LRC** (Word-Level) format. The new **eLRC** button allows you to save karaoke-ready lyrics with precise word timings.
+    - **Cleaner Parsed Lyrics**: Improved parsing logic to normalize spacing (removing excessive gaps) for a cleaner text display from enhanced lyric files.
+    - **Online Lyric Search**: Integrated **@stef-0012/synclyrics** to search and download synchronized lyrics from multiple sources (**Musixmatch**, **LRCLIB**, **Netease**) directly in the playlist. Includes automatic fallback to **LRCLIB** API.
+    - **Transcription Line Length**: Search prompts for transcription now enforce a strict **3-8 words per line** limit for better readability.
+    - **Transcription Mode**: Added a new dropdown to choose between **Line** (Standard) and **Word** (Karaoke/Enhanced) granularity for AI transcription.
+    - **Word Spacing Fix**: Resolved an issue where word-level lyrics lacked proper spacing in web and render views.
+- **Visual Editor**:
+    - **Click-to-Seek**: Clicking any lyric segment on the Visual Editor timeline now instantly jumps the player to that timestamp.
+- **UI Interaction**:
+    - **Minimal Mode Toggle**: Added a dedicated button in the main control bar to quickly toggle Minimal Mode.
+    - **Playlist Layout**: Improved the Playlist Editor to keep control buttons visible on rows for better accessibility.
+    - **Dropdown Fix**: Fixed a UI issue where the "Line/Word" dropdown box was obscured by a hover effect.
+- **Channel Info Control**:
+    - **Center Position**: Added **Top-Center** and **Bottom-Center** positioning options for watermark/logo placement.
+    - **Styling**: Introduced new layout styles: `Classic` (Row), `Modern` (Column), `Minimal` (Text Only), `Logo Only`, and `Boxed`.
+
+## Bug Fixes
+- **Settings Export**: Fixed precision issues in exported JSON settings (rounding floating-point values) to ensure cleaner configuration files.
+- **Search Functionality**: Resolved "Could not find suitable search function" errors when fetching synchronized lyrics.
+- **Transcription State**: Fixed an infinite loading state if an API key was not provided.
+- **Internal Cleanup**: Removed unused code and comments for better performance and maintainability.
+
 # v2.2.1
 
 ## What's New

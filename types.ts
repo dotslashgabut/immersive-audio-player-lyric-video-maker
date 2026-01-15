@@ -127,6 +127,7 @@ export interface RenderConfig {
   channelInfoImage?: string; // DataURL or Object URL
   channelInfoText?: string;
   channelInfoPosition?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'top-center' | 'bottom-center';
+  channelInfoStyle?: 'classic' | 'modern' | 'minimal' | 'logo' | 'box';
   channelInfoSizeScale?: number;
   channelInfoMarginScale?: number;
 }

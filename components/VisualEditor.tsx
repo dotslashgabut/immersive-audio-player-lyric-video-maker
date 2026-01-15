@@ -16,7 +16,6 @@ interface VisualEditorProps {
   setRenderConfig: React.Dispatch<React.SetStateAction<RenderConfig>>;
 }
 
-// Dynamic ruler interval based on zoom level
 const getRulerInterval = (pxPerSec: number): number => {
   // Higher zoom = smaller intervals for more detail
   if (pxPerSec >= 150) return 0.5;   // Very high zoom: 0.5s intervals
@@ -27,7 +26,6 @@ const getRulerInterval = (pxPerSec: number): number => {
   return 15;                          // Very low zoom: 15s intervals
 };
 
-// Format time for ruler with precision based on interval
 const formatRulerTime = (seconds: number, interval: number): string => {
   const mins = Math.floor(seconds / 60);
   const secs = seconds % 60;
@@ -80,12 +78,12 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
   const trackRef = useRef<HTMLDivElement>(null);
   const [pxPerSec, setPxPerSec] = useState(40); // Default zoom level
 
-  // --- Undo/Redo History ---
+
   const [history, setHistory] = useState<VisualSlide[][]>([slides]);
   const [historyIndex, setHistoryIndex] = useState<number>(0);
   const isUndoRedoAction = useRef<boolean>(false);
 
-  // Sync history when slides change externally (e.g., initial load)
+
   useEffect(() => {
     if (isUndoRedoAction.current) {
       isUndoRedoAction.current = false;
@@ -130,10 +128,10 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
     }
   }, [setSlides, history, historyIndex]);
 
-  // Calculate max extent of slides to expand timeline if needed
+
   const maxSlideEnd = Math.max(0, ...slides.map(s => s.endTime));
 
-  // Horizontal timeline: Width based on duration, but at least 60s or enough to fit all slides
+
   const timelineDuration = Math.max(duration, 60, maxSlideEnd);
   const totalWidth = timelineDuration * pxPerSec;
 
@@ -141,10 +139,10 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
   const [selectedSlideIds, setSelectedSlideIds] = useState<string[]>([]);
   const [lastSelectedId, setLastSelectedId] = useState<string | null>(null); // Anchor for shift-select
 
-  // --- Clipboard for Copy/Paste ---
+
   const [clipboard, setClipboard] = useState<VisualSlide[]>([]);
 
-  // --- Copy/Cut/Paste Handlers ---
+
   const handleCopy = useCallback(() => {
     if (selectedSlideIds.length === 0) return;
     const selectedSlides = slides.filter(s => selectedSlideIds.includes(s.id));
@@ -159,7 +157,7 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
     setSelectedSlideIds([]);
   }, [selectedSlideIds, slides, setSlides]);
 
-  // Ref to access current slides in event listeners
+
   const slidesRef = useRef(slides);
   const pxPerSecRef = useRef(pxPerSec);
 
@@ -190,7 +188,7 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
   }, [clipboard, currentTime, setSlides]);
 
   const handleSplit = useCallback(() => {
-    // Candidates: selected slides that overlap currentTime
+
     const candidates = slides.filter(s =>
       selectedSlideIds.includes(s.id) &&
       currentTime > s.startTime &&
@@ -475,7 +473,7 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
     window.addEventListener('mouseup', handleMouseUp);
   };
 
-  // Timeline Scrubbing Handlers (Ruler Only)
+
   const handleRulerMouseDown = (e: React.MouseEvent) => {
     // Only trigger if left click
     if (e.button !== 0) return;
@@ -491,7 +489,7 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
     window.addEventListener('mouseup', handleScrubMouseUp);
   };
 
-  // Track Background Handler (Click to Scrub, Drag to Select)
+
   const handleTrackMouseDown = (e: React.MouseEvent) => {
     if (e.button !== 0) return;
 
@@ -633,7 +631,7 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
     window.removeEventListener('mouseup', handleScrubMouseUp);
   };
 
-  // Keyboard Shortcuts (Delete & Move)
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     const target = e.target as HTMLElement;
     if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
@@ -719,7 +717,7 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
   };
 
 
-  // Snapping Utility
+
   const getSnapTime = (proposedTime: number, ignoreIds: string[] = []): number => {
     const snapThresholdSec = SNAP_THRESHOLD_PX / pxPerSec;
 
@@ -1474,7 +1472,7 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
               {lyrics.map((line, idx) => (
                 <div
                   key={idx}
-                  className="absolute top-1 bottom-1 text-[10px] text-zinc-400 truncate hover:text-white transition-colors hover:bg-zinc-800/50 rounded px-2 cursor-pointer border-l border-zinc-700 flex items-center whitespace-nowrap"
+                  className="absolute top-1 bottom-1 text-[10px] text-zinc-400 truncate hover:text-white transition-colors hover:bg-zinc-800/50 rounded px-2 cursor-pointer border-l border-zinc-700 flex items-center whitespace-nowrap pointer-events-auto"
                   style={{ left: line.time * pxPerSec }}
                   title={`${formatTime(line.time)} - ${line.text}`}
                   onClick={(e) => {

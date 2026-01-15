@@ -62,7 +62,8 @@ import {
   FileJson,
   FileType,
   FileDown,
-  Split
+  Split,
+  Search
 } from 'lucide-react';
 
 export {
@@ -130,5 +131,6 @@ export {
   FileJson,
   FileType,
   FileDown,
-  Split
+  Split,
+  Search
 };

@@ -257,7 +257,9 @@ export const drawCanvasFrame = (
             words = rawWords.map(t => ({ text: t, startTime: line.time, endTime: line.endTime || (line.time + 3) }));
         }
 
-        const displayWords = words.map((w, index) => ({ ...w, text: transformText(w.text, index === 0).trim() }));
+        const displayWords = words
+            .filter(w => w.text.trim().length > 0)
+            .map((w, index) => ({ ...w, text: transformText(w.text, index === 0).trim() }));
 
         // Explicitly set font for measurement
         ctx.font = `${style} ${weight} ${baseFontSize}px ${fontFamily}`;
@@ -266,6 +268,7 @@ export const drawCanvasFrame = (
         const lines: LyricWord[][] = [];
         let currentLine: LyricWord[] = [];
         let currentLineWidth = 0;
+        // Reverted manual reduction. Now respecting file spacing.
         const spaceWidth = ctx.measureText(' ').width;
 
         displayWords.forEach(word => {
@@ -276,7 +279,11 @@ export const drawCanvasFrame = (
                 currentLineWidth = 0;
             }
             currentLine.push(word);
-            currentLineWidth += wordWidth + spaceWidth;
+
+            // Smart Spacing: If word already has a space at end (from file), don't add another.
+            // If it doesn't, add one (standard 1 space).
+            const hasTrailingSpace = word.text.endsWith(' ');
+            currentLineWidth += wordWidth + (hasTrailingSpace ? 0 : spaceWidth);
         });
         if (currentLine.length > 0) lines.push(currentLine);
 
@@ -311,7 +318,10 @@ export const drawCanvasFrame = (
             let totalW = 0;
             l.forEach((w, j) => {
                 totalW += ctx.measureText(w.text).width;
-                if (j < l.length - 1) totalW += spaceWidth;
+                if (j < l.length - 1) {
+                    const hasTrailingSpace = w.text.endsWith(' ');
+                    totalW += (hasTrailingSpace ? 0 : spaceWidth);
+                }
             });
 
             let currentX = x;
@@ -612,7 +622,8 @@ export const drawCanvasFrame = (
                 ctx.restore(); // Restore styles
 
                 // Advance X (using ORIGINAL width to avoid spacing issues with scale)
-                currentX += wWidth + spaceWidth;
+                const hasTrailingSpace = word.text.endsWith(' ');
+                currentX += wWidth + (hasTrailingSpace ? 0 : spaceWidth);
             });
 
             // Restore alignment and other line-specific context settings
@@ -1445,92 +1456,168 @@ export const drawCanvasFrame = (
     // 6. Channel Info / Watermark (Global Overlay)
     if (renderConfig?.showChannelInfo && !['subtitle', 'just_video', 'none'].includes(activePreset)) {
         const cPos = renderConfig.channelInfoPosition || 'bottom-right';
+        const cStyle = renderConfig.channelInfoStyle || 'classic';
         const cScale = (renderConfig.channelInfoSizeScale ?? 1.0);
+        const marginScale = (renderConfig.channelInfoMarginScale ?? 1.0);
+
         const cImg = images.get('__channel_info__');
         const cText = renderConfig.channelInfoText;
 
-        ctx.save();
+        // Early exit if nothing to draw
+        if (!cImg && !cText) { } // Do nothing
+        else if (cStyle === 'logo' && !cImg) { }
+        else if (cStyle === 'minimal' && !cText) { }
+        else {
+            ctx.save();
 
-        const margin = 40 * scale * (renderConfig.channelInfoMarginScale ?? 1.0);
-        const imgBaseSize = 80 * scale * cScale;
-        const fontSize = 20 * scale * cScale;
-        const font = `bold ${fontSize}px sans-serif`;
+            const margin = 40 * scale * marginScale;
+            const imgSize = 80 * scale * cScale;
+            // Modern/Col style might want larger image?
+            const finalImgSize = (cStyle === 'modern' || cStyle === 'logo') ? imgSize * 1.2 : imgSize;
 
-        ctx.font = font;
-        const textMetrics = cText ? ctx.measureText(cText) : { width: 0 };
-        const textWidth = textMetrics.width;
-        const textHeight = fontSize;
+            const fontSize = 20 * scale * cScale;
+            ctx.font = `bold ${fontSize}px sans-serif`;
+            const textMetrics = (cText && cStyle !== 'logo') ? ctx.measureText(cText) : { width: 0 };
+            const textW = textMetrics.width;
+            const textH = fontSize; // Approximate cap height
 
-        const gap = 10 * scale * cScale;
-        const padX = 8 * scale * cScale;
-        const padY = 4 * scale * cScale;
+            const gap = 12 * scale * cScale;
+            const padX = 12 * scale * cScale;
+            const padY = 8 * scale * cScale;
 
-        // Calculate Block Dimensions
-        let blockW = 0;
-        let blockH = 0;
+            let w = 0, h = 0;
+            const showImg = !!cImg && cStyle !== 'minimal';
+            const showText = !!cText && cStyle !== 'logo';
 
-        const textFullW = cText ? textWidth + (padX * 2) : 0;
-        const textFullH = cText ? textHeight + (padY * 2) : 0;
-
-        if (cImg && cText) {
-            blockW = Math.max(imgBaseSize, textFullW);
-            blockH = imgBaseSize + gap + textFullH;
-        } else if (cImg) {
-            blockW = imgBaseSize;
-            blockH = imgBaseSize;
-        } else if (cText) {
-            blockW = textFullW;
-            blockH = textFullH;
-        }
-
-        // Position Block
-        let startX = 0;
-        let startY = 0;
-
-        if (cPos.includes('left')) startX = margin;
-        else if (cPos.includes('right')) startX = width - margin - blockW;
-        else startX = (width - blockW) / 2;
-
-        if (cPos.includes('top')) startY = margin;
-        else if (cPos.includes('bottom')) startY = height - margin - blockH;
-
-        // Draw Image
-        if (cImg) {
-            let imgX = startX;
-            if (cPos.includes('right')) imgX = startX + blockW - imgBaseSize; // Right align inside block
-
-            // Draw
-            ctx.drawImage(cImg, imgX, startY, imgBaseSize, imgBaseSize);
-        }
-
-        // Draw Text
-        if (cText) {
-            let txtY = startY;
-            if (cImg) txtY += imgBaseSize + gap;
-
-            let pillX = startX;
-            if (cPos.includes('right')) pillX = startX + blockW - textFullW;
-
-            // Pill Background
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
-            if (ctx.roundRect) {
-                ctx.beginPath();
-                ctx.roundRect(pillX, txtY, textFullW, textFullH, 8 * scale * cScale);
-                ctx.fill();
+            // Layout Calculation
+            if (cStyle === 'modern') {
+                // Column: Image Top, Text Bottom
+                w = Math.max(showImg ? finalImgSize : 0, showText ? (textW + padX * 2) : 0);
+                h = (showImg ? finalImgSize : 0) + (showImg && showText ? gap : 0) + (showText ? (textH + padY * 2) : 0);
+            } else if (cStyle === 'box') {
+                // Boxed Row
+                w = (showImg ? finalImgSize : 0) + (showImg && showText ? gap : 0) + (showText ? textW : 0) + padX * 2;
+                h = Math.max(showImg ? finalImgSize : 0, showText ? textH : 0) + padY * 2;
+            } else if (cStyle === 'minimal') {
+                // Text Only (Pill)
+                w = showText ? (textW + padX * 2) : 0;
+                h = showText ? (textH + padY * 2) : 0;
+            } else if (cStyle === 'logo') {
+                // Logo Only
+                w = finalImgSize;
+                h = finalImgSize;
             } else {
-                ctx.fillRect(pillX, txtY, textFullW, textFullH);
+                // Classic (Row with Pill Text)
+                w = (showImg ? finalImgSize : 0) + (showImg && showText ? gap : 0) + (showText ? (textW + padX * 2) : 0);
+                h = Math.max(showImg ? finalImgSize : 0, showText ? (textH + padY * 2) : 0);
             }
 
-            // Text
-            ctx.fillStyle = '#ffffff';
-            ctx.textAlign = 'left';
-            ctx.textBaseline = 'top';
-            ctx.shadowColor = 'rgba(0,0,0,0.5)';
-            ctx.shadowBlur = 4;
-            ctx.fillText(cText, pillX + padX, txtY + padY);
-            ctx.shadowColor = 'transparent';
-        }
+            // Position (Origin: Top-Left of Block)
+            let x = 0, y = 0;
 
-        ctx.restore();
+            if (cPos.includes('left')) x = margin;
+            else if (cPos.includes('right')) x = width - margin - w;
+            else if (cPos.includes('center')) x = (width - w) / 2;
+
+            if (cPos.includes('top')) y = margin;
+            else if (cPos.includes('bottom')) y = height - margin - h;
+
+            // --- Drawing ---
+
+            // 1. Box Background
+            if (cStyle === 'box') {
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+                ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 10;
+                if (ctx.roundRect) {
+                    ctx.beginPath(); ctx.roundRect(x, y, w, h, 12 * scale * cScale); ctx.fill();
+                } else ctx.fillRect(x, y, w, h);
+                ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0;
+            }
+
+            // 2. Content
+            // Helper for Text Pill
+            const drawPill = (px: number, py: number, contentW: number, contentH: number, label: string) => {
+                // Background
+                if (cStyle !== 'box') {
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+                    if (ctx.roundRect) {
+                        ctx.beginPath(); ctx.roundRect(px, py, contentW, contentH, 8 * scale * cScale); ctx.fill();
+                    } else ctx.fillRect(px, py, contentW, contentH);
+                }
+
+                // Text
+                ctx.fillStyle = '#ffffff';
+                ctx.textAlign = 'left';
+                ctx.textBaseline = 'top';
+                ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 4;
+                // Center text in pill/box area
+                const tx = px + (contentW - textW) / 2;
+                const ty = py + (contentH - textH) / 2 + (textH * 0.1); // subtle visual check
+                ctx.fillText(label, tx, ty);
+                ctx.shadowColor = 'transparent';
+            };
+
+            if (cStyle === 'modern') {
+                // Col Layout
+                let cy = y;
+                if (showImg) {
+                    const ix = x + (w - finalImgSize) / 2;
+                    ctx.drawImage(cImg!, ix, cy, finalImgSize, finalImgSize);
+                    cy += finalImgSize + gap;
+                }
+                if (showText) {
+                    const tw = textW + padX * 2;
+                    const th = textH + padY * 2;
+                    const tx = x + (w - tw) / 2;
+                    drawPill(tx, cy, tw, th, cText!);
+                }
+            } else {
+                // Row Layout
+                // Check Flip for Right Align (only if NOT box, usually logos float to edge)
+                // But for 'classic', consistent ordering (Img Left) is usually better unless extreme corner.
+                // Let's stick to Img -> Text for Left/Center, Text -> Img for Right.
+                const isRight = cPos.includes('right');
+
+                let curX = x + (cStyle === 'box' ? padX : 0);
+                const midY = y + h / 2;
+
+                // For Box, we just fill left-to-right inside the padding
+                // For Classic, we might flip.
+
+                if (isRight && cStyle === 'classic') {
+                    // Text -> Gap -> Img
+                    if (showText) {
+                        const tw = textW + padX * 2;
+                        const th = textH + padY * 2;
+                        drawPill(curX, midY - th / 2, tw, th, cText!);
+                        curX += tw + gap;
+                    }
+                    if (showImg) {
+                        ctx.drawImage(cImg!, curX, midY - finalImgSize / 2, finalImgSize, finalImgSize);
+                    }
+                } else {
+                    // Img -> Gap -> Text
+                    if (showImg) {
+                        ctx.drawImage(cImg!, curX, midY - finalImgSize / 2, finalImgSize, finalImgSize);
+                        curX += finalImgSize + gap;
+                    }
+                    if (showText) {
+                        const tw = textW + (cStyle === 'box' ? 0 : padX * 2);
+                        const th = textH + (cStyle === 'box' ? 0 : padY * 2);
+                        // If box, no pill bg, just text draw
+                        if (cStyle === 'box') {
+                            ctx.fillStyle = '#ffffff'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+                            ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 4;
+                            ctx.fillText(cText!, curX, midY + (textH * 0.1));
+                            ctx.shadowColor = 'transparent';
+                        } else {
+                            drawPill(curX, midY - th / 2, tw, th, cText!);
+                        }
+                    }
+                }
+            }
+
+            ctx.restore();
+        }
     }
 };

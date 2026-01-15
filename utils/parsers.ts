@@ -1,9 +1,8 @@
 import { LyricLine } from '../types';
 
 
-// Helper to remove spaces between CJK characters (preserves spaces for Latin/mixed)
+
 const fixCJKSpacing = (text: string): string => {
-  // Ranges: CJK Unified Ideographs, Hiragana, Katakana, Fullwidth forms
   const cjkRegex = /([\u4E00-\u9FFF\u3040-\u309F\u30A0-\u30FF\uFF00-\uFFEF])\s+([\u4E00-\u9FFF\u3040-\u309F\u30A0-\u30FF\uFF00-\uFFEF])/g;
   return text.replace(cjkRegex, '$1$2');
 };
@@ -11,7 +10,7 @@ const fixCJKSpacing = (text: string): string => {
 export const parseTimestamp = (timeStr: string): number => {
   if (!timeStr) return 0;
 
-  // Clean string to allow flexible parsing (e.g. comma or dot for decimals)
+
   const clean = timeStr.replace(',', '.').trim();
   const parts = clean.split(':');
 
@@ -42,40 +41,74 @@ export const formatTime = (seconds: number): string => {
 export const parseLRC = (lrcContent: string): LyricLine[] => {
   const lines = lrcContent.split('\n');
   const lyrics: LyricLine[] = [];
-  // Regex to match all timestamps in a line e.g. [00:01.23]
   const timeRegex = /\[(\d{2}):(\d{2})(\.(\d{2,3}))?\]/g;
+  const wordTimeRegex = /<(\d{2}):(\d{2})(\.(\d{2,3}))?>/g;
 
   lines.forEach((line) => {
-    // Find all timestamps
     const matches = [...line.matchAll(timeRegex)];
 
     if (matches.length > 0) {
-      // Extract text: remove all timestamps from the line
-      let text = line.replace(timeRegex, '').trim();
+      let rawContent = line.replace(timeRegex, '').trim();
+      const wordMatches = [...rawContent.matchAll(wordTimeRegex)];
+      let words: { text: string; startTime: number; endTime: number }[] | undefined;
 
-      // Handle literal line breaks "\n"
-      text = text.replace(/\\n/g, '\n');
+
+      let cleanText = rawContent.replace(wordTimeRegex, '').replace(/  +/g, ' ').trim();
+      cleanText = cleanText.replace(/\\n/g, '\n');
+
+      if (wordMatches.length > 0) {
+        words = [];
+        for (let i = 0; i < wordMatches.length; i++) {
+          const m = wordMatches[i];
+          const minutes = parseInt(m[1], 10);
+          const seconds = parseInt(m[2], 10);
+          const msStr = m[4];
+
+          let startTime = minutes * 60 + seconds;
+          if (msStr) {
+            startTime += parseInt(msStr, 10) / (msStr.length === 3 ? 1000 : 100);
+          }
+
+          const startIdx = (m.index || 0) + m[0].length;
+          const endIdx = (i < wordMatches.length - 1) ? wordMatches[i + 1].index! : rawContent.length;
+          const textPart = rawContent.substring(startIdx, endIdx);
+
+          if (textPart) {
+            words.push({
+              text: textPart, // Preserve original spacing
+              startTime: startTime,
+              endTime: 0
+            });
+          }
+        }
+
+
+        for (let i = 0; i < words.length; i++) {
+          if (i < words.length - 1) {
+            words[i].endTime = words[i + 1].startTime;
+          } else {
+            words[i].endTime = words[i].startTime + 0.5;
+          }
+        }
+      }
 
       matches.forEach(match => {
         const minutes = parseInt(match[1], 10);
         const seconds = parseInt(match[2], 10);
         const msStr = match[4];
 
-        // Calculate total time in seconds
         let time = minutes * 60 + seconds;
-
         if (msStr) {
           if (msStr.length === 2) {
             time += parseInt(msStr, 10) / 100;
           } else if (msStr.length === 3) {
             time += parseInt(msStr, 10) / 1000;
           } else {
-            // Fallback
             time += parseInt(msStr, 10) / 1000;
           }
         }
 
-        lyrics.push({ time, text });
+        lyrics.push({ time, text: cleanText, words });
       });
     }
   });
@@ -84,12 +117,12 @@ export const parseLRC = (lrcContent: string): LyricLine[] => {
 };
 
 export const parseSRT = (srtContent: string): LyricLine[] => {
-  // Normalize line endings
+
   const content = srtContent.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
   const blocks = content.split('\n\n');
   const lyrics: LyricLine[] = [];
 
-  // 00:00:20,000 --> 00:00:24,400
+
   const timeRegex = /(\d{2}):(\d{2}):(\d{2}),(\d{3})/;
 
   const parseTime = (timeStr: string): number | null => {
@@ -107,8 +140,7 @@ export const parseSRT = (srtContent: string): LyricLine[] => {
   blocks.forEach(block => {
     const lines = block.split('\n');
     if (lines.length >= 3) {
-      // Line 1 is index (skip)
-      // Line 2 is time range
+
       const timeLine = lines[1];
       const textLines = lines.slice(2);
       const rawText = textLines.join(' ').trim();
@@ -143,7 +175,7 @@ export const parseTTML = (ttmlContent: string): LyricLine[] => {
     const allElements = Array.from(xmlDoc.getElementsByTagName('*'));
     const ps = allElements.filter(el => el.localName === 'p');
 
-    // Helper to get time in seconds from TTML format
+
     const getTime = (t: string | null): number | undefined => {
       if (!t) return undefined;
       const val = t.trim();
@@ -160,12 +192,12 @@ export const parseTTML = (ttmlContent: string): LyricLine[] => {
       return parseTimestamp(val);
     };
 
-    // Helper to get attribute ignoring namespace
+
     const getAttr = (el: Element, name: string): string | null => {
       // 1. Try exact match
       if (el.hasAttribute(name)) return el.getAttribute(name);
 
-      // 2. Try iteration for localName match (rarely needed for attributes but good for safety)
+
       for (let i = 0; i < el.attributes.length; i++) {
         if (el.attributes[i].localName === name) return el.attributes[i].value;
       }
@@ -181,7 +213,6 @@ export const parseTTML = (ttmlContent: string): LyricLine[] => {
       // Current robust approach: just use textContent. 
       // If words are merged (e.g. <span>A</span><span>B</span> -> "AB"), 
       // we can try to rely on the words array for rendering if available.
-      // Normalize whitespace: replace newlines and multiple spaces with a single space
       // Normalize whitespace: replace newlines and multiple spaces with a single space
       // Also apply CJK spacing fix
       const text = fixCJKSpacing(p.textContent?.replace(/\s+/g, ' ').trim() || '');
@@ -201,20 +232,14 @@ export const parseTTML = (ttmlContent: string): LyricLine[] => {
           const s = spans[j];
           const sBegin = getAttr(s, 'begin');
           const sEnd = getAttr(s, 'end');
-          const sText = s.textContent?.trim();
-          // Usually strict trimming is fine for single words, but karaoke usually works best with "Word " convention.
-          // Let's trim and if empty skip.
+          const sText = s.textContent?.replace(/\s+/g, ' ');
 
-          if (sBegin && sEnd && sText && sText.trim()) {
+          if (sBegin && sEnd && sText && sText.length > 0) {
             const wStart = getTime(sBegin);
             const wEnd = getTime(sEnd);
             if (wStart !== undefined && wEnd !== undefined) {
               words.push({
-                text: sText, // Keep original whitespace? or trim? 
-                // If we keep original, " " becomes " ".
-                // Let's keep it as is, but maybe trim start?
-                // Standard practice: trim() for the word logic usually.
-                // App.tsx rendering adds margin between spans.
+                text: sText,
                 startTime: wStart,
                 endTime: wEnd
               });

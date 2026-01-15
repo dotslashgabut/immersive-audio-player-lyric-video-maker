@@ -38,7 +38,8 @@
   - **Display Modes**: Control lyric visibility (Show All, Previous-Active-Next, Next Only, Active Only).
 - **AI Transcription**: Built-in integration with **Google Gemini** (supports **Gemini 2.5 Flash** and **3.0 Flash Preview**) for automatic high-accuracy audio transcription.
   - **Mixed-Language Support**: Expertly handles code-switching (e.g., K-Pop, J-Pop with English) and preserves native scripts (No forced transliteration).
-- **Export Lyrics**: Save your transcribed or edited lyrics as `.lrc`, `.srt`, `.json`, or `.txt` files.
+- **Export Lyrics**: Save your transcribed or edited lyrics as `.lrc` (Standard or **Enhanced/Karaoke**), `.srt`, `.json`, or `.txt` files.
+- **Online Lyric Search**: Built-in search engine to find and download synchronized lyrics from **Musixmatch**, **LRCLIB**, and **Netease** with a single click.
 - **Manual Management**: Manually load external `.lrc` / `.srt` files or clear existing lyrics for any track.
 
 ### 🎬 Professional Visual Timeline Editor
@@ -56,6 +57,7 @@
   - **Ctrl + Click** for multi-selection.
 - **Precise Control**:
   - **Arrow Keys**: Nudge selected clips by 0.1s.
+  - **Lyric Navigation**: Click any lyric block on the timeline to jump the player to that exact time.
   - **Volume Mixing**: Independent mute/volume control for every video and audio clip on the timeline.
 - **Visual Effects**:
   - **Background Blur**: Toggle between 'Sharp' and 'Blur' for background media.
@@ -102,9 +104,10 @@
     - **Text Effects**: Shadow, Glow, Neon, 3D Pop, Glitch, Retro, and more.
     - **Animations**: Pulse, Bounce, Wave, Shake, Typewriter, Heartbeat, Flash, Spin, and more.
     - **Transitions**: Smooth Fade, Slide, Zoom, Flip, Motion Blur, Spiral, Shatter, and **None** (Instant Cut).
-- **Song Info Customization**:
+- **Song & Channel Info Customization**:
   - **Positioning**: 9-point grid automatic positioning (Top-Left to Bottom-Right).
-  - **Styles**: Classic (Detailed), Modern + Cover, Circle Cover, Boxed Cover, Minimal (Text Only).
+  - **Song Styles**: Classic (Detailed), Modern + Cover, Circle Cover, Boxed Cover, Minimal (Text Only).
+  - **Channel Styles**: Classic, Modern, Minimal, Logo Only, Boxed.
   - **Padding**: Fine-tune margin from screen edges for both **Song Info** and **Channel Info** (Visible in Minimal Mode).
 - **Smart Overlays**: Automatically generates metadata overlays for "Now Playing" visuals.
 - **Dynamic Blur**: Apply real-time Gaussian-style blur to background images or videos for better lyric readability.
