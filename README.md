@@ -7,6 +7,8 @@
 
 ![Immersive Audio Player Main Screen](screenshot-main-page.jpg)
 
+![Immersive Audio Player Main Screen](screenshot-minimal-mode.jpg)
+
 ## Key Features
 
 ### 🎧 Advanced Audio Player & Playlist
