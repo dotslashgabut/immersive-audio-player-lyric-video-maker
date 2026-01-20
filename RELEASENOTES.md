@@ -1,5 +1,29 @@
 # Release Notes
 
+# v2.2.3
+
+## What's New
+- **Lyric Rendering & Formats**:
+    - **Formatting Polish**: Improved spacing logic for LRC, Enhanced LRC, and TTML formats (cleaner hyphen handling, precise word spacing).
+    - **Newline Support**: Added support for literal newline characters (`\n`) in Enhanced LRC files.
+    - **Style Scope**: New "Lyric Style Target" setting allows applying font styles (Bold, Italic) exclusively to the **Active Line** or **All Lines**.
+- **Visual & Rendering**:
+    - **SVG Support**: "Channel Info" now supports rendering raw SVG code for scalable logos/graphics.
+    - **Highlight Stability**: Fixed text shifting issues when highlight effects are active.
+    - **Intro Layout**: Fixed title/artist overlap in 'Auto' intro mode with large fonts.
+- **User Interface**:
+    - **Playlist Control**: Clicking the play button on the active track now correctly pauses playback.
+    - **Custom Fonts**: Auto-activation of custom fonts upon upload/load.
+    - **Preset Stability**: Adjusting font size or using shortcuts no longer forcibly switches the preset to "Custom", preserving the active preset identity.
+    - **Shortcuts**: Fixed 'Z' (Cycle) and 'X' (Toggle) shortcuts to maintain effect presets correctly.
+
+## Bug Fixes
+- **Font Rendering**: Fixed a regression where custom fonts would sometimes fail to apply in the Web View or Export until manually reset.
+- **Render Settings**: Fixed synchronization between UI toggles and internal render config.
+- **Lyric Scroll**: Fixed scrolling behavior to reset correctly on song repeat.
+- **Canvas Renderer**: Resolved type errors and custom color rendering issues.
+
+
 # v2.2.2
 
 ## What's New

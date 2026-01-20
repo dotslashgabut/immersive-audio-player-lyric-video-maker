@@ -74,10 +74,15 @@ export const parseLRC = (lrcContent: string): LyricLine[] => {
           const textPart = rawContent.substring(startIdx, endIdx);
 
           if (textPart) {
-            words.push({
-              text: textPart, // Preserve original spacing
-              startTime: startTime,
-              endTime: 0
+            const parts = textPart.split(/(\\n)/g);
+            parts.forEach(p => {
+              if (p) {
+                words.push({
+                  text: p === '\\n' ? '\n' : p, // Convert literal \n to newline char
+                  startTime: startTime,
+                  endTime: 0
+                });
+              }
             });
           }
         }
@@ -261,4 +266,25 @@ export const parseTTML = (ttmlContent: string): LyricLine[] => {
     console.error("Failed to parse TTML", e);
   }
   return lyrics.sort((a, b) => a.time - b.time);
+};
+
+export const parseJSON = (jsonContent: string): LyricLine[] => {
+  try {
+    const parsed = JSON.parse(jsonContent);
+    if (Array.isArray(parsed)) {
+      // Basic validation: check if items look like LyricLine
+      const isValid = parsed.every(item =>
+        typeof item === 'object' &&
+        item !== null &&
+        typeof item.time === 'number' &&
+        typeof item.text === 'string'
+      );
+      if (isValid) {
+        return parsed as LyricLine[];
+      }
+    }
+  } catch (e) {
+    console.warn("Failed to parse JSON lyrics", e);
+  }
+  return [];
 };

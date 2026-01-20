@@ -47,21 +47,21 @@ export const videoPresetGroups: { label: string; options: { label: string; value
 ];
 
 export const PRESET_DEFINITIONS: Partial<Record<VideoPreset, Partial<RenderConfig>>> = {
-    'default': { fontSizeScale: 1.0, fontFamily: 'sans-serif', textCase: 'none', textAlign: 'center' },
-    'large': { fontSizeScale: 1.8, fontFamily: 'sans-serif' },
-    'classic': { fontSizeScale: 1.0, fontFamily: 'ui-serif, Georgia, Cambria, "Times New Roman", Times, serif' },
-    'large_upper': { fontSizeScale: 1.6, textCase: 'upper' },
-    'monospace': { fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace' },
-    'big_center': { fontSizeScale: 1.6, textCase: 'upper', textAlign: 'center', contentPosition: 'center' },
-    'metal': { fontFamily: '"Metal Mania", cursive', fontSizeScale: 1.6, textCase: 'upper' },
-    'kids': { fontFamily: '"Fredoka One", cursive', fontSizeScale: 1.6, textCase: 'upper' },
-    'sad': { fontFamily: '"Shadows Into Light", cursive', fontSizeScale: 1.2 },
-    'romantic': { fontFamily: '"Dancing Script", cursive', fontSizeScale: 1.2 },
-    'tech': { fontFamily: '"Orbitron", sans-serif', fontSizeScale: 1.6, textCase: 'upper' },
-    'gothic': { fontFamily: '"UnifrakturMaguntia", cursive', fontSizeScale: 1.2 },
-    'slideshow': { fontSizeScale: 0.6 },
+    'default': { fontSizeScale: 1.0, fontFamily: 'ui-sans-serif, system-ui, sans-serif', textCase: 'none', textAlign: 'center', fontColor: '#ffffff' },
+    'large': { fontSizeScale: 1.8, fontFamily: 'ui-sans-serif, system-ui, sans-serif', fontColor: '#ffffff', fontWeight: 'bold' }, // font-black (approx)
+    'classic': { fontSizeScale: 1.0, fontFamily: 'ui-serif, Georgia, Cambria, "Times New Roman", Times, serif', fontColor: '#fef3c7', fontStyle: 'italic', fontWeight: 'bold' },
+    'large_upper': { fontSizeScale: 1.6, fontFamily: 'ui-sans-serif, system-ui, sans-serif', textCase: 'upper', fontColor: '#ffffff', fontWeight: 'bold' },
+    'monospace': { fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace', fontColor: '#ffffff', fontWeight: 'bold' },
+    'big_center': { fontSizeScale: 1.6, fontFamily: 'ui-sans-serif, system-ui, sans-serif', textCase: 'upper', textAlign: 'center', contentPosition: 'center', fontColor: '#ffffff', fontWeight: 'bold' },
+    'metal': { fontFamily: '"Metal Mania", cursive', fontSizeScale: 1.6, textCase: 'upper', fontColor: '#ffffff' },
+    'kids': { fontFamily: '"Fredoka One", cursive', fontSizeScale: 1.6, textCase: 'upper', fontColor: '#ffffff' },
+    'sad': { fontFamily: '"Shadows Into Light", cursive', fontSizeScale: 1.2, fontColor: '#e4e4e7' },
+    'romantic': { fontFamily: '"Dancing Script", cursive', fontSizeScale: 1.2, fontColor: '#fce7f3', fontStyle: 'italic' },
+    'tech': { fontFamily: '"Orbitron", sans-serif', fontSizeScale: 1.6, textCase: 'upper', fontColor: '#ecfeff', fontWeight: 'bold' },
+    'gothic': { fontFamily: '"UnifrakturMaguntia", cursive', fontSizeScale: 1.2, fontColor: '#d4d4d8' }, // zinc-300
+    'slideshow': { fontSizeScale: 0.6, fontColor: '#ffffff' },
     'just_video': {},
-    'subtitle': { fontSizeScale: 0.6, contentPosition: 'bottom' },
+    'subtitle': { fontSizeScale: 0.6, contentPosition: 'bottom', fontColor: '#ffffff' },
     'testing': { fontSizeScale: 1.6 },
     'testing_up': { fontSizeScale: 1.6, textCase: 'upper' },
 };

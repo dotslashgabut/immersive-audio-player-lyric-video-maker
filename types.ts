@@ -99,6 +99,7 @@ export interface RenderConfig {
   lyricDisplayMode: 'all' | 'previous-next' | 'next-only' | 'active-only';
   fontWeight: 'normal' | 'bold';
   fontStyle: 'normal' | 'italic';
+  lyricStyleTarget: 'active-only' | 'all';
   textDecoration: 'none' | 'underline' | 'line-through';
   showTitle: boolean;
   showArtist: boolean;
@@ -117,7 +118,7 @@ export interface RenderConfig {
     visual: Record<number, boolean>;
     audio: Record<number, boolean>;
   };
-  highlightEffect?: 'none' | 'karaoke' | 'scale' | 'color' | 'glow' | 'background' | 'karaoke-neon' | 'karaoke-scale' | 'karaoke-underline' | 'karaoke-bounce' | 'karaoke-fill' | 'karaoke-outline' | 'karaoke-shadow' | 'karaoke-gradient' | 'karaoke-wave' | 'karaoke-blue' | 'karaoke-purple' | 'karaoke-green' | 'karaoke-pink' | 'karaoke-cyan' | 'karaoke-pill' | 'karaoke-box' | 'karaoke-rounded' | 'karaoke-glow-blue' | 'karaoke-glow-pink' | 'karaoke-glass' | 'karaoke-neon-multi' | 'karaoke-soft-glow' | 'karaoke-3d' | 'karaoke-emboss' | 'karaoke-chrome' | 'karaoke-gold' | 'karaoke-fire' | 'karaoke-frozen' | 'karaoke-rainbow' | 'karaoke-mirror' | 'karaoke-vhs' | 'karaoke-retro' | 'karaoke-cyberpunk' | 'karaoke-hologram' | 'karaoke-comic' | 'karaoke-glitch-text' | 'karaoke-pulse' | 'karaoke-breathe' | 'karaoke-float' | 'karaoke-sway' | 'karaoke-flicker' | 'karaoke-shake' | 'karaoke-wobble' | 'karaoke-jello' | 'karaoke-rubberband' | 'karaoke-heartbeat' | 'karaoke-flash' | 'karaoke-tada' | 'karaoke-swing' | 'karaoke-rotate' | 'karaoke-spin' | 'karaoke-glitch' | 'karaoke-typewriter' | 'karaoke-fade' | 'karaoke-shatter' | 'karaoke-blur' | 'karaoke-slide';
+  highlightEffect?: 'none' | 'karaoke' | 'scale' | 'color' | 'glow' | 'background' | 'karaoke-neon' | 'karaoke-scale' | 'karaoke-underline' | 'karaoke-bounce' | 'karaoke-fill' | 'karaoke-outline' | 'karaoke-shadow' | 'karaoke-gradient' | 'karaoke-wave' | 'karaoke-blue' | 'karaoke-purple' | 'karaoke-green' | 'karaoke-pink' | 'karaoke-cyan' | 'karaoke-pill' | 'karaoke-box' | 'karaoke-rounded' | 'karaoke-glow-blue' | 'karaoke-glow-pink' | 'karaoke-glass' | 'karaoke-neon-multi' | 'karaoke-soft-glow' | 'karaoke-3d' | 'karaoke-emboss' | 'karaoke-chrome' | 'karaoke-gold' | 'karaoke-fire' | 'karaoke-frozen' | 'karaoke-rainbow' | 'karaoke-mirror' | 'karaoke-vhs' | 'karaoke-retro' | 'karaoke-cyberpunk' | 'karaoke-hologram' | 'karaoke-comic' | 'karaoke-glitch-text' | 'karaoke-pulse' | 'karaoke-breathe' | 'karaoke-float' | 'karaoke-sway' | 'karaoke-flicker' | 'karaoke-shake' | 'karaoke-wobble' | 'karaoke-jello' | 'karaoke-rubberband' | 'karaoke-heartbeat' | 'karaoke-flash' | 'karaoke-tada' | 'karaoke-swing' | 'karaoke-rotate' | 'karaoke-spin' | 'karaoke-glitch' | 'karaoke-typewriter' | 'karaoke-fade' | 'karaoke-shatter' | 'karaoke-blur' | 'karaoke-slide' | 'karaoke-smooth';
   highlightColor?: string;
   highlightBackground?: string;
   useCustomHighlightColors?: boolean;
@@ -127,7 +128,7 @@ export interface RenderConfig {
   channelInfoImage?: string; // DataURL or Object URL
   channelInfoText?: string;
   channelInfoPosition?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'top-center' | 'bottom-center';
-  channelInfoStyle?: 'classic' | 'modern' | 'minimal' | 'logo' | 'box';
+  channelInfoStyle?: 'classic' | 'modern' | 'minimal' | 'logo' | 'box' | 'circle';
   channelInfoSizeScale?: number;
   channelInfoMarginScale?: number;
 }

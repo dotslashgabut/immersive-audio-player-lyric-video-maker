@@ -21,6 +21,7 @@ const DEFAULT_CONFIG: RenderConfig = {
     lyricDisplayMode: 'all',
     fontWeight: 'bold',
     fontStyle: 'normal',
+    lyricStyleTarget: 'active-only',
     textDecoration: 'none',
     showTitle: true,
     showArtist: true,
@@ -201,7 +202,7 @@ const transitionGroups = [
     }
 ];
 
-const highlightEffectGroups = [
+export const highlightEffectGroups = [
     {
         label: "Basic",
         options: [
@@ -216,6 +217,7 @@ const highlightEffectGroups = [
         label: "Karaoke Standard",
         options: [
             { label: "Default (Line/Fill)", value: "karaoke" },
+            { label: "Smooth Transition", value: "karaoke-smooth" },
             { label: "Fill Background", value: "karaoke-fill" },
             { label: "Outline Only", value: "karaoke-outline" },
             { label: "Underline", value: "karaoke-underline" },
@@ -327,6 +329,33 @@ const highlightEffectGroups = [
     }
 ];
 
+export const deriveHighlightColors = (effect: string): { color: string, bg: string } | null => {
+    let color = '';
+    let bg = '';
+
+    if (effect.includes('blue') || effect.includes('cyan')) {
+        color = effect.includes('cyan') ? '#06b6d4' : '#3b82f6';
+        bg = color;
+    } else if (effect.includes('purple')) {
+        color = '#a855f7';
+        bg = color;
+    } else if (effect.includes('green')) {
+        color = '#22c55e';
+        bg = color;
+    } else if (effect.includes('pink')) {
+        color = '#ec4899';
+        bg = color;
+    } else if (effect === 'karaoke-pill' || effect === 'karaoke-box' || effect === 'karaoke-rounded') {
+        color = '#fb923c';
+        bg = '#fb923c';
+    }
+
+    if (color) {
+        return { color, bg };
+    }
+    return null;
+};
+
 const backgroundSourceGroups = [
     {
         label: "Source",
@@ -341,7 +370,7 @@ const backgroundSourceGroups = [
     }
 ];
 
-const lyricDisplayGroups = [
+export const lyricDisplayGroups = [
     {
         label: "Display Modes",
         options: [
@@ -352,6 +381,8 @@ const lyricDisplayGroups = [
         ]
     }
 ];
+
+export const textCaseOptions = ['none', 'upper', 'lower', 'title', 'sentence', 'invert'];
 
 const infoStyleGroups = [
     {
@@ -632,57 +663,22 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
 
 
     const handleChange = (key: keyof RenderConfig, value: any) => {
-        setPreset('custom');
+        // setPreset('custom'); // Disabled to allow customized base presets
 
         let newConfig = { ...config, [key]: value };
 
-
-        if (key === 'showChannelInfo' && value === false) {
-            newConfig = {
-                ...newConfig,
-                channelInfoText: DEFAULT_CONFIG.channelInfoText,
-                channelInfoPosition: DEFAULT_CONFIG.channelInfoPosition,
-                channelInfoStyle: DEFAULT_CONFIG.channelInfoStyle,
-                channelInfoSizeScale: DEFAULT_CONFIG.channelInfoSizeScale,
-                channelInfoMarginScale: DEFAULT_CONFIG.channelInfoMarginScale,
-                channelInfoImage: undefined,
-            };
-        }
-
-        if (key === 'showIntro' && value === false) {
-            newConfig = {
-                ...newConfig,
-                introMode: DEFAULT_CONFIG.introMode,
-                introText: DEFAULT_CONFIG.introText,
-            };
-        }
-
-
+        // Logic to sync dependencies
         if (key === 'highlightEffect') {
             const effect = value as string;
-            let color = '';
-            let bg = '';
+            const derived = deriveHighlightColors(effect);
 
-            if (effect.includes('blue') || effect.includes('cyan')) {
-                color = effect.includes('cyan') ? '#06b6d4' : '#3b82f6';
-                bg = color;
-            } else if (effect.includes('purple')) {
-                color = '#a855f7';
-                bg = color;
-            } else if (effect.includes('green')) {
-                color = '#22c55e';
-                bg = color;
-            } else if (effect.includes('pink')) {
-                color = '#ec4899';
-                bg = color;
-            } else if (effect === 'karaoke-pill' || effect === 'karaoke-box' || effect === 'karaoke-rounded') {
-                color = '#fb923c';
-                bg = '#fb923c';
-            }
+            // Automatically disable custom colors when switching effects
+            // so the new effect's default colors (or derived ones) are visible
+            newConfig.useCustomHighlightColors = false;
 
-            if (color) {
-                newConfig.highlightColor = color;
-                newConfig.highlightBackground = bg;
+            if (derived) {
+                newConfig.highlightColor = derived.color;
+                newConfig.highlightBackground = derived.bg;
             }
         }
 
@@ -693,7 +689,28 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
         setPreset(newPreset);
         const presetConfig = PRESET_DEFINITIONS[newPreset];
         if (presetConfig) {
-            setConfig({ ...config, ...presetConfig });
+            // Define visual reset defaults (consistent with App.tsx shortcut 'j')
+            const visualReset: Partial<RenderConfig> = {
+                fontFamily: 'sans-serif',
+                fontSizeScale: 1.0,
+                fontColor: '#ffffff',
+                fontWeight: 'bold',
+                fontStyle: 'normal',
+                textCase: 'none',
+                textAlign: 'center',
+                contentPosition: 'center',
+                textDecoration: 'none',
+                textEffect: 'shadow',
+                textAnimation: 'none',
+                highlightEffect: 'karaoke',
+                highlightColor: '#fb923c',
+                highlightBackground: '#fb923c',
+                useCustomHighlightColors: false,
+                lyricStyleTarget: 'active-only',
+                transitionEffect: 'none',
+            };
+
+            setConfig({ ...config, ...visualReset, ...presetConfig });
             // Note: No toast here to avoid notification spam during "Live Preview" (hover)
         }
     };
@@ -836,28 +853,57 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                     if (newConfig.useCustomHighlightColors !== undefined) {
                         newConfig.useCustomHighlightColors = Boolean(newConfig.useCustomHighlightColors);
                     }
+                    if (newConfig.showChannelInfo !== undefined) newConfig.showChannelInfo = Boolean(newConfig.showChannelInfo);
+                    if (newConfig.showIntro !== undefined) newConfig.showIntro = Boolean(newConfig.showIntro);
+                    if (newConfig.showTitle !== undefined) newConfig.showTitle = Boolean(newConfig.showTitle);
+                    if (newConfig.showArtist !== undefined) newConfig.showArtist = Boolean(newConfig.showArtist);
+                    if (newConfig.showCover !== undefined) newConfig.showCover = Boolean(newConfig.showCover);
+                    if (newConfig.showLyrics !== undefined) newConfig.showLyrics = Boolean(newConfig.showLyrics);
 
-                    // Validate Enums for Channel Info
-                    const validChannelPositions = ['top-left', 'top-right', 'bottom-left', 'bottom-right', 'top-center', 'bottom-center'];
-                    if (newConfig.channelInfoPosition && !validChannelPositions.includes(newConfig.channelInfoPosition)) {
-                        newConfig.channelInfoPosition = 'bottom-right';
+                    // Restore Highlight Colors if missing but effect is present
+                    if (newConfig.highlightEffect && (!newConfig.highlightColor || !newConfig.highlightBackground)) {
+                        const derived = deriveHighlightColors(newConfig.highlightEffect);
+                        if (derived) {
+                            if (!newConfig.highlightColor) newConfig.highlightColor = derived.color;
+                            if (!newConfig.highlightBackground) newConfig.highlightBackground = derived.bg;
+                        }
                     }
 
-                    const validChannelStyles = ['classic', 'modern', 'minimal', 'logo', 'box'];
-                    if (newConfig.channelInfoStyle && !validChannelStyles.includes(newConfig.channelInfoStyle)) {
-                        newConfig.channelInfoStyle = 'classic';
-                    }
+                    // Helper for group validation
+                    const isValidGroupOption = (val: string, groups: { options: { value: string }[] }[]) => {
+                        return groups.some(g => g.options.some(o => o.value === val));
+                    };
 
-                    // Validate Enums for Song Info
-                    const validInfoPositions = ['top-left', 'top-right', 'bottom-left', 'bottom-right', 'top-center', 'bottom-center'];
-                    if (newConfig.infoPosition && !validInfoPositions.includes(newConfig.infoPosition)) {
-                        newConfig.infoPosition = 'top-left';
-                    }
+                    // Validate Text & Effects
+                    if (newConfig.textEffect && !isValidGroupOption(newConfig.textEffect, textEffectGroups)) newConfig.textEffect = 'shadow';
+                    if (newConfig.textAnimation && !isValidGroupOption(newConfig.textAnimation, textAnimationGroups)) newConfig.textAnimation = 'none';
+                    if (newConfig.transitionEffect && !isValidGroupOption(newConfig.transitionEffect, transitionGroups)) newConfig.transitionEffect = 'none';
+                    if (newConfig.highlightEffect && !isValidGroupOption(newConfig.highlightEffect, highlightEffectGroups)) newConfig.highlightEffect = 'karaoke';
 
-                    const validInfoStyles = ['classic', 'modern', 'box', 'minimal', 'modern_art', 'circle_art'];
-                    if (newConfig.infoStyle && !validInfoStyles.includes(newConfig.infoStyle)) {
-                        newConfig.infoStyle = 'classic';
-                    }
+                    // Validate Background
+                    if (newConfig.backgroundSource && !isValidGroupOption(newConfig.backgroundSource, backgroundSourceGroups)) newConfig.backgroundSource = 'custom';
+
+                    // Validate Layout & Typography
+                    if (!['current', 'playlist'].includes(newConfig.renderMode)) newConfig.renderMode = 'current';
+                    if (!['left', 'center', 'right'].includes(newConfig.textAlign)) newConfig.textAlign = 'center';
+                    if (!['top', 'center', 'bottom'].includes(newConfig.contentPosition)) newConfig.contentPosition = 'center';
+                    if (newConfig.lyricDisplayMode && !isValidGroupOption(newConfig.lyricDisplayMode, lyricDisplayGroups)) newConfig.lyricDisplayMode = 'all';
+
+                    if (!['normal', 'bold'].includes(newConfig.fontWeight)) newConfig.fontWeight = 'bold';
+                    if (!['normal', 'italic'].includes(newConfig.fontStyle)) newConfig.fontStyle = 'normal';
+                    if (!['none', 'underline', 'line-through'].includes(newConfig.textDecoration)) newConfig.textDecoration = 'none';
+                    if (!textCaseOptions.includes(newConfig.textCase)) newConfig.textCase = 'none';
+                    if (!['auto', 'manual'].includes(newConfig.introMode)) newConfig.introMode = 'auto';
+                    if (newConfig.lyricStyleTarget && !['active-only', 'all'].includes(newConfig.lyricStyleTarget)) newConfig.lyricStyleTarget = 'active-only';
+
+                    // Validate Info & Channel
+                    const validPositions = ['top-left', 'top-right', 'bottom-left', 'bottom-right', 'top-center', 'bottom-center'];
+
+                    if (newConfig.infoPosition && !validPositions.includes(newConfig.infoPosition)) newConfig.infoPosition = 'top-left';
+                    if (newConfig.infoStyle && !isValidGroupOption(newConfig.infoStyle, infoStyleGroups)) newConfig.infoStyle = 'classic';
+
+                    if (newConfig.channelInfoPosition && !validPositions.includes(newConfig.channelInfoPosition)) newConfig.channelInfoPosition = 'bottom-right';
+                    if (newConfig.channelInfoStyle && !isValidGroupOption(newConfig.channelInfoStyle, channelInfoStyleGroups)) newConfig.channelInfoStyle = 'classic';
 
                     setConfig(newConfig);
 
@@ -1200,7 +1246,9 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                     </h3>
                     <GroupedSelection
                         value={config.highlightEffect || 'none'}
-                        onChange={(val) => handleChange('highlightEffect', val)}
+                        onChange={(val) => {
+                            handleChange('highlightEffect', val);
+                        }}
                         groups={highlightEffectGroups}
                     />
 
@@ -1398,13 +1446,13 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
 
                                 {/* Text Input */}
                                 <div className="space-y-1.5">
-                                    <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Channel Name / Text</label>
-                                    <input
-                                        type="text"
+                                    <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Channel Name / SVG Code</label>
+                                    <textarea
                                         value={config.channelInfoText ?? ''}
                                         onChange={(e) => handleChange('channelInfoText', e.target.value)}
-                                        placeholder="Display Name"
-                                        className="w-full bg-zinc-900 border border-white/10 rounded-md px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                                        placeholder="Display Name or <svg>...</svg>"
+                                        className="w-full bg-zinc-900 border border-white/10 rounded-md px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:ring-1 focus:ring-purple-500 min-h-[40px] resize-y font-mono"
+                                        rows={2}
                                     />
                                 </div>
 
@@ -1658,6 +1706,26 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                                     title="Strikethrough"
                                 >
                                     <Strikethrough size={14} />
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="space-y-1.5">
+                            <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Apply Style To</label>
+                            <div className="flex bg-zinc-800 rounded-lg p-1 gap-1">
+                                <button
+                                    onClick={() => handleChange('lyricStyleTarget', 'active-only')}
+                                    className={`flex-1 py-1.5 rounded-md text-[10px] transition-all ${config.lyricStyleTarget === 'active-only' || !config.lyricStyleTarget ? 'bg-zinc-600 text-white shadow-sm font-bold' : 'text-zinc-500 hover:text-zinc-300'}`}
+                                    title="Apply style to current line only (others normal)"
+                                >
+                                    Current Only
+                                </button>
+                                <button
+                                    onClick={() => handleChange('lyricStyleTarget', 'all')}
+                                    className={`flex-1 py-1.5 rounded-md text-[10px] transition-all ${config.lyricStyleTarget === 'all' ? 'bg-zinc-600 text-white shadow-sm font-bold' : 'text-zinc-500 hover:text-zinc-300'}`}
+                                    title="Apply style to all lines (previous, current, next)"
+                                >
+                                    All Lines
                                 </button>
                             </div>
                         </div>

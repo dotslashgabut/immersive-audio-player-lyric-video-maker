@@ -269,7 +269,8 @@ export const drawCanvasFrame = (
         let currentLine: LyricWord[] = [];
         let currentLineWidth = 0;
         // Reverted manual reduction. Now respecting file spacing.
-        const spaceWidth = ctx.measureText(' ').width;
+        // Approx 0.25em to match App.tsx "space size issue" fix
+        const spaceWidth = ctx.measureText('M').width * 0.25;
 
         displayWords.forEach((word, index) => {
             const wordWidth = ctx.measureText(word.text).width;
@@ -323,7 +324,7 @@ export const drawCanvasFrame = (
             else if (effect === 'karaoke') { highlightColor = '#ef4444'; bgColor = '#ef4444'; } // Default Red
         }
 
-        const baseColor = renderConfig.fontColor || '#ffffff';
+        let baseColor = renderConfig.fontColor || '#ffffff';
 
         lines.forEach((l, i) => {
             const lineY = startY + (i * lineHeight);
@@ -367,10 +368,31 @@ export const drawCanvasFrame = (
                 let fill: string | CanvasGradient = baseColor;
 
                 // Determine if we should highlight this word
-                const isFillType = effect.includes('fill');
+                const isFillType = effect.includes('fill') || effect === 'karaoke-smooth';
                 const shouldHighlight = isFillType ? isPassed : isCurrentWord;
 
-                if (shouldHighlight) fill = highlightColor;
+                if (shouldHighlight) {
+                    if (effect === 'karaoke-smooth') {
+                        if (isCurrentWord) {
+                            // Calculate smooth progress
+                            const duration = word.endTime - word.startTime;
+                            const elapsed = time - word.startTime;
+                            const progress = Math.max(0, Math.min(1, elapsed / duration));
+
+                            // Create gradient for smooth wipe
+                            // Note: Linear Gradient coordinates are relative to canvas, not text
+                            const grad = ctx.createLinearGradient(currentX, 0, currentX + wWidth, 0);
+                            grad.addColorStop(progress, highlightColor);
+                            // Sharp transition
+                            grad.addColorStop(Math.min(1, progress + 0.001), baseColor);
+                            fill = grad;
+                        } else {
+                            fill = highlightColor;
+                        }
+                    } else {
+                        fill = highlightColor;
+                    }
+                }
 
                 // Effects
                 ctx.save();
@@ -711,7 +733,7 @@ export const drawCanvasFrame = (
     else if (activePreset === 'gothic') fontFamily = gothicFont;
     else if (activePreset === 'custom') fontFamily = renderConfig?.fontFamily || sansFont;
 
-    if (customFontName) fontFamily = `"${customFontName}", sans-serif`;
+    if (customFontName) fontFamily = 'CustomFont, sans-serif';
     if (renderConfig && renderConfig.fontFamily !== 'sans-serif') fontFamily = renderConfig.fontFamily;
 
     const isPortrait = width <= height;
@@ -820,7 +842,8 @@ export const drawCanvasFrame = (
         activeIdx === -1 &&
         time < 5 &&
         (renderConfig?.showIntro ?? true) &&
-        (renderConfig?.introMode !== 'manual' || isFirstSongInPlaylist)
+        (renderConfig?.introMode !== 'manual' || isFirstSongInPlaylist) &&
+        (lyrics.length === 0 || time < lyrics[0].time)
     );
 
     let baseFontSize = (isPortrait ? 50 : 60) * scale;
@@ -899,8 +922,19 @@ export const drawCanvasFrame = (
 
                         const fs = isCurr ? baseFontSize : secondaryFontSize;
                         let weight = isCurr ? (['large', 'large_upper', 'big_center', 'metal', 'tech'].includes(activePreset) ? '900' : 'bold') : '400';
-                        if (activePreset === 'custom' && renderConfig?.fontWeight) weight = renderConfig.fontWeight;
-                        const style = (activePreset === 'custom' && renderConfig?.fontStyle) ? renderConfig.fontStyle : 'normal';
+                        let style = 'normal';
+
+                        if (activePreset === 'custom') {
+                            const targetMode = renderConfig?.lyricStyleTarget || 'active-only';
+                            const shouldApply = targetMode === 'all' || isCurr;
+                            if (shouldApply) {
+                                if (renderConfig?.fontWeight) weight = renderConfig.fontWeight;
+                                if (renderConfig?.fontStyle) style = renderConfig.fontStyle;
+                            } else {
+                                weight = '400';
+                                style = 'normal';
+                            }
+                        }
 
                         ctx.font = `${style} ${weight} ${fs}px ${fontFamily}`;
 
@@ -980,12 +1014,22 @@ export const drawCanvasFrame = (
                 }
 
                 let weight = isCurrent ? (['large', 'large_upper', 'big_center', 'metal', 'tech'].includes(activePreset) ? '900' : 'bold') : '400';
-                if (activePreset === 'custom' && renderConfig?.fontWeight) {
-                    weight = renderConfig.fontWeight;
-                }
+                let style = 'normal';
+                let decoration = 'none';
 
-                const style = (activePreset === 'custom' && renderConfig?.fontStyle) ? renderConfig.fontStyle : 'normal';
-                const decoration = (activePreset === 'custom' && renderConfig?.textDecoration) ? renderConfig.textDecoration : 'none';
+                if (activePreset === 'custom') {
+                    const targetMode = renderConfig?.lyricStyleTarget || 'active-only';
+                    const shouldApply = targetMode === 'all' || isCurrent;
+                    if (shouldApply) {
+                        if (renderConfig?.fontWeight) weight = renderConfig.fontWeight;
+                        if (renderConfig?.fontStyle) style = renderConfig.fontStyle;
+                        if (renderConfig?.textDecoration) decoration = renderConfig.textDecoration;
+                    } else {
+                        weight = '400';
+                        style = 'normal';
+                        decoration = 'none';
+                    }
+                }
 
                 ctx.font = `${style} ${weight} ${(isCurrent ? baseFontSize : secondaryFontSize)}px ${fontFamily}`;
                 ctx.fillStyle = fillStyle;
@@ -1149,11 +1193,12 @@ export const drawCanvasFrame = (
 
                     // Center the block around yPos
                     // If artist exists, shift title up and artist down
+                    const gap = 20 * scale;
                     let titleY = yPos;
                     if (artistStr) {
-                        titleY = yPos - (artistLH / 2);
+                        titleY = yPos - (artistLH / 2) - (gap / 2);
                     }
-                    const artistY = yPos + (titleLH / 2);
+                    const artistY = yPos + (titleLH / 2) + (gap / 2);
 
                     // Draw Title (Keep current weight)
                     ctx.font = `${style} ${weight} ${baseFontSize}px ${fontFamily}`;
@@ -1171,7 +1216,7 @@ export const drawCanvasFrame = (
                     const fs = isCurrent ? baseFontSize : secondaryFontSize;
                     const isKaraokeMode = renderConfig && renderConfig.highlightEffect && renderConfig.highlightEffect !== 'none';
 
-                    if (isCurrent && isKaraokeMode && line) {
+                    if (isCurrent && line) {
                         drawKaraokeText(ctx, line, xPos, yPos, width * 0.9, fs * 1.2, time, renderConfig!, fontFamily, fs, weight, style, scale);
                     } else {
                         drawWrappedText(ctx, textToDraw, xPos, yPos, width * 0.9, fs * 1.2, textEffect, decoration);
@@ -1510,10 +1555,46 @@ export const drawCanvasFrame = (
             const finalImgSize = (cStyle === 'modern' || cStyle === 'logo') ? imgSize * 1.2 : imgSize;
 
             const fontSize = 20 * scale * cScale;
-            ctx.font = `bold ${fontSize}px sans-serif`;
-            const textMetrics = (cText && cStyle !== 'logo') ? ctx.measureText(cText) : { width: 0 };
-            const textW = textMetrics.width;
-            const textH = fontSize; // Approximate cap height
+            // Check for pre-loaded SVG text image
+            const cTextSvgImg = images.get('__channel_info_text_svg__');
+            const isSvgText = !!cTextSvgImg;
+
+            let textW = 0;
+            let textH = fontSize; // Approximate cap height
+
+            if (isSvgText && cTextSvgImg) {
+                // SVG Logic: Height should match the visual font size block
+                // Since our generated SVG is based on font-metrics, the height roughly equals the line-height/cap-height
+                // In App.tsx generation we used 100px.
+                // Here we want it to match 'fontSize' (e.g. 20px).
+                // But wait, the generated SVG includes 1.5em icons which might be taller than text.
+                // We should scale HEIGHT relative to fontSize but respect aspect ratio.
+                // If the SVG was generated with 100px font, and results in H height.
+                // We want to draw it with height `fontSize * (H/100)`.
+                // Actually, simplest is to just anchor on fontSize.
+                // Let's assume the "Text" part is the anchor.
+                // If we set textH = fontSize, it might clip if the icon is 1.5em.
+                // So textH should probably be slightly larger?
+                // Actually, if we just keep aspect ratio, we can define height freely.
+                // Let's set the height of the drawn image to be e.g. 1.5 * fontSize to accommodate the icons safely?
+                // Or just use the aspect ratio?
+                // Let's standardize on the height being 1.5 * fontSize (since icon is 1.5em).
+                // Or better, let's trust the input image aspect ratio.
+
+                // The generated image corresponds to font-size 100.
+                // We want to render at `fontSize`.
+                // So the target height (in canvas pixels) is roughly `fontSize` but accounting for the icon.
+                // If we assume the CONTENT height is dominated by the 1.5em icon.
+                // Then correct drawing height is `fontSize * 1.5`.
+                textH = fontSize * 1.5;
+                const ratio = cTextSvgImg.width / cTextSvgImg.height;
+                textW = textH * ratio;
+            } else {
+                ctx.font = `bold ${fontSize}px sans-serif`;
+                if (cText && cStyle !== 'logo') {
+                    textW = ctx.measureText(cText).width;
+                }
+            }
 
             const gap = 12 * scale * cScale;
             const padX = 12 * scale * cScale;
@@ -1579,16 +1660,23 @@ export const drawCanvasFrame = (
                     } else ctx.fillRect(px, py, contentW, contentH);
                 }
 
-                // Text
-                ctx.fillStyle = '#ffffff';
-                ctx.textAlign = 'left';
-                ctx.textBaseline = 'top';
-                ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 4;
-                // Center text in pill/box area
-                const tx = px + (contentW - textW) / 2;
-                const ty = py + (contentH - textH) / 2 + (textH * 0.1); // subtle visual check
-                ctx.fillText(label, tx, ty);
-                ctx.shadowColor = 'transparent';
+                if (isSvgText && cTextSvgImg) {
+                    // Center SVG in pill
+                    const tx = px + (contentW - textW) / 2;
+                    const ty = py + (contentH - textH) / 2;
+                    ctx.drawImage(cTextSvgImg, tx, ty, textW, textH);
+                } else {
+                    // Text
+                    ctx.fillStyle = '#ffffff';
+                    ctx.textAlign = 'left';
+                    ctx.textBaseline = 'top';
+                    ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 4;
+                    // Center text in pill/box area
+                    const tx = px + (contentW - textW) / 2;
+                    const ty = py + (contentH - textH) / 2 + (textH * 0.1); // subtle visual check
+                    ctx.fillText(label, tx, ty);
+                    ctx.shadowColor = 'transparent';
+                }
             };
 
             if (cStyle === 'modern') {
@@ -1612,7 +1700,7 @@ export const drawCanvasFrame = (
                 let curX = x + (cStyle === 'box' ? padX : 0);
                 const midY = y + h / 2;
 
-                if (isRight && cStyle === 'classic') {
+                if (isRight && (cStyle === 'classic' || cStyle === 'circle')) {
                     // Text -> Gap -> Img
                     if (showText) {
                         const tw = textW + padX * 2;
@@ -1655,10 +1743,16 @@ export const drawCanvasFrame = (
 
                         // If box, no pill bg, just text draw
                         if (cStyle === 'box') {
-                            ctx.fillStyle = '#ffffff'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-                            ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 4;
-                            ctx.fillText(cText!, curX, midY + (textH * 0.1));
-                            ctx.shadowColor = 'transparent';
+                            if (isSvgText && cTextSvgImg) {
+                                ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 4;
+                                ctx.drawImage(cTextSvgImg, curX, midY - textH / 2, textW, textH);
+                                ctx.shadowColor = 'transparent';
+                            } else {
+                                ctx.fillStyle = '#ffffff'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+                                ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 4;
+                                ctx.fillText(cText!, curX, midY + (textH * 0.1));
+                                ctx.shadowColor = 'transparent';
+                            }
                         } else {
                             drawPill(curX, midY - th / 2, tw, th, cText!);
                         }

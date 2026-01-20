@@ -17,11 +17,12 @@
 - **Sorting & Management**: Sort by Filename, Artist, Title, Album (Ascending/Descending), or Shuffle.
 - **Repeat Modes**: Cycle between **Off**, **Repeat One**, **Play All** (Play playlist once), and **Repeat All** (Loop playlist).
 - **Immersive Mode**: UI controls automatically fade out when idle for a distraction-free experience.
+- **Smart Play/Pause**: Clicking the active track in the playlist toggles Play/Pause.
 
 ![Playlist Management](screenshot-playlist.jpg)
 
 ### 📝 Synchronized Lyrics
-- **Multi-Format Support**: Compatible with `.lrc` (Karaoke style), `.srt` (Subtitle style), and **`.ttml` / `.xml`** (Word-level precision) files.
+- **Multi-Format Support**: Compatible with `.lrc` (Standard & Enhanced with **newline support**), `.srt` (Subtitle style), and **`.ttml` / `.xml`** (Word-level precision).
 - **Auto-Scroll & Centering**: Lyrics scroll automatically and active lines are perfectly centered.
 - **Lyric Offset Control**: Fine-tune sync issues with **+0.1s / -0.1s** buttons directly in the player.
 - **Click-to-Seek & Copy**: Click any lyric line to instantly jump to that exact time. **Click the active line** to copy its text to the clipboard.
@@ -37,7 +38,7 @@
     - **None**: Hides everything (Lyrics, Titles, and Metadata).
   - **Karaoke Styles**: **Neon**, **Glow**, **Bounce**, **Wave**, and **Color/Shape** highlights (Pill, Box, Rounded) with **customizable colors**.
   - **Text Animations**: Bounce, Pulse, Wave, Glitch, Shake, Typewriter, Heartbeat, Tada, Jello, and more.
-  - **Display Modes**: Control lyric visibility (Show All, Previous-Active-Next, Next Only, Active Only).
+  - **Display Modes**: Control lyric visibility context and **Style Target** (Apply styles to Active Line only or All Lines).
 - **AI Transcription**: Built-in integration with **Google Gemini** (supports **Gemini 2.5 Flash** and **3.0 Flash Preview**) for automatic high-accuracy audio transcription.
   - **Mixed-Language Support**: Expertly handles code-switching (e.g., K-Pop, J-Pop with English) and preserves native scripts (No forced transliteration).
 - **Export Lyrics**: Save your transcribed or edited lyrics as `.lrc` (Standard or **Enhanced/Karaoke**), `.srt`, `.json`, or `.txt` files.
@@ -111,7 +112,7 @@
 - **Song & Channel Info Customization**:
   - **Positioning**: 9-point grid automatic positioning (Top-Left to Bottom-Right).
   - **Song Styles**: Classic (Detailed), Modern + Cover, Circle Cover, Boxed Cover, Minimal (Text Only).
-  - **Channel Styles**: Classic, Modern, Minimal, Logo Only, Boxed.
+  - **Channel Styles**: Classic, Modern, Minimal, Logo Only (**SVG Support**), Boxed.
   - **Padding**: Fine-tune margin from screen edges for both **Song Info** and **Channel Info** (Visible in Minimal Mode).
 - **Smart Overlays**: Automatically generates metadata overlays for "Now Playing" visuals.
 - **Dynamic Blur**: Apply real-time Gaussian-style blur to background images or videos for better lyric readability.

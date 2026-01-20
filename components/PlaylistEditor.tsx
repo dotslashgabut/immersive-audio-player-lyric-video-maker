@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import { PlaylistItem, LyricLine } from '../types';
-import { Plus, Trash2, Play, Volume2, FileText, ListMusic, Shuffle, User, Disc, Music, X, Sparkles, Loader2, FileJson, FileType, FileDown, Key, Upload, Square, Search } from './Icons';
-import { formatTime, parseLRC, parseSRT, parseTTML, parseTimestamp } from '../utils/parsers';
+import { Plus, Trash2, Play, Pause, Volume2, FileText, ListMusic, Shuffle, User, Disc, Music, X, Sparkles, Loader2, FileJson, FileType, FileDown, Key, Upload, Square, Search } from './Icons';
+import { formatTime, parseLRC, parseSRT, parseTTML, parseTimestamp, parseJSON } from '../utils/parsers';
 import { useUI } from '../contexts/UIContext';
 import { transcribeAudio } from '../services/geminiService';
 
@@ -11,6 +11,8 @@ interface PlaylistEditorProps {
     currentTrackIndex: number;
     setCurrentTrackIndex: React.Dispatch<React.SetStateAction<number>>;
     onPlayTrack: (index: number) => void;
+    isPlaying: boolean;
+    onTogglePlay: () => void;
     onSeek: (time: number) => void;
     onClearPlaylist: () => void;
     onRemoveTrack?: (index: number) => void;
@@ -19,7 +21,7 @@ interface PlaylistEditorProps {
     onClose: () => void;
 }
 
-const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, currentTrackIndex, setCurrentTrackIndex, onPlayTrack, onSeek, onClearPlaylist, onRemoveTrack, currentTime, onClose }) => {
+const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, currentTrackIndex, setCurrentTrackIndex, onPlayTrack, isPlaying, onTogglePlay, onSeek, onClearPlaylist, onRemoveTrack, currentTime, onClose }) => {
     const { confirm } = useUI();
     const containerRef = useRef<HTMLDivElement>(null);
     const abortControllersRef = useRef<Map<string, AbortController>>(new Map());
@@ -183,7 +185,7 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
             // Simple extension check
             if (['mp3', 'wav', 'ogg', 'flac', 'm4a'].includes(ext || '')) {
                 group.audio = file;
-            } else if (['lrc', 'srt', 'ttml', 'xml'].includes(ext || '')) {
+            } else if (['lrc', 'srt', 'ttml', 'xml', 'json'].includes(ext || '')) {
                 group.lyric = file;
             }
         });
@@ -240,6 +242,7 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
                 if (ext === 'lrc') return parseLRC(text);
                 if (ext === 'srt') return parseSRT(text);
                 if (ext === 'ttml' || ext === 'xml') return parseTTML(text);
+                if (ext === 'json') return parseJSON(text);
             } catch (e) {
                 console.error("Failed to parse lyrics", e);
             }
@@ -708,7 +711,7 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
                 const current = rawLyrics[i];
                 const next = rawLyrics[i + 1];
 
-                lrcLines.push(`${formatLrcTime(current.time)}${current.text}`);
+                lrcLines.push(`${formatLrcTime(current.time)}${current.text.replace(/-\s+/g, '-').replace(/[ \t]+/g, ' ').trim().replace(/\n/g, '\\n')}`);
 
                 // User request: blank line timestamp should be +4 seconds from the end timestamp.
                 // If endTime is not available, we assume a default duration (e.g., 3s).
@@ -756,9 +759,15 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
 
                 let lineContent = "";
                 if (current.words && current.words.length > 0) {
-                    lineContent = current.words.map(w => `${formatWordTime(w.startTime)}${w.text}`).join(" ");
+                    current.words.forEach((w, idx) => {
+                        const cleanText = w.text.replace(/[ \t]+/g, ' ').trim().replace(/\n/g, '\\n');
+                        lineContent += `${formatWordTime(w.startTime)}${cleanText}`;
+                        if (idx < current.words!.length - 1 && !cleanText.endsWith('-')) {
+                            lineContent += " ";
+                        }
+                    });
                 } else {
-                    lineContent = current.text;
+                    lineContent = current.text.replace(/-\s+/g, '-').replace(/[ \t]+/g, ' ').trim().replace(/\n/g, '\\n');
                 }
 
                 lrcLines.push(`${formatLrcTime(current.time)}${lineContent}`);
@@ -802,16 +811,23 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
 
                 if (l.words && l.words.length > 0) {
                     l.words.forEach((w) => {
+                        // Skip empty or whitespace-only words
+                        if (!w.text.trim()) return;
+
                         const wBegin = toTTMLTime(w.startTime);
                         const wEnd = toTTMLTime(w.endTime);
-                        // Add trailing space to words for readability, except perhaps strictly necessary
-                        const textWithSpace = w.text.endsWith(' ') ? w.text : w.text + ' ';
-                        content += `\n        <span begin="${wBegin}" end="${wEnd}">${textWithSpace}</span>`;
+
+                        let cleanText = w.text.replace(/[ \t]+/g, ' ').trim();
+                        if (!cleanText.endsWith('-')) {
+                            cleanText += ' ';
+                        }
+
+                        content += `\n        <span begin="${wBegin}" end="${wEnd}">${cleanText}</span>`;
                     });
                 } else {
                     // Fallback if no words, just wrap text in one span or just plain text?
                     // Request implies structure: <p> <span>...</span> </p>
-                    content += `\n        <span begin="${begin}" end="${end}">${l.text}</span>`;
+                    content += `\n        <span begin="${begin}" end="${end}">${l.text.replace(/-\s+/g, '-').replace(/[ \t]+/g, ' ').trim()}</span>`;
                 }
                 content += `\n      </p>`;
             });
@@ -1054,12 +1070,23 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
                                     {/* Audio Row */}
                                     <div className="flex items-center gap-2">
                                         <button
-                                            onClick={() => onPlayTrack(idx)}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                if (isCurrent) {
+                                                    onTogglePlay();
+                                                } else {
+                                                    onPlayTrack(idx);
+                                                }
+                                            }}
                                             className={`p-1.5 rounded-full transition-colors flex-shrink-0
                                         ${isCurrent ? 'bg-orange-500 text-white' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-white'}
                                     `}
                                         >
-                                            {isCurrent ? <Volume2 size={14} /> : <Play size={14} />}
+                                            {isCurrent ? (
+                                                isPlaying ? <Pause size={14} /> : <Play size={14} />
+                                            ) : (
+                                                <Play size={14} />
+                                            )}
                                         </button>
 
                                         <div className="flex-1 min-w-0">

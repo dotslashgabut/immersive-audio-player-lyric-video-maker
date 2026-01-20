@@ -9,7 +9,7 @@ import { AudioMetadata, LyricLine, TabView, VisualSlide, VideoPreset, PlaylistIt
 import { formatTime, parseLRC, parseSRT, parseTTML } from './utils/parsers';
 import VisualEditor from './components/VisualEditor';
 import PlaylistEditor from './components/PlaylistEditor';
-import RenderSettings from './components/RenderSettings';
+import RenderSettings, { highlightEffectGroups, deriveHighlightColors, lyricDisplayGroups, textCaseOptions } from './components/RenderSettings';
 import { drawCanvasFrame } from './utils/canvasRenderer';
 import { loadGoogleFonts } from './utils/fonts';
 import { PRESET_CYCLE_LIST, PRESET_DEFINITIONS, videoPresetGroups } from './utils/presets';
@@ -80,7 +80,7 @@ function App() {
     renderMode: 'current',
     textAlign: 'center',
     contentPosition: 'center',
-    fontFamily: 'sans-serif',
+    fontFamily: 'ui-sans-serif, system-ui, sans-serif',
     fontSizeScale: 1.0,
     fontColor: '#ffffff',
     textEffect: 'shadow',
@@ -89,6 +89,7 @@ function App() {
     lyricDisplayMode: 'all',
     fontWeight: 'bold',
     fontStyle: 'normal',
+    lyricStyleTarget: 'active-only',
     textDecoration: 'none',
     showTitle: true,
     showArtist: true,
@@ -248,6 +249,9 @@ function App() {
       setLyricOffset(0);
       setIsPlaying(false);
       setCurrentTime(0);
+      if (lyricsContainerRef.current) {
+        lyricsContainerRef.current.scrollTop = 0;
+      }
       if (audioRef.current) {
         audioRef.current.load();
       }
@@ -320,11 +324,23 @@ function App() {
       }
       try {
         const url = URL.createObjectURL(file);
-        const fontName = 'CustomFont';
-        const font = new FontFace(fontName, `url(${url})`);
+
+        // Use filename as a proxy for font name (no dependency needed)
+        // Internal ID remains 'CustomFont' for consistent CSS usage
+        const fontLabel = file.name.replace(/\.[^/.]+$/, "");
+        const fontId = 'CustomFont';
+
+        const font = new FontFace(fontId, `url(${url})`);
         await font.load();
         document.fonts.add(font);
-        setCustomFontName(fontName);
+
+        setCustomFontName(fontLabel);
+
+        // Automatically activate the font in settings
+        setRenderConfig(prev => ({ ...prev, fontFamily: fontId }));
+        // setPreset('custom'); // Disabled to allow customized base presets
+
+        toast.success(`Loaded font: ${fontLabel}`);
       } catch (err) {
         console.error("Failed to load font:", err);
         toast.error("Failed to load font file.");
@@ -356,9 +372,8 @@ function App() {
     // Load Lyrics
     if (track.parsedLyrics && track.parsedLyrics.length > 0) {
       setLyrics(track.parsedLyrics);
-      if (track.parsedLyrics.some(l => l.words && l.words.length > 0)) {
-        setRenderConfig(prev => ({ ...prev, highlightEffect: 'karaoke' }));
-      }
+      // Removed auto-set highlightEffect to prevent resetting user preference
+
     } else if (track.lyricFile) {
       try {
         const text = await track.lyricFile.text();
@@ -370,9 +385,8 @@ function App() {
 
         setLyrics(parsed);
 
-        if (parsed.some(l => l.words && l.words.length > 0)) {
-          setRenderConfig(prev => ({ ...prev, highlightEffect: 'karaoke' }));
-        }
+        // Removed auto-set highlightEffect to prevent resetting user preference
+
 
       } catch (e) {
         console.error("Failed to load lyrics", e);
@@ -381,6 +395,11 @@ function App() {
 
     setLyricOffset(0);
     setCurrentTrackIndex(index);
+    // Reset Scroll Position
+    if (lyricsContainerRef.current) {
+      lyricsContainerRef.current.scrollTop = 0;
+    }
+
     // Auto-play after state update
     setTimeout(() => {
       if (audioRef.current) {
@@ -626,8 +645,62 @@ function App() {
     });
 
     // Load Channel Info Image
-    if (renderConfig.showChannelInfo && renderConfig.channelInfoImage) {
-      loadPromises.push(loadImg('__channel_info__', renderConfig.channelInfoImage));
+    if (renderConfig.showChannelInfo) {
+      if (renderConfig.channelInfoImage) {
+        loadPromises.push(loadImg('__channel_info__', renderConfig.channelInfoImage));
+      }
+      // Load SVG Text if applicable
+      if (renderConfig.channelInfoText) {
+        const txt = renderConfig.channelInfoText.trim();
+        // Check if it contains SVG tag
+        if (/<svg[\s\S]*?>/i.test(txt)) {
+          try {
+            // Measure the content to generate correct SVG dimensions
+            const measureEl = document.createElement('div');
+            measureEl.style.position = 'absolute';
+            measureEl.style.visibility = 'hidden';
+            measureEl.style.whiteSpace = 'nowrap';
+            measureEl.style.fontFamily = 'sans-serif';
+            measureEl.style.fontWeight = 'bold';
+            measureEl.style.fontSize = '100px'; // High res for quality
+            measureEl.style.display = 'inline-flex';
+            measureEl.style.alignItems = 'center';
+            measureEl.style.gap = '0.25em';
+            measureEl.innerHTML = txt;
+
+            // Adjust SVG children styling for measurement matching App.tsx
+            const svgs = measureEl.getElementsByTagName('svg');
+            for (let i = 0; i < svgs.length; i++) {
+              svgs[i].style.width = 'auto';
+              svgs[i].style.height = '1.5em';
+            }
+
+            document.body.appendChild(measureEl);
+            const { width, height } = measureEl.getBoundingClientRect();
+            document.body.removeChild(measureEl);
+
+            // Construct SVG with foreignObject
+            const svgString = `
+              <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
+                <foreignObject width="100%" height="100%">
+                  <div xmlns="http://www.w3.org/1999/xhtml" style="font-family: sans-serif; font-weight: bold; font-size: 100px; color: white; display: inline-flex; align-items: center; gap: 0.25em; white-space: nowrap;">
+                    <style>svg { width: auto; height: 1.5em; }</style>
+                    ${txt}
+                  </div>
+                </foreignObject>
+              </svg>
+            `;
+
+            // Encode
+            const encoded = window.btoa(encodeURIComponent(svgString).replace(/%([0-9A-F]{2})/g,
+              function toSolidBytes(_match, p1) {
+                return String.fromCharCode(parseInt(p1, 16));
+              }));
+            const dataUrl = `data:image/svg+xml;base64,${encoded}`;
+            loadPromises.push(loadImg('__channel_info_text_svg__', dataUrl));
+          } catch (e) { console.warn("Failed to process SVG channel info", e); }
+        }
+      }
     }
     // Load Custom Background Image
     if (renderConfig.backgroundSource === 'image' && renderConfig.backgroundImage) {
@@ -960,32 +1033,42 @@ function App() {
 
   // Scroll active lyric into view
   const scrollToActiveLyric = useCallback(() => {
-    if (currentLyricIndex !== -1 && lyricsContainerRef.current) {
-      // Use data attribute to find the active lyric element
-      const activeEl = lyricsContainerRef.current.querySelector('[data-lyric-active="true"]') as HTMLElement;
-      if (activeEl) {
-        const container = lyricsContainerRef.current;
+    if (lyricsContainerRef.current) {
+      // Handle start of song (reset to top) for Loops/ Repeats
+      // We use the Ref current time to avoid dependency loop or frequent re-renders
+      const t = audioRef.current?.currentTime || 0;
+      if (currentLyricIndex === -1 && t < 2) {
+        lyricsContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+        return;
+      }
 
-        // Skip if element is hidden
-        if (activeEl.offsetHeight === 0) return;
+      if (currentLyricIndex !== -1) {
+        // Use data attribute to find the active lyric element
+        const activeEl = lyricsContainerRef.current.querySelector('[data-lyric-active="true"]') as HTMLElement;
+        if (activeEl) {
+          const container = lyricsContainerRef.current;
 
-        // Use offsetTop (layout position) instead of getBoundingClientRect (visual position)
-        // This avoids issues with CSS transforms like scale-105
-        const elOffsetTop = activeEl.offsetTop;
-        const elHeight = activeEl.offsetHeight;
-        const containerHeight = container.clientHeight;
+          // Skip if element is hidden
+          if (activeEl.offsetHeight === 0) return;
 
-        // Target: Position based on contentPosition preference
-        let positionRatio = 0.5; // Center default
-        if (renderConfig.contentPosition === 'top') positionRatio = 0.25;
-        if (renderConfig.contentPosition === 'bottom') positionRatio = 0.75;
+          // Use offsetTop (layout position) instead of getBoundingClientRect (visual position)
+          // This avoids issues with CSS transforms like scale-105
+          const elOffsetTop = activeEl.offsetTop;
+          const elHeight = activeEl.offsetHeight;
+          const containerHeight = container.clientHeight;
 
-        const targetScrollTop = elOffsetTop - (containerHeight * positionRatio) + (elHeight / 2);
+          // Target: Position based on contentPosition preference
+          let positionRatio = 0.5; // Center default
+          if (renderConfig.contentPosition === 'top') positionRatio = 0.25;
+          if (renderConfig.contentPosition === 'bottom') positionRatio = 0.75;
 
-        container.scrollTo({
-          top: targetScrollTop,
-          behavior: 'smooth'
-        });
+          const targetScrollTop = elOffsetTop - (containerHeight * positionRatio) + (elHeight / 2);
+
+          container.scrollTo({
+            top: targetScrollTop,
+            behavior: 'smooth'
+          });
+        }
       }
     }
   }, [currentLyricIndex, preset, renderConfig.contentPosition]);
@@ -1110,26 +1193,26 @@ function App() {
           break;
         case 'g': // Cycle Lyric Display Mode
           e.preventDefault();
-          const modes = ['all', 'previous-next', 'next-only', 'active-only'];
+          const modes = lyricDisplayGroups.flatMap(g => g.options.map(o => o.value));
           const currentMode = renderConfigRef.current.lyricDisplayMode;
           const currentIndex = modes.indexOf(currentMode);
           const nextIndex = (currentIndex + 1) % modes.length;
           const nextMode = modes[nextIndex] as any;
 
           setRenderConfig(prev => ({ ...prev, lyricDisplayMode: nextMode }));
-          setPresetCustom();
+          // setPresetCustom(); // Disabled to allow customized base presets
           toast.success(`Lyric Mode: ${nextMode.replace('-', ' ')}`, { id: 'lyric-mode' });
           break;
         case 'c': // Cycle Text Case
           e.preventDefault();
-          const cases = ['none', 'upper', 'lower', 'title', 'sentence', 'invert'];
+          const cases = textCaseOptions;
           const currentCase = renderConfigRef.current.textCase;
           const currentCaseIndex = cases.indexOf(currentCase);
           const nextCaseIndex = (currentCaseIndex + 1) % cases.length;
           const nextCase = cases[nextCaseIndex] as any;
 
           setRenderConfig(prev => ({ ...prev, textCase: nextCase }));
-          setPresetCustom();
+          // setPresetCustom(); // Disabled to allow customized base presets
           toast.success(`Text Case: ${nextCase}`, { id: 'text-case' });
           break;
         case 'f':
@@ -1166,19 +1249,12 @@ function App() {
             ...prev,
             highlightEffect: prev.highlightEffect === 'none' ? 'karaoke' : 'none'
           }));
-          setPresetCustom();
+          // setPresetCustom(); // Disabled as per user request
           toast.success(`Highlight: ${isTurningOn ? 'On (Karaoke)' : 'Off'}`, { id: 'highlight-toggle' });
           break;
         case 'z': // Cycle Highlight Effect
           e.preventDefault();
-          const highlightEffects = [
-            'none', 'color', 'scale', 'glow', 'background',
-            'karaoke', 'karaoke-fill', 'karaoke-outline', 'karaoke-underline', 'karaoke-shadow', 'karaoke-gradient',
-            'karaoke-bounce', 'karaoke-wave', 'karaoke-scale',
-            'karaoke-neon', 'karaoke-glow-blue', 'karaoke-glow-pink',
-            'karaoke-blue', 'karaoke-purple', 'karaoke-green', 'karaoke-pink', 'karaoke-cyan',
-            'karaoke-pill', 'karaoke-box', 'karaoke-rounded'
-          ];
+          const highlightEffects = highlightEffectGroups.flatMap(g => g.options.map(o => o.value));
 
           const currentEffect = renderConfigRef.current.highlightEffect || 'none';
           const idx = highlightEffects.indexOf(currentEffect as string);
@@ -1186,35 +1262,21 @@ function App() {
           const nextIdxZ = (safeIdx + 1) % highlightEffects.length;
           const nextEffectZ = highlightEffects[nextIdxZ] as string;
 
-          let color = '';
-          let bg = '';
-
-          if (nextEffectZ.includes('blue') || nextEffectZ.includes('cyan')) {
-            color = nextEffectZ.includes('cyan') ? '#06b6d4' : '#3b82f6';
-            bg = color;
-          } else if (nextEffectZ.includes('purple')) {
-            color = '#a855f7';
-            bg = color;
-          } else if (nextEffectZ.includes('green')) {
-            color = '#22c55e';
-            bg = color;
-          } else if (nextEffectZ.includes('pink')) {
-            color = '#ec4899';
-            bg = color;
-          } else if (nextEffectZ === 'karaoke-pill' || nextEffectZ === 'karaoke-box' || nextEffectZ === 'karaoke-rounded') {
-            color = '#fb923c';
-            bg = '#fb923c';
-          }
+          const derived = deriveHighlightColors(nextEffectZ);
 
           setRenderConfig(prev => {
             const newConfig = { ...prev, highlightEffect: nextEffectZ };
-            if (color) {
-              newConfig.highlightColor = color;
-              newConfig.highlightBackground = bg;
+
+            // Auto-disable custom colors on effect switch
+            newConfig.useCustomHighlightColors = false;
+
+            if (derived) {
+              newConfig.highlightColor = derived.color;
+              newConfig.highlightBackground = derived.bg;
             }
             return newConfig;
           });
-          setPresetCustom();
+          // setPresetCustom(); // Disabled as per user request
 
           toast.success(`Effect: ${nextEffectZ.replace(/-/g, ' ')}`, { id: 'highlight-effect' });
           break;
@@ -1227,9 +1289,44 @@ function App() {
           setPreset(nextP);
 
           // Sync Config
+          // Sync Config
           const pConfig = PRESET_DEFINITIONS[nextP];
           if (pConfig) {
-            setRenderConfig(curr => ({ ...curr, ...pConfig }));
+            // Reset to Base Style Default first, then apply Preset overrides.
+            // This ensures "custom" styles (like highlight effects from previous preset) are cleared
+            // unless the new preset explicitly defines them or they are global defaults.
+            // We want to reset "Visual" styles but maybe verify if we should keep "Data" settings?
+            // Usually switching presets resets the Look.
+            // We'll use a partial reset of visual keys.
+
+            // List of visual style keys to reset
+            const visualReset: Partial<RenderConfig> = {
+              fontFamily: 'ui-sans-serif, system-ui, sans-serif',
+              fontSizeScale: 1.0,
+              fontColor: '#ffffff',
+              fontWeight: 'bold',
+              fontStyle: 'normal',
+              textCase: 'none',
+              textAlign: 'center',
+              contentPosition: 'center',
+              textDecoration: 'none',
+              textEffect: 'shadow',
+              textAnimation: 'none',
+              highlightEffect: 'karaoke', // Default to karaoke if not specified? Or 'none'? Use DEFAULT_CONFIG values.
+              highlightColor: '#fb923c',
+              highlightBackground: '#fb923c',
+              useCustomHighlightColors: false,
+              lyricStyleTarget: 'active-only',
+              transitionEffect: 'none',
+              // Keep background source/image? Usually yes, user might have set a background.
+              // Keep info display toggles? Yes.
+            };
+
+            setRenderConfig(curr => ({
+              ...curr,
+              ...visualReset,
+              ...pConfig
+            }));
           }
 
           // Notification
@@ -1278,7 +1375,7 @@ function App() {
           const newValUp = Math.min(currentScaleUp + 0.1, 3.0);
           setRenderConfig(prev => ({ ...prev, fontSizeScale: newValUp }));
           toast.success(`Font Size: ${(newValUp * 100).toFixed(0)}%`, { id: 'font-size' });
-          setPresetCustom();
+          // setPresetCustom(); // Disabled to allow customized base presets
           break;
         case '-':
           e.preventDefault();
@@ -1286,7 +1383,7 @@ function App() {
           const newValDown = Math.max(currentScaleDown - 0.1, 0.1);
           setRenderConfig(prev => ({ ...prev, fontSizeScale: newValDown }));
           toast.success(`Font Size: ${(newValDown * 100).toFixed(0)}%`, { id: 'font-size' });
-          setPresetCustom();
+          // setPresetCustom(); // Disabled to allow customized base presets
           break;
         case 'e':
           if ((e.ctrlKey || e.metaKey) && e.shiftKey) {
@@ -1634,14 +1731,16 @@ function App() {
               ${renderConfig.channelInfoStyle === 'box' ? 'bg-black/40 backdrop-blur-md rounded-xl border border-white/10' : ''}
               ${renderConfig.channelInfoPosition === 'top-left' ? 'top-0 left-0 items-start text-left' :
                 renderConfig.channelInfoPosition === 'top-right' ? 'top-0 right-0 items-end text-right' :
-                  renderConfig.channelInfoPosition === 'bottom-left' ? 'bottom-0 left-0 items-start text-left' :
-                    'bottom-0 right-0 items-end text-right'}
+                  renderConfig.channelInfoPosition === 'top-center' ? 'top-0 left-1/2 items-center text-center' :
+                    renderConfig.channelInfoPosition === 'bottom-left' ? 'bottom-0 left-0 items-start text-left' :
+                      renderConfig.channelInfoPosition === 'bottom-center' ? 'bottom-0 left-1/2 items-center text-center' :
+                        'bottom-0 right-0 items-end text-right'}
             `}
             style={{
-              transform: `scale(${renderConfig.channelInfoSizeScale ?? 1})`,
+              transform: `${renderConfig.channelInfoPosition?.includes('center') ? 'translateX(-50%)' : ''} scale(${renderConfig.channelInfoSizeScale ?? 1})`,
               transformOrigin: renderConfig.channelInfoPosition?.includes('top')
-                ? (renderConfig.channelInfoPosition?.includes('left') ? 'top left' : 'top right') // Corners
-                : (renderConfig.channelInfoPosition?.includes('left') ? 'bottom left' : 'bottom right'),
+                ? (renderConfig.channelInfoPosition?.includes('center') ? 'top center' : renderConfig.channelInfoPosition?.includes('left') ? 'top left' : 'top right')
+                : (renderConfig.channelInfoPosition?.includes('center') ? 'bottom center' : renderConfig.channelInfoPosition?.includes('left') ? 'bottom left' : 'bottom right'),
               // Smart Margin: If center (future proof), only vertical. If corner, all sides.
               ...(renderConfig.channelInfoPosition?.includes('center')
                 ? (renderConfig.channelInfoPosition?.includes('top') ? { marginTop: `${(renderConfig.channelInfoMarginScale ?? 1) * 1.5}rem` } : { marginBottom: `${(renderConfig.channelInfoMarginScale ?? 1) * 1.5}rem` })
@@ -1656,10 +1755,29 @@ function App() {
               />
             )}
             {renderConfig.channelInfoText && renderConfig.channelInfoStyle !== 'logo' && (
-              <p className={`text-white font-bold drop-shadow-md text-lg 
-                ${(renderConfig.channelInfoStyle === 'minimal' || renderConfig.channelInfoStyle === 'box') ? '' : 'px-2 py-1 bg-black/20 rounded-lg backdrop-blur-sm'}`}>
-                {renderConfig.channelInfoText}
-              </p>
+              (() => {
+                const text = renderConfig.channelInfoText.trim();
+                // Relaxed detection: checks for <svg tag presence
+                const isSvg = /<svg[\s\S]*?>/i.test(text);
+
+                if (isSvg) {
+                  return (
+                    <div
+                      className={`text-white font-bold drop-shadow-md text-lg inline-flex items-center gap-1
+                        ${(renderConfig.channelInfoStyle === 'minimal' || renderConfig.channelInfoStyle === 'box') ? '' : 'px-2 py-1 bg-black/20 rounded-lg backdrop-blur-sm'}
+                        [&>svg]:w-auto [&>svg]:h-[1.5em]`}
+                      dangerouslySetInnerHTML={{ __html: text }}
+                    />
+                  );
+                }
+
+                return (
+                  <p className={`text-white font-bold drop-shadow-md text-lg 
+                    ${(renderConfig.channelInfoStyle === 'minimal' || renderConfig.channelInfoStyle === 'box') ? '' : 'px-2 py-1 bg-black/20 rounded-lg backdrop-blur-sm'}`}>
+                    {renderConfig.channelInfoText}
+                  </p>
+                );
+              })()
             )}
           </div>
         )}
@@ -1776,6 +1894,19 @@ function App() {
             </div>
 
             <div className={`flex gap-2 flex-wrap ${isMinimalMode ? 'hidden' : ''}`}>
+              <a
+                href="https://github.com/dotslashgabut/immersive-audio-player-lyric-video-maker"
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Immersive Audio Player & Lyric Video Maker | GitHub"
+                className="px-3 py-2 rounded-full transition-colors bg-black/30 text-zinc-300 hover:bg-white/10 text-xs font-bold flex items-center"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="#eee" class="bi bi-github"
+                  viewBox="0 0 16 16">
+                  <path
+                    d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8" />
+                </svg>
+              </a>
               <a
                 href="https://ai.studio/apps/drive/1M1VfxdBlNB_eOPQqQiHspvVwizaEs0aI?fullscreenApplet=true"
                 target="_blank"
@@ -2138,20 +2269,16 @@ function App() {
                 }
 
                 // Dynamic Styles for Custom Preset options
+                // Dynamic Styles for Custom Preset options
+                const targetStyleMode = renderConfig.lyricStyleTarget || 'active-only';
+                const useCustomStyle = (targetStyleMode === 'all' || isActive); // Allow customization for all presets
+
                 let textEffectStyles: React.CSSProperties = {
-                  color: (preset === 'custom') ? renderConfig.fontColor : undefined,
-                  fontWeight: (preset === 'custom') ? renderConfig.fontWeight : undefined,
-                  fontStyle: (preset === 'custom') ? renderConfig.fontStyle : undefined,
-                  textDecoration: (preset === 'custom') ? renderConfig.textDecoration : undefined,
-                  fontFamily: customFontName ? `"${customFontName}", sans-serif` :
-                    (preset === 'custom' && renderConfig.fontFamily !== 'sans-serif') ? renderConfig.fontFamily :
-                      preset === 'metal' ? '"Metal Mania", cursive'
-                        : preset === 'kids' ? '"Fredoka One", cursive'
-                          : preset === 'sad' ? '"Shadows Into Light", cursive'
-                            : preset === 'romantic' ? '"Dancing Script", cursive'
-                              : preset === 'tech' ? '"Orbitron", sans-serif'
-                                : preset === 'gothic' ? '"UnifrakturMaguntia", cursive'
-                                  : undefined,
+                  color: renderConfig.fontColor,
+                  fontWeight: useCustomStyle ? renderConfig.fontWeight : undefined,
+                  fontStyle: useCustomStyle ? renderConfig.fontStyle : undefined,
+                  textDecoration: useCustomStyle ? renderConfig.textDecoration : undefined,
+                  fontFamily: (renderConfig.fontFamily === 'CustomFont') ? 'CustomFont, sans-serif' : renderConfig.fontFamily
                 };
 
                 // Advanced Text Effects
@@ -2263,8 +2390,10 @@ function App() {
                   if ((hEffect === 'karaoke' || hEffect?.startsWith('karaoke-')) && hasWords) {
                     // Word-level Karaoke with variants
                     contentRender = line.words!
-                      .filter(w => w.text.trim().length > 0)
-                      .map((w, wIdx) => {
+                      .filter(w => w.text === '\n' || w.text.trim().length > 0)
+                      .map((w, wIdx, arr) => {
+                        if (w.text === '\n') return <br key={wIdx} />;
+
                         // Apply Casing to individual words
                         let wText = w.text.trim();
                         if (casing === 'upper') wText = wText.toUpperCase();
@@ -2285,13 +2414,20 @@ function App() {
                         const hyphenStartRegex = /^[-‐‑‒–—―]/;
 
                         let shouldAddSpace = !wText.endsWith(' ');
+
+                        // If current word ends with hyphen, no space.
                         if (hyphenEndRegex.test(wText.trim())) shouldAddSpace = false;
 
-                        const nextW = line.words![wIdx + 1];
+                        // If next word starts with hyphen, no space.
+                        const nextW = arr[wIdx + 1];
                         if (nextW && hyphenStartRegex.test(nextW.text.trim())) shouldAddSpace = false;
+                        if (nextW && nextW.text === '\n') shouldAddSpace = false;
 
-                        const marginRight = shouldAddSpace ? '0.3em' : '0px';
-                        let wordStyle: React.CSSProperties = { display: 'inline-block', marginRight: marginRight, transition: 'all 0.1s ease' }; // Base style
+                        // Last word of array check
+                        if (wIdx === arr.length - 1) shouldAddSpace = false;
+
+                        // Use inline-block but NO margin. We insert spaces manually.
+                        let wordStyle: React.CSSProperties = { display: 'inline-block', transition: 'all 0.1s ease' }; // Base style
 
                         // Apply Global Decoration
                         if (renderConfig.textDecoration && renderConfig.textDecoration !== 'none') {
@@ -2302,6 +2438,7 @@ function App() {
                         if (!isWordActive && !isWordPast) {
                           wordStyle.opacity = 0.5;
                           wordStyle.transform = 'scale(1)';
+                          // Inherit color from preset (parent <p>)
                         } else if (isWordPast) {
                           if (hEffect === 'karaoke-fill') {
                             const hBg = renderConfig.highlightBackground || '#fb923c';
@@ -2311,10 +2448,83 @@ function App() {
                             wordStyle.borderRadius = '4px';
                             wordStyle.opacity = 1;
                           } else {
-                            wordStyle.color = preset === 'custom' ? renderConfig.fontColor : 'white';
+                            // Standard Karaoke:
+                            // User Request: Only highlight CURRENT word for presets (non-custom).
+                            // Custom can keep behavior or follow suit.
+                            // If NOT Custom, past words should be normal color (un-highlighted).
+
+                            if (preset === 'custom') {
+                              wordStyle.color = renderConfig.fontColor;
+                              // Actually, if it's custom, maybe they WANT the fill?
+                              // The user said "preset-preset itu (selain custom)". 
+                              // Use old logic for Custom?
+                              // "fix issue untuk preset-preset itu (selain custom)"
+                              // So for Custom, we do what we did? 
+                              // Logic in Step 90 was: wordStyle.color = preset === 'custom' ? renderConfig.fontColor : hColor;
+                              // Wait, if custom, it used fontColor (which is NOT highlighted).
+                              // If NOT custom, it used hColor (Highlighted).
+                              // So previous logic was: Custom -> Normal Color, Presets -> Highlighted.
+                              // Now I want: Presets -> Normal Color.
+
+                              // So for ALL cases (Custom OR Presets), we want Normal Color for past words?
+                              // "seharusnya hanya kata (current word/current timestamp) yang terhighlight."
+                              // This implies "highlight" is transient.
+
+                              // So, remove the explicit hColor assignment for everyone?
+                              // Or does Custom allow configuring it?
+                              // Let's just remove the assignment so it inherits the base color (which is opacity 1).
+                              // But wait, standard karaoke usually keeps the color.
+                              // I will explicitly set opacity 1. And NOT set color (so it inherits white/preset color).
+                            }
+
+                            // wordStyle.color = ... (Remove this to inherit)
                             wordStyle.opacity = 1;
                           }
                         }
+
+                        // Construct Element
+                        // Note: For 'shouldAddSpace', we append {' '} in the return.
+                        // We do NOT use marginRight.
+
+                        // However, we must return a single node or fragment.
+                        // For styling and effects application later in the code (below this block),
+                        // we need to keep 'wordStyle' mutable or apply it now.
+                        // The code CONTINUES after this block to apply Active Effects to 'wordStyle'.
+                        // So we cannot return the JSX yet.
+                        // We must adapt the existing structure which returns at the END of the map.
+                        // But wait, the previous code had 'return' inside the map? No, it returns the result of the map.
+                        // The previous code had a monolithic block.
+                        // I am editing a chunk in the middle.
+                        // I CANNOT return the JSX here because the user code continues with `if (isWordActive) { ... }`
+                        // AND THEN returns the component at the very end of the map function (which is likely hidden in truncated view).
+                        // Let's check where the map returns.
+                        // The truncated view at line 2420 shows `} else if (hEffect === 'karaoke-scale') {`.
+                        // The map function is HUGE.
+                        // I cannot change the return structure to React.Fragment easily without replacing the ENTIRE map function, 
+                        // which is very risky and large.
+
+                        // ALTERNATIVE FIX for Alignment:
+                        // Keep marginRight logic but make it '0px' always, and insert a space character INSIDE the span or AFTER?
+                        // If I return <span style={...}>{wText} </span> (space inside), it works for wrapping IF white-space is normal.
+                        // `whiteSpace: 'pre-wrap'` is set on the container (line 2017: `whitespace-pre-wrap`).
+                        // If I put space inside span, underline/bg will cover the space.
+                        // Usually undesirable for karaoke.
+                        // Ideally space is outside.
+                        // Since I cannot change the return signature easily (limitations of view), I will try to FIX the margin logic to be cleaner, 
+                        // OR I will assume I can edit the `return` statement if I view enough lines.
+
+                        // Let's stick to the Color Fix first and the Margin Fix attempts.
+                        // If sticking to Margin: The issue is wrapped aligned lines.
+                        // Browser treats inline-block with margin-right at end of line ... does it ignore margin?
+                        // Generally yes, but webkit sometimes doesn't for centering.
+                        // If I cannot use {' '}, I will use `marginRight: shouldAddSpace ? '0.25em' : '0px'`.
+                        // I already did that. User says it still shifts "wrap text (current lyric line)".
+                        // This implies the 0.25em is still there on the edge word of the FIRST line of the wrap.
+                        // I cannot detect line wrap in JS easily.
+
+                        // I MUST switch to {' '}.
+                        // To do that, I must replace the RETURN statement of the map.
+                        // I need to view the end of the map function.
 
                         // Active State Per Effect
                         if (isWordActive) {
@@ -2520,11 +2730,13 @@ function App() {
                           }
                         }
 
-                        return (
+                        const element = (
                           <span key={wIdx} className="inline-block" style={wordStyle}>
                             {wText}
                           </span>
                         );
+
+                        return shouldAddSpace ? <React.Fragment key={wIdx}>{element}{' '}</React.Fragment> : element;
                       });
                   } else if (hEffect === 'karaoke' || hEffect?.startsWith('karaoke-')) {
                     // Fallback Karaoke (Line Fill)
@@ -2746,7 +2958,40 @@ function App() {
                   <div className="relative group">
                     <select
                       value={preset}
-                      onChange={(e) => setPreset(e.target.value as any)}
+                      onChange={(e) => {
+                        const nextP = e.target.value as VideoPreset;
+                        setPreset(nextP);
+
+                        // Sync Config with Visual Reset (same as Shortcut 'j')
+                        const pConfig = PRESET_DEFINITIONS[nextP];
+                        if (pConfig) {
+                          const visualReset: Partial<RenderConfig> = {
+                            fontFamily: 'sans-serif',
+                            fontSizeScale: 1.0,
+                            fontColor: '#ffffff',
+                            fontWeight: 'bold',
+                            fontStyle: 'normal',
+                            textCase: 'none',
+                            textAlign: 'center',
+                            contentPosition: 'center',
+                            textDecoration: 'none',
+                            textEffect: 'shadow',
+                            textAnimation: 'none',
+                            highlightEffect: 'karaoke',
+                            highlightColor: '#fb923c',
+                            highlightBackground: '#fb923c',
+                            useCustomHighlightColors: false,
+                            lyricStyleTarget: 'active-only',
+                            transitionEffect: 'none',
+                          };
+
+                          setRenderConfig(curr => ({
+                            ...curr,
+                            ...visualReset,
+                            ...pConfig
+                          }));
+                        }
+                      }}
                       className="appearance-none bg-zinc-800/50 border border-white/5 text-zinc-300 text-xs rounded-lg px-3 pr-8 h-9 w-24 focus:outline-none focus:border-purple-500 cursor-pointer"
                       disabled={isRendering}
                       title="Select Visual Preset"
@@ -2956,6 +3201,8 @@ function App() {
               currentTrackIndex={currentTrackIndex}
               setCurrentTrackIndex={setCurrentTrackIndex}
               onPlayTrack={playTrack}
+              isPlaying={isPlaying}
+              onTogglePlay={togglePlay}
               currentTime={currentTime}
               onSeek={(time) => {
                 if (audioRef.current && !isRendering) {
