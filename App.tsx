@@ -867,7 +867,11 @@ function App() {
           const s = visualSlides.find(sl => sl.id === id);
           if (s) {
             if (t >= s.startTime && t < s.endTime) {
-              const rel = (t - s.startTime) + (s.mediaStartOffset || 0);
+              const speed = s.playbackRate || 1;
+              const rel = ((t - s.startTime) * speed) + (s.mediaStartOffset || 0);
+
+              if (Math.abs(v.playbackRate - speed) > 0.01) v.playbackRate = speed;
+
               if (Math.abs(v.currentTime - rel) > 0.5) v.currentTime = rel;
               const shouldMute = s.isMuted !== false;
               if (v.muted !== shouldMute) v.muted = shouldMute;
@@ -888,7 +892,11 @@ function App() {
           const isLayerVisible = renderConfig.layerVisibility?.audio?.[layer] !== false;
 
           if (isLayerVisible && t >= s.startTime && t < s.endTime) {
-            const rel = (t - s.startTime) + (s.mediaStartOffset || 0);
+            const speed = s.playbackRate || 1;
+            const rel = ((t - s.startTime) * speed) + (s.mediaStartOffset || 0);
+
+            if (Math.abs(a.playbackRate - speed) > 0.01) a.playbackRate = speed;
+
             if (Math.abs(a.currentTime - rel) > 0.5) a.currentTime = rel;
             const shouldMute = s.isMuted === true;
             if (a.muted !== shouldMute) a.muted = shouldMute;
@@ -1459,10 +1467,14 @@ function App() {
           if (isRendering) {
             if (!vid.paused) vid.pause();
           } else {
-            const relTime = (currentTime - slide.startTime) + (slide.mediaStartOffset || 0);
+            const speed = slide.playbackRate || 1;
+            const relTime = ((currentTime - slide.startTime) * speed) + (slide.mediaStartOffset || 0);
+
+            // Sync Playback Rate
+            if (Math.abs(vid.playbackRate - speed) > 0.01) vid.playbackRate = speed;
 
             // Check if we need to sync timestamps (fix drift/seeks)
-            if (Math.abs(vid.currentTime - relTime) > 0.1) {
+            if (Math.abs(vid.currentTime - relTime) > 0.2) {
               vid.currentTime = relTime;
             }
 
@@ -1513,13 +1525,15 @@ function App() {
 
     // 3. Audio Slides Sync (Preview)
     // We iterate over ALL audio slides that SHOULD be playing (activeAudioSlides)
-    // But since we render them below, we need refs. 
-    // Actually, simpler: we can querySelector them or maintain a map of refs.
-    // Given the dynamic nature, querySelector by ID might be easiest for this lightweight app.
     activeAudioSlides.forEach(s => {
       const aud = document.getElementById(`audio-preview-${s.id}`) as HTMLAudioElement;
       if (aud) {
-        const relTime = (currentTime - s.startTime) + (s.mediaStartOffset || 0);
+        const speed = s.playbackRate || 1;
+        const relTime = ((currentTime - s.startTime) * speed) + (s.mediaStartOffset || 0);
+
+        // Sync Playback Rate
+        if (Math.abs(aud.playbackRate - speed) > 0.01) aud.playbackRate = speed;
+
         if (Math.abs(aud.currentTime - relTime) > 0.2) aud.currentTime = relTime;
 
         const shouldMute = s.isMuted === true;
@@ -2282,7 +2296,7 @@ function App() {
                 };
 
                 // Advanced Text Effects
-                if (preset === 'custom' && isActive && renderConfig.textEffect !== 'none') {
+                if ((preset === 'custom' || preset === 'default') && isActive && renderConfig.textEffect !== 'none') {
                   const textEf = renderConfig.textEffect;
 
                   if (textEf === 'glow') textEffectStyles.textShadow = `0 0 10px ${renderConfig.fontColor}, 0 0 20px ${renderConfig.fontColor}`;

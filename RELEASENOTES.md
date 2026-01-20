@@ -1,5 +1,17 @@
 # Release Notes
 
+# v2.2.4
+
+## What's New
+- **Visual Editor**:
+    - **Playback Speed**: Added a new controls to adjust the playback rate (0.25x - 2.0x) for video and audio slides in the timeline.
+- **Rendering & Export**:
+    - **Visual Fidelity**: Fixed discrepancies between the Web View and Exported Video. Highlight colors and Song Information styling now render exactly as seen in the preview.
+
+## Bug Fixes
+- **Export Colors**: Resolved an issue where highlight effects (e.g., Neon, Glow) in exported videos used incorrect or default colors instead of the user-selected custom colors.
+- **Song Info Layout**: Fixed positioning and styling mismatches for Song Info overlays in the final render.
+
 # v2.2.3
 
 ## What's New

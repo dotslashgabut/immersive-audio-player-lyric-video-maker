@@ -35,6 +35,7 @@ export interface VisualSlide {
   isMuted?: boolean;
   volume?: number; // 0 to 1
   layer?: number; // 0 or 1
+  playbackRate?: number; // 0.1 to 4, default 1
 }
 
 export interface AudioMetadata {

@@ -62,6 +62,7 @@
   - **Arrow Keys**: Nudge selected clips by 0.1s.
   - **Lyric Navigation**: Click any lyric block on the timeline to jump the player to that exact time.
   - **Volume Mixing**: Independent mute/volume control for every video and audio clip on the timeline.
+  - **Playback Speed**: Adjust playback rate (0.25x - 2.0x) for individual video and audio clips.
 - **Visual Effects**:
   - **Background Blur**: Toggle between 'Sharp' and 'Blur' for background media.
 

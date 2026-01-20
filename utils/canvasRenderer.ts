@@ -306,7 +306,7 @@ export const drawCanvasFrame = (
         const startY = y - ((lines.length - 1) * lineHeight) / 2;
 
         // Resolve Colors
-        let highlightColor = renderConfig.highlightColor || '#ef4444';
+        let highlightColor = renderConfig.highlightColor || '#fb923c';
         let bgColor = renderConfig.highlightBackground || '#ffffff';
         const effect = renderConfig.highlightEffect || 'none';
 
@@ -321,7 +321,7 @@ export const drawCanvasFrame = (
             else if (effect.includes('chrome')) { highlightColor = '#E0E0E0'; bgColor = '#757575'; }
             else if (effect.includes('fire')) { highlightColor = '#FF4500'; bgColor = '#FF0000'; }
             else if (effect.includes('glass')) { highlightColor = '#ffffff'; bgColor = 'rgba(255,255,255,0.1)'; }
-            else if (effect === 'karaoke') { highlightColor = '#ef4444'; bgColor = '#ef4444'; } // Default Red
+            else if (effect === 'karaoke') { highlightColor = '#fb923c'; bgColor = '#fb923c'; } // Default Orange
         }
 
         let baseColor = renderConfig.fontColor || '#ffffff';
@@ -1017,7 +1017,7 @@ export const drawCanvasFrame = (
                 let style = 'normal';
                 let decoration = 'none';
 
-                if (activePreset === 'custom') {
+                if (activePreset === 'custom' || activePreset === 'default') {
                     const targetMode = renderConfig?.lyricStyleTarget || 'active-only';
                     const shouldApply = targetMode === 'all' || isCurrent;
                     if (shouldApply) {
@@ -1232,7 +1232,238 @@ export const drawCanvasFrame = (
         const showInfo = renderConfig ? (renderConfig.showTitle || renderConfig.showArtist) : true;
         const showCover = renderConfig ? renderConfig.showCover : true;
         if (showInfo || showCover) {
-            if (activePreset === 'custom') {
+            if (renderConfig?.showChannelInfo && !['subtitle', 'just_video', 'none'].includes(activePreset)) {
+                const cPos = renderConfig.channelInfoPosition || 'bottom-right';
+                const cStyle = renderConfig.channelInfoStyle || 'classic';
+                const cScale = (renderConfig.channelInfoSizeScale ?? 1.0);
+                const marginScale = (renderConfig.channelInfoMarginScale ?? 1.0);
+
+                const cImg = images.get('__channel_info__');
+                const cText = renderConfig.channelInfoText;
+
+                // Early exit if nothing to draw
+                if (!cImg && !cText) { } // Do nothing
+                else if (cStyle === 'logo' && !cImg) { }
+                else if (cStyle === 'minimal' && !cText) { }
+                else {
+                    ctx.save();
+
+                    const margin = 40 * scale * marginScale;
+                    const imgSize = 80 * scale * cScale;
+                    // Modern/Col style might want larger image?
+                    const finalImgSize = (cStyle === 'modern' || cStyle === 'logo') ? imgSize * 1.2 : imgSize;
+
+                    const fontSize = 20 * scale * cScale;
+                    // Check for pre-loaded SVG text image
+                    const cTextSvgImg = images.get('__channel_info_text_svg__');
+                    const isSvgText = !!cTextSvgImg;
+
+                    let textW = 0;
+                    let textH = fontSize; // Approximate cap height
+
+                    if (isSvgText && cTextSvgImg) {
+                        // SVG Logic: Height should match the visual font size block
+                        // Since our generated SVG is based on font-metrics, the height roughly equals the line-height/cap-height
+                        // In App.tsx generation we used 100px.
+                        // Here we want it to match 'fontSize' (e.g. 20px).
+                        // But wait, the generated SVG includes 1.5em icons which might be taller than text.
+                        // We should scale HEIGHT relative to fontSize but respect aspect ratio.
+                        // If the SVG was generated with 100px font, and results in H height.
+                        // We want to draw it with height `fontSize * (H/100)`.
+                        // Actually, simplest is to just anchor on fontSize.
+                        // Let's assume the "Text" part is the anchor.
+                        // If we set textH = fontSize, it might clip if the icon is 1.5em.
+                        // So textH should probably be slightly larger?
+                        // Actually, if we just keep aspect ratio, we can define height freely.
+                        // Let's set the height of the drawn image to be e.g. 1.5 * fontSize to accommodate the icons safely?
+                        // Or just use the aspect ratio?
+                        // Let's standardize on the height being 1.5 * fontSize (since icon is 1.5em).
+                        // Or better, let's trust the input image aspect ratio.
+
+                        // The generated image corresponds to font-size 100.
+                        // We want to render at `fontSize`.
+                        // So the target height (in canvas pixels) is roughly `fontSize` but accounting for the icon.
+                        // If we assume the CONTENT height is dominated by the 1.5em icon.
+                        // Then correct drawing height is `fontSize * 1.5`.
+                        textH = fontSize * 1.5;
+                        const ratio = cTextSvgImg.width / cTextSvgImg.height;
+                        textW = textH * ratio;
+                    } else {
+                        ctx.font = `bold ${fontSize}px sans-serif`;
+                        if (cText && cStyle !== 'logo') {
+                            textW = ctx.measureText(cText).width;
+                        }
+                    }
+
+                    const gap = 12 * scale * cScale;
+                    const padX = 12 * scale * cScale;
+                    const padY = 8 * scale * cScale;
+
+                    // Calculate Block Dimensions (Box)
+                    let blockW = 0;
+                    let blockH = 0;
+
+                    if (cStyle === 'modern') {
+                        // Col
+                        const contentW = Math.max((cImg ? finalImgSize : 0), textW);
+                        blockW = contentW + (padX * 2);
+                        const contentH = (cImg ? finalImgSize : 0) + (cText ? fontSize * 1.5 + (cImg ? gap : 0) : 0);
+                        blockH = contentH + (padY * 2);
+                    } else if (cStyle === 'logo') {
+                        blockW = finalImgSize + (padX * 2);
+                        blockH = finalImgSize + (padY * 2);
+                    } else if (cStyle === 'minimal') {
+                        blockW = textW + (padX * 2);
+                        blockH = textH + (padY * 2); // Text only
+                    } else {
+                        // Row (Classic, Box, Circle)
+                        const contentW = (cImg ? finalImgSize : 0) + (cText ? textW + (cImg ? gap : 0) : 0);
+                        blockW = contentW + (padX * 2);
+                        const contentH = Math.max((cImg ? finalImgSize : 0), textH);
+                        blockH = contentH + (padY * 2);
+                    }
+
+                    // Determine Anchor
+                    let anchorX = 0;
+                    let anchorY = 0;
+
+                    if (cPos.includes('left')) anchorX = margin;
+                    else if (cPos.includes('right')) anchorX = width - margin;
+                    else anchorX = width / 2;
+
+                    if (cPos.includes('top')) anchorY = margin;
+                    else anchorY = height - margin;
+
+                    // Determine Box Layout
+                    let boxX = 0;
+                    let boxY = 0;
+
+                    if (cPos.includes('left')) boxX = anchorX;
+                    else if (cPos.includes('right')) boxX = anchorX - blockW;
+                    else boxX = anchorX - (blockW / 2);
+
+                    if (cPos.includes('top')) boxY = anchorY;
+                    else boxY = anchorY - blockH;
+
+                    // Draw Background Box
+                    if (cStyle === 'box') {
+                        ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+                        ctx.shadowColor = 'rgba(0,0,0,0.3)';
+                        ctx.shadowBlur = 10;
+                        ctx.beginPath();
+                        ctx.roundRect(boxX, boxY, blockW, blockH, 12 * scale);
+                        ctx.fill();
+                        ctx.shadowBlur = 0;
+                        // Border
+                        ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+                        ctx.lineWidth = 1;
+                        ctx.stroke();
+                    } else if (cStyle !== 'minimal' && cStyle !== 'logo') {
+                        // Background Pill? Classic usually has bg in app preview.
+                        // App.tsx preview has 'bg-black/20 rounded-lg'.
+                        ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+                        ctx.beginPath();
+                        ctx.roundRect(boxX, boxY, blockW, blockH, 8 * scale);
+                        ctx.fill();
+                    }
+
+                    // Draw Content
+                    const contentStartX = boxX + padX;
+                    const contentStartY = boxY + padY;
+                    const contentW = blockW - (padX * 2);
+                    const contentH = blockH - (padY * 2);
+
+                    if (cStyle === 'modern') {
+                        // Column
+                        const centerX = contentStartX + (contentW / 2);
+                        let currentY = contentStartY;
+
+                        // Image
+                        if (cImg) {
+                            const imgX = centerX - (finalImgSize / 2);
+                            ctx.save();
+                            ctx.beginPath();
+                            // Circle check? Modern usually square/rounded in logic but circle in style? 
+                            // RenderSettings options: 'circle' is a separate style. Modern is Col.
+                            ctx.roundRect(imgX, currentY, finalImgSize, finalImgSize, 12 * scale);
+                            ctx.clip();
+                            ctx.drawImage(cImg, imgX, currentY, finalImgSize, finalImgSize);
+                            ctx.restore();
+                            currentY += finalImgSize + gap;
+                        }
+
+                        // Text
+                        if (cText) {
+                            if (isSvgText && cTextSvgImg) {
+                                const imgX = centerX - (textW / 2);
+                                // Center vertically in remaining space?
+                                ctx.drawImage(cTextSvgImg, imgX, currentY, textW, textH);
+                            } else {
+                                ctx.textAlign = 'center';
+                                ctx.textBaseline = 'top';
+                                ctx.fillStyle = '#ffffff';
+                                ctx.font = `bold ${fontSize}px sans-serif`;
+                                ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 4;
+                                ctx.fillText(cText, centerX, currentY);
+                            }
+                        }
+
+                    } else if (cStyle === 'logo') {
+                        if (cImg) {
+                            ctx.drawImage(cImg, contentStartX, contentStartY, finalImgSize, finalImgSize);
+                        }
+                    } else if (cStyle === 'minimal') {
+                        // Text only
+                        if (cText) {
+                            if (isSvgText && cTextSvgImg) {
+                                ctx.drawImage(cTextSvgImg, contentStartX, contentStartY, textW, textH);
+                            } else {
+                                ctx.textAlign = 'left';
+                                ctx.textBaseline = 'top';
+                                ctx.fillStyle = '#ffffff';
+                                ctx.font = `bold ${fontSize}px sans-serif`;
+                                ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 4;
+                                ctx.fillText(cText, contentStartX, contentStartY);
+                            }
+                        }
+                    } else {
+                        // Row (Classic, Box, Circle)
+                        let drawX = contentStartX;
+                        const centerY = contentStartY + (contentH / 2);
+
+                        if (cImg) {
+                            const imgY = centerY - (finalImgSize / 2);
+                            ctx.save();
+                            ctx.beginPath();
+                            if (cStyle === 'circle') ctx.arc(drawX + finalImgSize / 2, imgY + finalImgSize / 2, finalImgSize / 2, 0, Math.PI * 2);
+                            else ctx.roundRect(drawX, imgY, finalImgSize, finalImgSize, 8 * scale);
+                            ctx.clip();
+                            ctx.drawImage(cImg, drawX, imgY, finalImgSize, finalImgSize);
+                            ctx.restore();
+                            drawX += finalImgSize + gap;
+                        }
+
+                        if (cText) {
+                            const textY = centerY - (textH / 2);
+                            if (isSvgText && cTextSvgImg) {
+                                ctx.drawImage(cTextSvgImg, drawX, textY, textW, textH);
+                            } else {
+                                ctx.textAlign = 'left';
+                                ctx.textBaseline = 'middle'; // Center in row
+                                ctx.fillStyle = '#ffffff';
+                                ctx.font = `bold ${fontSize}px sans-serif`;
+                                ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 4;
+                                // Use centerY for middle baseline
+                                ctx.fillText(cText, drawX, centerY);
+                            }
+                        }
+                    }
+
+                    ctx.restore();
+                }
+            }
+
+            if (activePreset === 'custom' || activePreset === 'default') {
                 // --- CUSTOM FLEXIBLE LAYOUT ---
                 // --- CUSTOM FLEXIBLE LAYOUT ---
                 const pos = renderConfig?.infoPosition || 'top-left';

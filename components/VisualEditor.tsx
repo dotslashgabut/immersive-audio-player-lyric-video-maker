@@ -1138,41 +1138,61 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
               const s = slides.find(si => si.id === selectedSlideIds[0]);
               if (s && (s.type === 'video' || s.type === 'audio')) {
                 return (
-                  <div className="flex items-center gap-2 bg-zinc-800 rounded px-2 border border-zinc-700 h-[22px]">
-                    <span className="text-[10px] text-zinc-500">Vol:</span>
-                    <div className="flex items-center gap-1 w-20">
-                      <button
-                        onClick={() => {
-                          setSlides(prev => prev.map(slide => {
-                            if (slide.id === s.id) return { ...slide, isMuted: !slide.isMuted };
-                            return slide;
-                          }));
-                        }}
-                        className="p-0.5 hover:bg-zinc-700 rounded cursor-pointer text-zinc-400 hover:text-white"
-                        title={s.isMuted !== false ? "Unmute" : "Mute"}
-                      >
-                        {s.isMuted !== false ? <VolumeX size={10} /> : <Volume2 size={10} />}
-                      </button>
-                      <input
-                        type="range"
-                        min="0"
-                        max="1"
-                        step="0.05"
-                        className="w-full h-1 bg-zinc-600 rounded-lg appearance-none cursor-pointer"
-                        value={s.volume !== undefined ? s.volume : 1}
-                        onChange={(e) => {
-                          const newVol = parseFloat(e.target.value);
-                          setSlides(prev => prev.map(slide => {
-                            if (slide.id === s.id) return { ...slide, volume: newVol, isMuted: newVol === 0 };
-                            return slide;
-                          }));
-                        }}
-                      />
+                  <>
+                    <div className="flex items-center gap-2 bg-zinc-800 rounded px-2 border border-zinc-700 h-[22px]">
+                      <span className="text-[10px] text-zinc-500">Vol:</span>
+                      <div className="flex items-center gap-1 w-20">
+                        <button
+                          onClick={() => {
+                            setSlides(prev => prev.map(slide => {
+                              if (slide.id === s.id) return { ...slide, isMuted: !slide.isMuted };
+                              return slide;
+                            }));
+                          }}
+                          className="p-0.5 hover:bg-zinc-700 rounded cursor-pointer text-zinc-400 hover:text-white"
+                          title={s.isMuted !== false ? "Unmute" : "Mute"}
+                        >
+                          {s.isMuted !== false ? <VolumeX size={10} /> : <Volume2 size={10} />}
+                        </button>
+                        <input
+                          type="range"
+                          min="0"
+                          max="1"
+                          step="0.05"
+                          className="w-full h-1 bg-zinc-600 rounded-lg appearance-none cursor-pointer"
+                          value={s.volume !== undefined ? s.volume : 1}
+                          onChange={(e) => {
+                            const newVol = parseFloat(e.target.value);
+                            setSlides(prev => prev.map(slide => {
+                              if (slide.id === s.id) return { ...slide, volume: newVol, isMuted: newVol === 0 };
+                              return slide;
+                            }));
+                          }}
+                        />
+                      </div>
+                      <span className="text-[9px] text-zinc-400 w-6 text-right">
+                        {Math.round((s.volume || 1) * 100)}%
+                      </span>
                     </div>
-                    <span className="text-[9px] text-zinc-400 w-6 text-right">
-                      {Math.round((s.volume || 1) * 100)}%
-                    </span>
-                  </div>
+                    <div className="flex items-center gap-1 bg-zinc-800 rounded px-2 border border-zinc-700 h-[22px]">
+                      <span className="text-[10px] text-zinc-500">Spd:</span>
+                      <select
+                        className="bg-transparent text-[10px] text-zinc-300 focus:outline-none cursor-pointer w-10"
+                        value={s.playbackRate || 1}
+                        onChange={(e) => {
+                          const newRate = parseFloat(e.target.value);
+                          setSlides(prev => prev.map(slide => {
+                            if (slide.id === s.id) return { ...slide, playbackRate: newRate };
+                            return slide;
+                          }));
+                        }}
+                      >
+                        {[0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 3, 4].map(rate => (
+                          <option key={rate} value={rate} className="bg-zinc-800 text-zinc-300">{rate}x</option>
+                        ))}
+                      </select>
+                    </div>
+                  </>
                 );
               }
               return null;
@@ -1625,7 +1645,7 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
 
         </div>
       </div>
-    </div>
+    </div >
   );
 };
 
