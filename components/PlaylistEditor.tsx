@@ -682,9 +682,11 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
 
         // --- Pre-process Timestamps (Infer missing end times) ---
         // Create a deep copy to avoid mutating the original playlist item state
+        // AND FILTER out whitespace-only words early so they don't break the timestamp chain.
+        // This ensures "Word A" connects directly to "Word B", ignoring "Space" in between.
         const processedLyrics = rawLyrics.map(l => ({
             ...l,
-            words: l.words ? l.words.map(w => ({ ...w })) : undefined
+            words: l.words ? l.words.filter(w => w.text.trim().length > 0).map(w => ({ ...w })) : undefined
         }));
 
         for (let i = 0; i < processedLyrics.length; i++) {
