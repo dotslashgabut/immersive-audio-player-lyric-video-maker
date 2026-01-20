@@ -7,6 +7,7 @@
     - **Playback Speed**: Added a new controls to adjust the playback rate (0.25x - 2.0x) for video and audio slides in the timeline.
 - **Rendering & Export**:
     - **Visual Fidelity**: Fixed discrepancies between the Web View and Exported Video. Highlight colors and Song Information styling now render exactly as seen in the preview.
+    - **Smart Timestamp Inference**: Fixed missing end-timestamp issues when exporting to formats like **TTML** and **SRT** from basic sources (e.g., standard LRC). The exporter now intelligently fills missing word/line end times using the next word/line start time or audio duration, ensuring seamless gapless timing for karaoke video tools.
 
 ## Bug Fixes
 - **Export Colors**: Resolved an issue where highlight effects (e.g., Neon, Glow) in exported videos used incorrect or default colors instead of the user-selected custom colors.

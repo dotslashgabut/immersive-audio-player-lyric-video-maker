@@ -680,25 +680,73 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
             }
         }
 
-        if (format === 'txt') {
-            content = rawLyrics.map(l => l.text).join("\n");
-        } else if (format === 'json') {
-            content = JSON.stringify(rawLyrics, null, 2);
-        } else if (format === 'srt') {
-            content = rawLyrics.map((l, i) => {
-                const calculatedNextTime = l.endTime !== undefined ? l.endTime : (rawLyrics[i + 1]?.time || l.time + 3);
-                const nextTime = (duration > 0 && calculatedNextTime > duration) ? duration : calculatedNextTime;
+        // --- Pre-process Timestamps (Infer missing end times) ---
+        // Create a deep copy to avoid mutating the original playlist item state
+        const processedLyrics = rawLyrics.map(l => ({
+            ...l,
+            words: l.words ? l.words.map(w => ({ ...w })) : undefined
+        }));
 
-                const toTimestamp = (sec: number) => {
-                    const hrs = Math.floor(sec / 3600).toString().padStart(2, '0');
-                    const mins = Math.floor((sec % 3600) / 60).toString().padStart(2, '0');
-                    const secs = Math.floor(sec % 60).toString().padStart(2, '0');
-                    const ms = Math.floor((sec % 1) * 1000).toString().padStart(3, '0');
-                    return `${hrs}:${mins}:${secs},${ms}`;
-                };
-                return `${i + 1}\n${toTimestamp(l.time)} --> ${toTimestamp(nextTime)}\n${l.text}\n`;
+        for (let i = 0; i < processedLyrics.length; i++) {
+            const line = processedLyrics[i];
+            const nextLine = processedLyrics[i + 1];
+
+            // Infer Line End Time if missing
+            if (line.endTime === undefined) {
+                if (nextLine) {
+                    line.endTime = nextLine.time;
+                } else {
+                    // Last line: use audio duration
+                    line.endTime = duration > 0 ? duration : line.time + 5;
+                }
+            }
+
+            // Infer Word End Times if missing
+            if (line.words && line.words.length > 0) {
+                for (let j = 0; j < line.words.length; j++) {
+                    const word = line.words[j];
+                    const nextWord = line.words[j + 1];
+
+                    // Check if end time is missing or invalid (<= start time)
+                    // We assume that if parsed from simple LRC, word.endTime might be 0 or equal to startTime
+                    if (word.endTime === undefined || word.endTime <= word.startTime) {
+                        if (nextWord) {
+                            word.endTime = nextWord.startTime;
+                        } else {
+                            // Last word uses line end time
+                            word.endTime = line.endTime;
+                        }
+                    }
+                }
+            }
+        }
+
+        if (format === 'txt') {
+            content = processedLyrics.map(l => l.text).join("\n");
+        } else if (format === 'json') {
+            content = JSON.stringify(processedLyrics, null, 2);
+        } else if (format === 'srt') {
+            // SRT Format: HH:MM:SS,mmm
+            const toSrtTime = (sec: number) => {
+                const hrs = Math.floor(sec / 3600).toString().padStart(2, '0');
+                const mins = Math.floor((sec % 3600) / 60).toString().padStart(2, '0');
+                const secs = Math.floor(sec % 60).toString().padStart(2, '0');
+                const ms = Math.floor((sec % 1) * 1000).toString().padStart(3, '0');
+                return `${hrs}:${mins}:${secs},${ms}`;
+            };
+
+            content = processedLyrics.map((l, i) => {
+                const start = toSrtTime(l.time);
+                // Ensure end is > start
+                const endVal = (l.endTime !== undefined && l.endTime > l.time) ? l.endTime : l.time + 2;
+                const end = toSrtTime(endVal);
+                return `${i + 1}\n${start} --> ${end}\n${l.text}\n`;
             }).join("\n");
+
         } else if (format === 'lrc') {
+            // LRC: Standard export (keeps original blank line logic for compatibility)
+            // We use rawLyrics or processedLyrics - processed has better endTime but LRC format is special.
+            // We'll stick closely to the original logic for LRC to ensure existing behavior is preserved.
             const lrcLines: string[] = [];
 
             const formatLrcTime = (sec: number) => {
@@ -713,25 +761,16 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
 
                 lrcLines.push(`${formatLrcTime(current.time)}${current.text.replace(/-\s+/g, '-').replace(/[ \t]+/g, ' ').trim().replace(/\n/g, '\\n')}`);
 
-                // User request: blank line timestamp should be +4 seconds from the end timestamp.
-                // If endTime is not available, we assume a default duration (e.g., 3s).
                 const endTime = current.endTime ?? (current.time + 3);
                 const blankTime = endTime + 4;
-
-                // Only add blank line if it fits within the song duration
-                // If duration is 0 (unknown), stricter safety might be to allow it, or skip?
-                // User said: "kalau tidak memenuhi" (if not fulfilling). Assuming known duration.
-                // If unknown, we default to true (allow) to avoid aggressive filtering, unless specific otherwise.
                 const isWithinDuration = duration > 0 ? blankTime <= duration : true;
 
                 if (isWithinDuration) {
                     if (next) {
-                        // Only insert blank line if there's enough gap before the next line starts
                         if (next.time > blankTime) {
                             lrcLines.push(`${formatLrcTime(blankTime)}`);
                         }
                     } else {
-                        // Always add blank line for the last transcript line
                         lrcLines.push(`${formatLrcTime(blankTime)}`);
                     }
                 }
@@ -739,14 +778,13 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
 
             content = lrcLines.join("\n");
         } else if (format === 'lrc-enhanced') {
+            // Enhanced LRC
             const lrcLines: string[] = [];
-
             const formatLrcTime = (sec: number) => {
                 const mins = Math.floor(sec / 60).toString().padStart(2, '0');
                 const secs = (sec % 60).toFixed(2).padStart(5, '0');
                 return `[${mins}:${secs}]`;
             };
-
             const formatWordTime = (sec: number) => {
                 const mins = Math.floor(sec / 60).toString().padStart(2, '0');
                 const secs = (sec % 60).toFixed(2).padStart(5, '0');
@@ -786,9 +824,10 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
                     }
                 }
             }
-
             content = lrcLines.join("\n");
+
         } else if (format === 'ttml') {
+            // TTML Format: HH:MM:SS.mmm
             const toTTMLTime = (sec: number) => {
                 const hrs = Math.floor(sec / 3600).toString().padStart(2, '0');
                 const mins = Math.floor((sec % 3600) / 60).toString().padStart(2, '0');
@@ -799,23 +838,25 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
 
             content = `<?xml version="1.0" encoding="UTF-8"?>\n<tt xml:lang="en" xmlns="http://www.w3.org/ns/ttml" xmlns:tts="http://www.w3.org/ns/ttml#styling">\n  <body>\n    <div>`;
 
-            rawLyrics.forEach(l => {
+            processedLyrics.forEach(l => {
                 const begin = toTTMLTime(l.time);
-                // Calculate end time: use line endTime if available, else try next line start, else default +3s
-                // However, rawLyrics here is a flat array, we can peek next if we want perfect line ends,
-                // but relying on l.endTime (which comes from transcription) is best for karaoke.
-                // Fallback to time + 3.0s if undefined.
-                const end = toTTMLTime(l.endTime || (l.time + 3.0));
+                // Pre-processing ensures line.endTime is set to nextLine.startTime or duration
+                const endVal = (l.endTime !== undefined && l.endTime > l.time) ? l.endTime : l.time + 3;
+                const end = toTTMLTime(endVal);
 
                 content += `\n      <p begin="${begin}" end="${end}">`;
 
                 if (l.words && l.words.length > 0) {
                     l.words.forEach((w) => {
-                        // Skip empty or whitespace-only words
                         if (!w.text.trim()) return;
 
                         const wBegin = toTTMLTime(w.startTime);
-                        const wEnd = toTTMLTime(w.endTime);
+                        // Pre-processing ensures word.endTime is set to nextWord.startTime or line.endTime
+                        let wEndVal = w.endTime;
+                        if (wEndVal === undefined || wEndVal <= w.startTime) {
+                            wEndVal = w.startTime + 0.5; // Last resort fallback
+                        }
+                        const wEnd = toTTMLTime(wEndVal);
 
                         let cleanText = w.text.replace(/[ \t]+/g, ' ').trim();
                         if (!cleanText.endsWith('-')) {
@@ -825,15 +866,12 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
                         content += `\n        <span begin="${wBegin}" end="${wEnd}">${cleanText}</span>`;
                     });
                 } else {
-                    // Fallback if no words, just wrap text in one span or just plain text?
-                    // Request implies structure: <p> <span>...</span> </p>
                     content += `\n        <span begin="${begin}" end="${end}">${l.text.replace(/-\s+/g, '-').replace(/[ \t]+/g, ' ').trim()}</span>`;
                 }
                 content += `\n      </p>`;
             });
             content += `\n    </div>\n  </body>\n</tt>`;
         }
-
 
         downloadFile(content, filename, 'application/octet-stream');
     };
