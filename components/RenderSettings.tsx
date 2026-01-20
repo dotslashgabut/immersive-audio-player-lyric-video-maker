@@ -6,13 +6,13 @@ import { PRESET_DEFINITIONS, videoPresetGroups } from '../utils/presets';
 import { useUI } from '../contexts/UIContext';
 
 const DEFAULT_CONFIG: RenderConfig = {
-    backgroundSource: 'custom',
+    backgroundSource: 'timeline',
     backgroundColor: '#581c87',
     backgroundGradient: 'linear-gradient(to bottom right, #312e81, #581c87, #000000)',
     renderMode: 'current',
     textAlign: 'center',
     contentPosition: 'center',
-    fontFamily: 'sans-serif',
+    fontFamily: 'ui-sans-serif, system-ui, sans-serif',
     fontSizeScale: 1.0,
     fontColor: '#ffffff',
     textEffect: 'shadow',
