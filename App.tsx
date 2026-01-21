@@ -350,9 +350,10 @@ function App() {
     e.target.value = '';
   };
 
-  const playTrack = useCallback(async (index: number) => {
-    if (index < 0 || index >= playlist.length) return;
-    const track = playlist[index];
+  const playTrack = useCallback(async (index: number, autoPlay: boolean = true, playlistOverride?: PlaylistItem[]) => {
+    const currentList = playlistOverride || playlist;
+    if (index < 0 || index >= currentList.length) return;
+    const track = currentList[index];
 
     // Load Audio
     const url = URL.createObjectURL(track.audioFile);
@@ -400,13 +401,22 @@ function App() {
       lyricsContainerRef.current.scrollTop = 0;
     }
 
-    // Auto-play after state update
-    setTimeout(() => {
+    // Auto-play logic
+    if (autoPlay) {
+      setTimeout(() => {
+        if (audioRef.current) {
+          audioRef.current.play().catch(e => console.log("Autoplay failed", e));
+          setIsPlaying(true);
+        }
+      }, 100);
+    } else {
+      setIsPlaying(false);
+      // Ensure we don't hold onto previous playing state
       if (audioRef.current) {
-        audioRef.current.play().catch(e => console.log("Autoplay failed", e));
-        setIsPlaying(true);
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
       }
-    }, 100);
+    }
   }, [playlist]);
 
   const playNextSong = useCallback(() => {

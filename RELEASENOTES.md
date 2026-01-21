@@ -8,10 +8,16 @@
 - **Rendering & Export**:
     - **Visual Fidelity**: Fixed discrepancies between the Web View and Exported Video. Highlight colors and Song Information styling now render exactly as seen in the preview.
     - **Smart Timestamp Inference**: Enhanced export logic for **TTML** and **SRT**, particularly for Enhanced LRC files. The exporter now filters out whitespace/empty timing tags and intelligently links word end-times to the next meaningful word's start time, ensuring perfectly contiguous, gapless karaoke highlights.
+- **Playlist Workflow**:
+    - **Auto-Load**: Added logic to automatically load the first track of any newly added audio batch, allowing for immediate playback without extra clicks.
+- **User Interface**:
+    - **Modal Shortcuts**: Confirmation dialogs (Delete, Clear, etc.) now support **Enter** to confirm and **Escape** to cancel.
 
 ## Bug Fixes
 - **Export Colors**: Resolved an issue where highlight effects (e.g., Neon, Glow) in exported videos used incorrect or default colors instead of the user-selected custom colors.
 - **Song Info Layout**: Fixed positioning and styling mismatches for Song Info overlays in the final render.
+- **Visual Presets**: Fixed vertical alignment in the **Subtitle** preset and ensured **Classic Serif** renders properly in Italic during video export.
+- **Channel Info**: Resolved a bug that caused duplicate Channel Info overlays to appear in certain render configurations.
 
 # v2.2.3
 

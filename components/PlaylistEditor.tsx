@@ -10,7 +10,7 @@ interface PlaylistEditorProps {
     setPlaylist: React.Dispatch<React.SetStateAction<PlaylistItem[]>>;
     currentTrackIndex: number;
     setCurrentTrackIndex: React.Dispatch<React.SetStateAction<number>>;
-    onPlayTrack: (index: number) => void;
+    onPlayTrack: (index: number, autoPlay?: boolean, playlistOverride?: PlaylistItem[]) => void;
     isPlaying: boolean;
     onTogglePlay: () => void;
     onSeek: (time: number) => void;
@@ -273,7 +273,11 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
         }
 
         if (newItems.length > 0) {
-            setPlaylist(prev => [...prev, ...newItems]);
+            const updatedPlaylist = [...playlist, ...newItems];
+            setPlaylist(updatedPlaylist);
+            // Automatically load the first track of the playlist (index 0)
+            // Use overwrite params to ensure it uses the new list and doesn't auto-play
+            onPlayTrack(0, false, updatedPlaylist);
         }
     };
 

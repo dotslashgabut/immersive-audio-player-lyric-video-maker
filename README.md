@@ -18,6 +18,7 @@
 - **Repeat Modes**: Cycle between **Off**, **Repeat One**, **Play All** (Play playlist once), and **Repeat All** (Loop playlist).
 - **Immersive Mode**: UI controls automatically fade out when idle for a distraction-free experience.
 - **Smart Play/Pause**: Clicking the active track in the playlist toggles Play/Pause.
+- **Auto-Load**: Automatically cues the first track for playback when adding new audio files.
 
 ![Playlist Management](screenshot-playlist.jpg)
 
@@ -166,7 +167,8 @@ Check out our other AI-powered tools for music and visuals:
 | **Delete** | Remove selected Playlist Item or Visual Slide |
 | **Ctrl + Z / Y** | Undo / Redo (Editor) |
 | **Ctrl + C / X / V** | Copy / Cut / Paste (Editor) |
-| **Escape** | Abort Video Rendering |
+| **Escape** | Abort Video Rendering / Close Modal |
+| **Enter** | Confirm Dialog Action |
 
 | **Ctrl/Cmd + Shift + E** | Export / Render Video |
 

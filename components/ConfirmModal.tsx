@@ -20,6 +20,28 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({ isOpen, message, onConfirm,
         }
     }, [isOpen]);
 
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (!isOpen) return;
+
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                onConfirm();
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                onCancel();
+            }
+        };
+
+        if (isOpen) {
+            window.addEventListener('keydown', handleKeyDown);
+        }
+
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [isOpen, onConfirm, onCancel]);
+
     if (!isOpen && !isVisible) return null;
 
     return (

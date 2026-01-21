@@ -269,8 +269,13 @@ export const drawCanvasFrame = (
         let currentLine: LyricWord[] = [];
         let currentLineWidth = 0;
         // Reverted manual reduction. Now respecting file spacing.
-        // Approx 0.25em to match App.tsx "space size issue" fix
-        const spaceWidth = ctx.measureText('M').width * 0.25;
+        // Adjusted spacing: 0.25 for default/custom, 0.5 for monospace, 0.3 for others.
+        // Monospace needs explicit extra spacing.
+        let spaceMultiplier = 0.3;
+        if (['default', 'custom'].includes(activePreset)) spaceMultiplier = 0.25;
+        else if (activePreset === 'monospace') spaceMultiplier = 0.5;
+
+        const spaceWidth = ctx.measureText('M').width * spaceMultiplier;
 
         displayWords.forEach((word, index) => {
             const wordWidth = ctx.measureText(word.text).width;
@@ -371,7 +376,7 @@ export const drawCanvasFrame = (
                 const isFillType = effect.includes('fill') || effect === 'karaoke-smooth';
                 const shouldHighlight = isFillType ? isPassed : isCurrentWord;
 
-                if (shouldHighlight) {
+                if (shouldHighlight && effect !== 'none') {
                     if (effect === 'karaoke-smooth') {
                         if (isCurrentWord) {
                             // Calculate smooth progress
@@ -922,7 +927,7 @@ export const drawCanvasFrame = (
 
                         const fs = isCurr ? baseFontSize : secondaryFontSize;
                         let weight = isCurr ? (['large', 'large_upper', 'big_center', 'metal', 'tech'].includes(activePreset) ? '900' : 'bold') : '400';
-                        let style = 'normal';
+                        let style = (['classic', 'romantic'].includes(activePreset)) ? 'italic' : 'normal';
 
                         if (activePreset === 'custom') {
                             const targetMode = renderConfig?.lyricStyleTarget || 'active-only';
@@ -1014,7 +1019,7 @@ export const drawCanvasFrame = (
                 }
 
                 let weight = isCurrent ? (['large', 'large_upper', 'big_center', 'metal', 'tech'].includes(activePreset) ? '900' : 'bold') : '400';
-                let style = 'normal';
+                let style = (['classic', 'romantic'].includes(activePreset)) ? 'italic' : 'normal';
                 let decoration = 'none';
 
                 if (activePreset === 'custom' || activePreset === 'default') {
@@ -1154,7 +1159,7 @@ export const drawCanvasFrame = (
                 } else {
                     // Fallback (Legacy)
                     yPos = (activePreset === 'subtitle' && i === 0 && renderConfig?.lyricDisplayMode !== 'all')
-                        ? (height - 120 * scale)
+                        ? (height - 80 * scale)
                         : (centerY + (i * lineSpacing) + (i === 0 ? offsetY : 0));
 
                     if (activePreset !== 'custom') {
@@ -1232,7 +1237,8 @@ export const drawCanvasFrame = (
         const showInfo = renderConfig ? (renderConfig.showTitle || renderConfig.showArtist) : true;
         const showCover = renderConfig ? renderConfig.showCover : true;
         if (showInfo || showCover) {
-            if (renderConfig?.showChannelInfo && !['subtitle', 'just_video', 'none'].includes(activePreset)) {
+            // Fixed double channel info issue: Disabled duplicate rendering block
+            if (false && renderConfig?.showChannelInfo && !['subtitle', 'just_video', 'none'].includes(activePreset)) {
                 const cPos = renderConfig.channelInfoPosition || 'bottom-right';
                 const cStyle = renderConfig.channelInfoStyle || 'classic';
                 const cScale = (renderConfig.channelInfoSizeScale ?? 1.0);
