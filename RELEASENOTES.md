@@ -9,9 +9,10 @@
     - **Consistent Rendering**: Looping behavior is perfectly synchronized between the Editor preview and the final Video Export.
 - **Render Settings**:
     - **Gradient Overlay**: Added a "Black Gradient Overlay" toggle. This adds a subtle bottom-to-top fade to improve text readability against busy backgrounds.
-- **Bug Fixes**:
-    - **Subtitle Cropping**: Fixed an issue where subtitle text could appear cropped in the web view.
-    - **Audio Slider**: Fixed accuracy issues with the audio duration slider to ensure precise seeking.
+
+## Bug Fixes
+- **Subtitle Cropping**: Fixed an issue where subtitle text could appear cropped in the web view.
+- **Audio Slider**: Fixed accuracy issues with the audio duration slider to ensure precise seeking.
 
 # v2.2.4
 
