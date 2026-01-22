@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { VisualSlide, LyricLine, RenderConfig } from '../types';
-import { Plus, X, ImageIcon, GripHorizontal, ZoomIn, ZoomOut, Trash2, Volume2, VolumeX, Undo2, Redo2, Copy, Clipboard, Scissors, Film, Eye, EyeOff, Split } from './Icons';
+import { Plus, X, ImageIcon, GripHorizontal, ZoomIn, ZoomOut, Trash2, Volume2, VolumeX, Undo2, Redo2, Copy, Clipboard, Scissors, Film, Eye, EyeOff, Split, ChevronUp, ChevronDown } from './Icons';
 import { formatTime } from '../utils/parsers';
 import { useUI } from '../contexts/UIContext';
 
@@ -70,6 +70,87 @@ const getMediaDuration = (file: File): Promise<number> => {
     element.src = objectUrl;
   });
 };
+
+interface SpeedInputProps {
+  value: number;
+  onChange: (value: number) => void;
+}
+
+const SpeedInput: React.FC<SpeedInputProps> = ({ value, onChange }) => {
+  const [localValue, setLocalValue] = useState<string>(value.toString());
+
+  useEffect(() => {
+    const parsed = parseFloat(localValue);
+    // If local value matches prop (numerically), don't break "1." or "0." states
+    if (!isNaN(parsed) && Math.abs(parsed - value) < 0.001) {
+      return;
+    }
+    setLocalValue(value.toString());
+  }, [value]);
+
+  const handleBlur = () => {
+    const parsed = parseFloat(localValue);
+    if (localValue === '' || isNaN(parsed)) {
+      setLocalValue(value.toString());
+    } else {
+      onChange(parsed);
+    }
+  };
+
+  const updateValue = (delta: number) => {
+    const parsed = parseFloat(localValue);
+    const validBase = isNaN(parsed) ? value : parsed;
+    const next = Math.round((validBase + delta) * 100) / 100;
+    // Prevent going below 0.05
+    if (next < 0.05) return;
+    onChange(next);
+    setLocalValue(next.toString());
+  };
+
+  return (
+    <div className="flex items-center bg-zinc-900 rounded border border-zinc-700 h-[18px]">
+      <button
+        onClick={() => updateValue(-0.05)}
+        className="px-0.5 hover:bg-zinc-700 text-zinc-400 hover:text-white transition-colors h-full flex items-center justify-center border-r border-zinc-700"
+      >
+        <ChevronDown size={10} />
+      </button>
+      <input
+        type="text"
+        className="bg-transparent text-[10px] text-zinc-300 focus:outline-none w-10 text-center"
+        value={localValue}
+        onChange={(e) => {
+          // Allow typing only numbers and dot
+          if (/^\d*\.?\d*$/.test(e.target.value)) {
+            setLocalValue(e.target.value);
+          }
+        }}
+        onBlur={handleBlur}
+        onKeyDown={(e) => {
+          e.stopPropagation();
+          if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            updateValue(0.05);
+          }
+          if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            updateValue(-0.05);
+          }
+          if (e.key === 'Enter') {
+            e.currentTarget.blur();
+          }
+        }}
+      />
+      <button
+        onClick={() => updateValue(0.05)}
+        className="px-0.5 hover:bg-zinc-700 text-zinc-400 hover:text-white transition-colors h-full flex items-center justify-center border-l border-zinc-700"
+      >
+        <ChevronUp size={10} />
+      </button>
+    </div>
+  );
+};
+
 
 const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentTime, duration, lyrics, onSeek, onClose, renderConfig, setRenderConfig }) => {
   const { confirm } = useUI();
@@ -1174,23 +1255,17 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
                         {Math.round((s.volume || 1) * 100)}%
                       </span>
                     </div>
-                    <div className="flex items-center gap-1 bg-zinc-800 rounded px-2 border border-zinc-700 h-[22px]">
+                    <div className="flex items-center gap-1">
                       <span className="text-[10px] text-zinc-500">Spd:</span>
-                      <select
-                        className="bg-transparent text-[10px] text-zinc-300 focus:outline-none cursor-pointer w-10"
+                      <SpeedInput
                         value={s.playbackRate || 1}
-                        onChange={(e) => {
-                          const newRate = parseFloat(e.target.value);
+                        onChange={(newRate) => {
                           setSlides(prev => prev.map(slide => {
                             if (slide.id === s.id) return { ...slide, playbackRate: newRate };
                             return slide;
                           }));
                         }}
-                      >
-                        {[0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 3, 4].map(rate => (
-                          <option key={rate} value={rate} className="bg-zinc-800 text-zinc-300">{rate}x</option>
-                        ))}
-                      </select>
+                      />
                     </div>
                   </>
                 );

@@ -63,7 +63,8 @@ import {
   FileType,
   FileDown,
   Split,
-  Search
+  Search,
+  Folder
 } from 'lucide-react';
 
 export {
@@ -132,5 +133,6 @@ export {
   FileType,
   FileDown,
   Split,
-  Search
+  Search,
+  Folder
 };

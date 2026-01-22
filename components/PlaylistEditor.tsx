@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import { PlaylistItem, LyricLine } from '../types';
-import { Plus, Trash2, Play, Pause, Volume2, FileText, ListMusic, Shuffle, User, Disc, Music, X, Sparkles, Loader2, FileJson, FileType, FileDown, Key, Upload, Square, Search } from './Icons';
+import { Plus, Trash2, Play, Pause, Volume2, FileText, ListMusic, Shuffle, User, Disc, Music, X, Sparkles, Loader2, FileJson, FileType, FileDown, Key, Upload, Square, Search, Folder } from './Icons';
 import { formatTime, parseLRC, parseSRT, parseTTML, parseTimestamp, parseJSON } from '../utils/parsers';
 import { useUI } from '../contexts/UIContext';
 import { transcribeAudio } from '../services/geminiService';
@@ -175,7 +175,9 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
 
         files.forEach(file => {
             const ext = file.name.split('.').pop()?.toLowerCase();
-            const basename = file.name.replace(/\.[^/.]+$/, "");
+            // @ts-ignore
+            const path = file.webkitRelativePath || file.name;
+            const basename = path.replace(/\.[^/.]+$/, "");
 
             if (!fileGroups.has(basename)) {
                 fileGroups.set(basename, {});
@@ -959,10 +961,16 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
                         Playlist
                     </h2>
                     <div className="w-px h-4 bg-zinc-700"></div>
-                    <label className="flex items-center gap-2 px-3 py-1 bg-orange-600 hover:bg-orange-500 rounded text-xs font-medium cursor-pointer transition-colors text-white whitespace-nowrap">
-                        <Plus size={14} /> Add Audio & Lyrics
-                        <input type="file" className="hidden" accept="audio/*,.lrc,.srt,.ttml,.xml" multiple onChange={handleFileUpload} />
-                    </label>
+                    <div className="flex bg-orange-600 rounded overflow-hidden">
+                        <label className="flex items-center gap-2 px-3 py-1 hover:bg-orange-500 cursor-pointer transition-colors text-white text-xs font-medium whitespace-nowrap border-r border-orange-700">
+                            <Plus size={14} /> Add Files
+                            <input type="file" className="hidden" accept="audio/*,.lrc,.srt,.ttml,.xml" multiple onChange={handleFileUpload} />
+                        </label>
+                        <label className="flex items-center gap-2 px-2 py-1 hover:bg-orange-500 cursor-pointer transition-colors text-white text-xs whitespace-nowrap" title="Add Folder">
+                            <Folder size={14} />
+                            <input type="file" className="hidden" multiple {...({ webkitdirectory: "" } as any)} onChange={handleFileUpload} />
+                        </label>
+                    </div>
                     <div className="w-px h-4 bg-zinc-700"></div>
                     {/* Sort Icons */}
                     <div className="flex items-center gap-1">

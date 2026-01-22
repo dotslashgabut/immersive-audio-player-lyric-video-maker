@@ -4,13 +4,14 @@
 
 ## What's New
 - **Visual Editor**:
-    - **Playback Speed**: Added a new controls to adjust the playback rate (0.25x - 2.0x) for video and audio slides in the timeline.
+    - **Playback Speed**: Replaced the fixed dropdown with a **Manual Input** field for precise playback rate control (0.25x - 2.0x). Supports decimal values and **Arrow Key** adjustments (Up/Down) for fine-tuning.
 - **Rendering & Export**:
     - **Visual Fidelity**: Fixed discrepancies between the Web View and Exported Video. Highlight colors and Song Information styling now render exactly as seen in the preview.
     - **Smart Timestamp Inference**: Enhanced export logic for **TTML** and **SRT**, particularly for Enhanced LRC files. The exporter now filters out whitespace/empty timing tags and intelligently links word end-times to the next meaningful word's start time, ensuring perfectly contiguous, gapless karaoke highlights.
 - **Playlist Workflow**:
     - **Auto-Load**: Added logic to automatically load the first track of any newly added audio batch, allowing for immediate playback without extra clicks.
 - **User Interface**:
+    - **UI Consistency**: Adjusted button heights/sizes in the Playlist Editor ("Add Files", "Add Folder") to match the Visual Editor for a reliable look and feel.
     - **Modal Shortcuts**: Confirmation dialogs (Delete, Clear, etc.) now support **Enter** to confirm and **Escape** to cancel.
 
 ## Bug Fixes
