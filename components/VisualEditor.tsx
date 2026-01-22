@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { VisualSlide, LyricLine, RenderConfig } from '../types';
-import { Plus, X, ImageIcon, GripHorizontal, ZoomIn, ZoomOut, Trash2, Volume2, VolumeX, Undo2, Redo2, Copy, Clipboard, Scissors, Film, Eye, EyeOff, Split, ChevronUp, ChevronDown } from './Icons';
+import { Plus, X, ImageIcon, GripHorizontal, ZoomIn, ZoomOut, Trash2, Volume2, VolumeX, Undo2, Redo2, Copy, Clipboard, Scissors, Film, Eye, EyeOff, Split, ChevronUp, ChevronDown, RotateCcw } from './Icons';
 import { formatTime } from '../utils/parsers';
 import { useUI } from '../contexts/UIContext';
 
@@ -380,6 +380,7 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
             type,
             startTime: currentStart,
             endTime: currentStart + itemDuration,
+            mediaDuration: type !== 'image' ? itemDuration : undefined, // Save original duration
             name: file.name,
             isMuted: type === 'video', // Default muted for video
             volume: (type === 'video' || type === 'audio') ? 1 : undefined,
@@ -585,6 +586,7 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
     if (!trackRect) return;
 
     // Relative start position for box calculation (pixels from time 0)
+    // We use RAW container coordinates for drawing the box so it matches the cursor visually.
     const startX = startClientX - trackRect.left;
     const startY = startClientY - trackRect.top;
 
@@ -601,7 +603,7 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
 
       if (isDragSelect && trackRef.current) {
         const currentRect = trackRef.current.getBoundingClientRect();
-        const currentX = ev.clientX - currentRect.left - 96; // Subtract 96px
+        const currentX = ev.clientX - currentRect.left; // RAW coordinates (no -96)
         const currentY = ev.clientY - currentRect.top;
 
         setSelectionBox(prev => {
@@ -634,8 +636,9 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
         const boxBottom = boxY + boxH;
 
         currentSlides.forEach(slide => {
-          const slideLeft = slide.startTime * currentPxPerSec;
-          const slideRight = slide.endTime * currentPxPerSec;
+          // Visual Position includes the 96px Header Offset
+          const slideLeft = slide.startTime * currentPxPerSec + 96;
+          const slideRight = slide.endTime * currentPxPerSec + 96;
           let slideTop = 0;
           let slideBottom = 0;
 
@@ -1437,6 +1440,25 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
                     <span className="text-[10px] font-bold drop-shadow-md truncate text-zinc-200 bg-black/30 px-1 rounded w-max max-w-full">{slide.name}</span>
                   </div>
 
+                  {/* Reset Duration Button (Top-Left) - Only if extended beyond original */}
+                  {slide.type === 'video' && slide.mediaDuration && (slide.endTime - slide.startTime > slide.mediaDuration + 0.1) && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSlides(prev => prev.map(s => {
+                          if (s.id === slide.id && s.mediaDuration) {
+                            return { ...s, endTime: s.startTime + s.mediaDuration };
+                          }
+                          return s;
+                        }));
+                      }}
+                      className="absolute top-1 left-1 p-0.5 bg-black/60 hover:bg-zinc-600 rounded text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer z-40"
+                      title="Reset to Original Duration"
+                    >
+                      <RotateCcw size={10} />
+                    </button>
+                  )}
+
                   {/* Mute/Unmute Button (Videos Only) */}
                   {slide.type === 'video' && (
                     <button
@@ -1519,6 +1541,24 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
                   <div className="absolute inset-0 p-1 pointer-events-none flex flex-col justify-end">
                     <span className="text-[10px] font-bold drop-shadow-md truncate text-zinc-200 bg-black/30 px-1 rounded w-max max-w-full">{slide.name}</span>
                   </div>
+                  {/* Reset Duration Button (Top-Left) - Only if extended beyond original */}
+                  {slide.type === 'video' && slide.mediaDuration && (slide.endTime - slide.startTime > slide.mediaDuration + 0.1) && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSlides(prev => prev.map(s => {
+                          if (s.id === slide.id && s.mediaDuration) {
+                            return { ...s, endTime: s.startTime + s.mediaDuration };
+                          }
+                          return s;
+                        }));
+                      }}
+                      className="absolute top-1 left-1 p-0.5 bg-black/60 hover:bg-zinc-600 rounded text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer z-40"
+                      title="Reset to Original Duration"
+                    >
+                      <RotateCcw size={10} />
+                    </button>
+                  )}
                   {slide.type === 'video' && (
                     <button
                       onClick={(e) => {

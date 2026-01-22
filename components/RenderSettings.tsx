@@ -48,6 +48,9 @@ const DEFAULT_CONFIG: RenderConfig = {
     channelInfoImage: undefined,
     useCustomHighlightColors: false,
     backgroundImage: undefined,
+    visualTransitionType: 'none',
+    visualTransitionDuration: 1.0,
+    enableGradientOverlay: false,
 };
 
 
@@ -198,6 +201,17 @@ const transitionGroups = [
             { label: "Motion Blur", value: "blur" },
             { label: "Shatter In", value: "shatter" },
             { label: "Typewriter", value: "typewriter" }
+        ]
+    }
+];
+
+const visualTransitionGroups = [
+    {
+        label: "Visual Transition",
+        options: [
+            { label: "None (Cut)", value: "none" },
+            { label: "Crossfade", value: "crossfade" },
+            { label: "Fade Through Black", value: "fade-to-black" }
         ]
     }
 ];
@@ -759,6 +773,9 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
 
             // Reset Custom Font
             onClearCustomFont();
+            // Reset additional properties not in DEFAULT_CONFIG spread if any (explicitly setting undefined/false where needed if DEFAULT_CONFIG isn't enough - but it is)
+            handleChange('enableGradientOverlay', false);
+
             toast.success("All settings have been reset to default.");
         }
     };
@@ -840,7 +857,10 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                         'infoMarginScale',
                         'infoSizeScale',
                         'channelInfoSizeScale',
-                        'channelInfoMarginScale'
+                        'infoSizeScale',
+                        'channelInfoSizeScale',
+                        'channelInfoMarginScale',
+                        'visualTransitionDuration'
                     ];
 
                     numericFields.forEach(field => {
@@ -878,6 +898,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                     if (newConfig.textEffect && !isValidGroupOption(newConfig.textEffect, textEffectGroups)) newConfig.textEffect = 'shadow';
                     if (newConfig.textAnimation && !isValidGroupOption(newConfig.textAnimation, textAnimationGroups)) newConfig.textAnimation = 'none';
                     if (newConfig.transitionEffect && !isValidGroupOption(newConfig.transitionEffect, transitionGroups)) newConfig.transitionEffect = 'none';
+                    if (newConfig.visualTransitionType && !isValidGroupOption(newConfig.visualTransitionType, visualTransitionGroups)) newConfig.visualTransitionType = 'none';
                     if (newConfig.highlightEffect && !isValidGroupOption(newConfig.highlightEffect, highlightEffectGroups)) newConfig.highlightEffect = 'karaoke';
 
                     // Validate Background
@@ -1225,6 +1246,24 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                             </div>
                         )}
                     </div>
+
+
+                    {/* Gradient Overlay Toggle */}
+                    <label className="bg-zinc-800/30 border border-white/5 rounded-lg p-2.5 flex items-center justify-between cursor-pointer hover:bg-zinc-800/50 transition-colors">
+                        <div className="flex flex-col">
+                            <span className="text-xs text-zinc-300 font-medium">Black Gradient Overlay</span>
+                            <span className="text-[10px] text-zinc-500">Fade bottom to top (readability)</span>
+                        </div>
+                        <div className="relative inline-flex items-center cursor-pointer">
+                            <input
+                                type="checkbox"
+                                checked={config.enableGradientOverlay ?? false}
+                                onChange={(e) => handleChange('enableGradientOverlay', e.target.checked)}
+                                className="sr-only peer"
+                            />
+                            <div className="w-8 h-4 bg-zinc-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-purple-600"></div>
+                        </div>
+                    </label>
                 </section>
 
                 {/* Lyric Display Mode */}
@@ -1898,6 +1937,38 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                         />
                     </div>
 
+                    {/* Visual Transition (New) */}
+                    <div className="space-y-1.5 pt-2 border-t border-white/5">
+                        <div className="flex justify-between items-center">
+                            <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Visual Transition (Images/Video)</label>
+                            {config.visualTransitionDuration && (
+                                <span className="text-[10px] text-zinc-400 font-mono">{config.visualTransitionDuration.toFixed(1)}s</span>
+                            )}
+                        </div>
+                        <div className="flex gap-2">
+                            <div className="flex-1">
+                                <GroupedSelection
+                                    value={config.visualTransitionType || 'none'}
+                                    onChange={(val) => handleChange('visualTransitionType', val)}
+                                    groups={visualTransitionGroups}
+                                />
+                            </div>
+                            {(config.visualTransitionType && config.visualTransitionType !== 'none') && (
+                                <div className="w-1/3 flex items-center bg-zinc-800 border border-white/10 rounded-lg px-2">
+                                    <input
+                                        type="range"
+                                        min="0.1"
+                                        max="5.0"
+                                        step="0.1"
+                                        value={config.visualTransitionDuration || 1.0}
+                                        onChange={(e) => handleChange('visualTransitionDuration', parseFloat(e.target.value))}
+                                        className="w-full h-1 bg-zinc-600 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full hover:[&::-webkit-slider-thumb]:bg-purple-400 transition-all"
+                                    />
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
                     {/* Output Settings (New) */}
                     <div className="pt-2 border-t border-white/5 space-y-3">
                         <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-2">
@@ -2006,89 +2077,91 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                     </div>
                 </section>
 
-                {showShortcuts && (
-                    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in cursor-default" onClick={() => setShowShortcuts(false)}>
-                        <div className="bg-zinc-900 border border-white/10 rounded-xl shadow-2xl w-[480px] max-w-[90vw] overflow-hidden flex flex-col max-h-[85vh] animate-in slide-in-from-bottom-5" onClick={(e) => e.stopPropagation()}>
-                            <div className="flex items-center justify-between p-4 border-b border-white/10 bg-zinc-800/50">
-                                <h3 className="font-bold text-white flex items-center gap-2">
-                                    <KeyboardIcon size={18} className="text-purple-400" />
-                                    Keyboard Shortcuts
-                                </h3>
-                                <button
-                                    onClick={() => setShowShortcuts(false)}
-                                    className="p-1.5 hover:bg-white/10 rounded-full text-zinc-400 hover:text-white transition-colors"
-                                >
-                                    <X size={18} />
-                                </button>
-                            </div>
-                            <div className="p-4 overflow-y-auto space-y-6 custom-scrollbar">
-                                <div className="space-y-3">
-                                    <h4 className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Media Controls</h4>
-                                    <div className="grid grid-cols-2 gap-2 text-sm">
-                                        <div className="flex justify-between items-center"><span className="text-zinc-300">Play / Pause</span> <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 font-mono text-[10px] border border-white/10">Space</kbd></div>
-                                        <div className="flex justify-between items-center"><span className="text-zinc-300">Stop</span> <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 font-mono text-[10px] border border-white/10">S</kbd></div>
-                                        <div className="flex justify-between items-center"><span className="text-zinc-300">Next Song</span> <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 font-mono text-[10px] border border-white/10">N</kbd></div>
-                                        <div className="flex justify-between items-center"><span className="text-zinc-300">Prev Song</span> <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 font-mono text-[10px] border border-white/10">B</kbd></div>
-                                        <div className="flex justify-between items-center"><span className="text-zinc-300">Repeat Mode</span> <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 font-mono text-[10px] border border-white/10">R</kbd></div>
-                                        <div className="flex justify-between items-center"><span className="text-zinc-300">Mute / Unmute</span> <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 font-mono text-[10px] border border-white/10">M</kbd></div>
-                                    </div>
+                {
+                    showShortcuts && (
+                        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in cursor-default" onClick={() => setShowShortcuts(false)}>
+                            <div className="bg-zinc-900 border border-white/10 rounded-xl shadow-2xl w-[480px] max-w-[90vw] overflow-hidden flex flex-col max-h-[85vh] animate-in slide-in-from-bottom-5" onClick={(e) => e.stopPropagation()}>
+                                <div className="flex items-center justify-between p-4 border-b border-white/10 bg-zinc-800/50">
+                                    <h3 className="font-bold text-white flex items-center gap-2">
+                                        <KeyboardIcon size={18} className="text-purple-400" />
+                                        Keyboard Shortcuts
+                                    </h3>
+                                    <button
+                                        onClick={() => setShowShortcuts(false)}
+                                        className="p-1.5 hover:bg-white/10 rounded-full text-zinc-400 hover:text-white transition-colors"
+                                    >
+                                        <X size={18} />
+                                    </button>
                                 </div>
-
-                                <div className="space-y-3">
-                                    <h4 className="text-xs font-bold text-zinc-500 uppercase tracking-wider">View & Appearance</h4>
-                                    <div className="grid grid-cols-2 gap-2 text-sm">
-                                        <div className="flex justify-between items-center"><span className="text-zinc-300">Fullscreen</span> <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 font-mono text-[10px] border border-white/10">F</kbd></div>
-                                        <div className="flex justify-between items-center"><span className="text-zinc-300">Playlist Mode</span> <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 font-mono text-[10px] border border-white/10">L</kbd></div>
-                                        <div className="flex justify-between items-center"><span className="text-zinc-300">Timeline / Edit</span> <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 font-mono text-[10px] border border-white/10">T</kbd></div>
-                                        <div className="flex justify-between items-center"><span className="text-zinc-300">Toggle Info</span> <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 font-mono text-[10px] border border-white/10">I</kbd></div>
-                                        <div className="flex justify-between items-center"><span className="text-zinc-300">Toggle Player</span> <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 font-mono text-[10px] border border-white/10">P</kbd></div>
-                                        <div className="flex justify-between items-center"><span className="text-zinc-300">Auto-Hide HUD</span> <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 font-mono text-[10px] border border-white/10">H</kbd></div>
-                                        <div className="flex justify-between items-center"><span className="text-zinc-300">Minimal Mode</span> <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 font-mono text-[10px] border border-white/10">O</kbd></div>
-                                        <div className="flex justify-between items-center"><span className="text-zinc-300">Lyric Display Mode</span> <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 font-mono text-[10px] border border-white/10">G</kbd></div>
-                                        <div className="flex justify-between items-center"><span className="text-zinc-300">Text Case</span> <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 font-mono text-[10px] border border-white/10">C</kbd></div>
-                                        <div className="flex justify-between items-center"><span className="text-zinc-300">Render Settings</span> <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 font-mono text-[10px] border border-white/10">D</kbd></div>
+                                <div className="p-4 overflow-y-auto space-y-6 custom-scrollbar">
+                                    <div className="space-y-3">
+                                        <h4 className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Media Controls</h4>
+                                        <div className="grid grid-cols-2 gap-2 text-sm">
+                                            <div className="flex justify-between items-center"><span className="text-zinc-300">Play / Pause</span> <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 font-mono text-[10px] border border-white/10">Space</kbd></div>
+                                            <div className="flex justify-between items-center"><span className="text-zinc-300">Stop</span> <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 font-mono text-[10px] border border-white/10">S</kbd></div>
+                                            <div className="flex justify-between items-center"><span className="text-zinc-300">Next Song</span> <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 font-mono text-[10px] border border-white/10">N</kbd></div>
+                                            <div className="flex justify-between items-center"><span className="text-zinc-300">Prev Song</span> <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 font-mono text-[10px] border border-white/10">B</kbd></div>
+                                            <div className="flex justify-between items-center"><span className="text-zinc-300">Repeat Mode</span> <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 font-mono text-[10px] border border-white/10">R</kbd></div>
+                                            <div className="flex justify-between items-center"><span className="text-zinc-300">Mute / Unmute</span> <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 font-mono text-[10px] border border-white/10">M</kbd></div>
+                                        </div>
                                     </div>
-                                </div>
 
-                                <div className="space-y-3">
-                                    <h4 className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Visual Effects</h4>
-                                    <div className="grid grid-cols-2 gap-2 text-sm">
-                                        <div className="flex justify-between items-center"><span className="text-zinc-300">Toggle Highlight On/Off</span> <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 font-mono text-[10px] border border-white/10">X</kbd></div>
-                                        <div className="flex justify-between items-center"><span className="text-zinc-300">Cycle Next Highlight Effect</span> <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 font-mono text-[10px] border border-white/10">Z</kbd></div>
+                                    <div className="space-y-3">
+                                        <h4 className="text-xs font-bold text-zinc-500 uppercase tracking-wider">View & Appearance</h4>
+                                        <div className="grid grid-cols-2 gap-2 text-sm">
+                                            <div className="flex justify-between items-center"><span className="text-zinc-300">Fullscreen</span> <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 font-mono text-[10px] border border-white/10">F</kbd></div>
+                                            <div className="flex justify-between items-center"><span className="text-zinc-300">Playlist Mode</span> <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 font-mono text-[10px] border border-white/10">L</kbd></div>
+                                            <div className="flex justify-between items-center"><span className="text-zinc-300">Timeline / Edit</span> <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 font-mono text-[10px] border border-white/10">T</kbd></div>
+                                            <div className="flex justify-between items-center"><span className="text-zinc-300">Toggle Info</span> <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 font-mono text-[10px] border border-white/10">I</kbd></div>
+                                            <div className="flex justify-between items-center"><span className="text-zinc-300">Toggle Player</span> <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 font-mono text-[10px] border border-white/10">P</kbd></div>
+                                            <div className="flex justify-between items-center"><span className="text-zinc-300">Auto-Hide HUD</span> <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 font-mono text-[10px] border border-white/10">H</kbd></div>
+                                            <div className="flex justify-between items-center"><span className="text-zinc-300">Minimal Mode</span> <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 font-mono text-[10px] border border-white/10">O</kbd></div>
+                                            <div className="flex justify-between items-center"><span className="text-zinc-300">Lyric Display Mode</span> <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 font-mono text-[10px] border border-white/10">G</kbd></div>
+                                            <div className="flex justify-between items-center"><span className="text-zinc-300">Text Case</span> <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 font-mono text-[10px] border border-white/10">C</kbd></div>
+                                            <div className="flex justify-between items-center"><span className="text-zinc-300">Render Settings</span> <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 font-mono text-[10px] border border-white/10">D</kbd></div>
+                                        </div>
                                     </div>
-                                </div>
 
-                                <div className="space-y-3">
-                                    <h4 className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Adjustment & Export</h4>
-                                    <div className="grid grid-cols-2 gap-2 text-sm">
-                                        <div className="flex justify-between items-center"><span className="text-zinc-300">Cycle Presets</span> <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 font-mono text-[10px] border border-white/10">J</kbd></div>
-                                        <div className="flex justify-between items-center"><span className="text-zinc-300">Font Size</span> <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 font-mono text-[10px] border border-white/10">+ / -</kbd></div>
-                                        <div className="flex justify-between items-center"><span className="text-zinc-300">Seek +/- 5s</span> <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 font-mono text-[10px] border border-white/10">Arrows</kbd></div>
-                                        <div className="flex justify-between items-center"><span className="text-zinc-300">Scroll Lyrics</span> <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 font-mono text-[10px] border border-white/10">Up/Down</kbd></div>
-                                        <div className="flex justify-between col-span-2 items-center bg-purple-900/20 p-2 rounded-lg border border-purple-500/20">
-                                            <span className="text-purple-300 font-medium">Quick Export</span>
-                                            <div className="flex gap-1 items-center">
-                                                <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-300 font-mono text-[10px] border border-white/10">Ctrl</kbd>
-                                                <span className="text-zinc-500 text-[10px]">+</span>
-                                                <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-300 font-mono text-[10px] border border-white/10">Shift</kbd>
-                                                <span className="text-zinc-500 text-[10px]">+</span>
-                                                <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-300 font-mono text-[10px] border border-white/10">E</kbd>
+                                    <div className="space-y-3">
+                                        <h4 className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Visual Effects</h4>
+                                        <div className="grid grid-cols-2 gap-2 text-sm">
+                                            <div className="flex justify-between items-center"><span className="text-zinc-300">Toggle Highlight On/Off</span> <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 font-mono text-[10px] border border-white/10">X</kbd></div>
+                                            <div className="flex justify-between items-center"><span className="text-zinc-300">Cycle Next Highlight Effect</span> <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 font-mono text-[10px] border border-white/10">Z</kbd></div>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-3">
+                                        <h4 className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Adjustment & Export</h4>
+                                        <div className="grid grid-cols-2 gap-2 text-sm">
+                                            <div className="flex justify-between items-center"><span className="text-zinc-300">Cycle Presets</span> <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 font-mono text-[10px] border border-white/10">J</kbd></div>
+                                            <div className="flex justify-between items-center"><span className="text-zinc-300">Font Size</span> <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 font-mono text-[10px] border border-white/10">+ / -</kbd></div>
+                                            <div className="flex justify-between items-center"><span className="text-zinc-300">Seek +/- 5s</span> <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 font-mono text-[10px] border border-white/10">Arrows</kbd></div>
+                                            <div className="flex justify-between items-center"><span className="text-zinc-300">Scroll Lyrics</span> <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 font-mono text-[10px] border border-white/10">Up/Down</kbd></div>
+                                            <div className="flex justify-between col-span-2 items-center bg-purple-900/20 p-2 rounded-lg border border-purple-500/20">
+                                                <span className="text-purple-300 font-medium">Quick Export</span>
+                                                <div className="flex gap-1 items-center">
+                                                    <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-300 font-mono text-[10px] border border-white/10">Ctrl</kbd>
+                                                    <span className="text-zinc-500 text-[10px]">+</span>
+                                                    <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-300 font-mono text-[10px] border border-white/10">Shift</kbd>
+                                                    <span className="text-zinc-500 text-[10px]">+</span>
+                                                    <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-300 font-mono text-[10px] border border-white/10">E</kbd>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
-                            </div>
-                            <div className="p-4 border-t border-white/10 bg-zinc-900/50 text-center">
-                                <p className="text-[10px] text-zinc-500">Press <kbd className="font-mono text-zinc-400">Esc</kbd> to close</p>
+                                <div className="p-4 border-t border-white/10 bg-zinc-900/50 text-center">
+                                    <p className="text-[10px] text-zinc-500">Press <kbd className="font-mono text-zinc-400">Esc</kbd> to close</p>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                )}
+                    )
+                }
 
-            </div>
+            </div >
 
             {/* Footer / Info */}
-            <div className="p-4 border-t border-white/10 bg-zinc-900/50 space-y-3">
+            < div className="p-4 border-t border-white/10 bg-zinc-900/50 space-y-3" >
                 <button
                     onClick={onRender}
                     className="w-full py-2.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-bold text-sm shadow-lg shadow-purple-500/20 active:scale-95 transition-all flex items-center justify-center gap-2"
@@ -2098,8 +2171,8 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                 <p className="text-[10px] text-zinc-500 text-center leading-relaxed italic">
                     These settings will be applied to the final video. Ensure all sources are loaded correctly.
                 </p>
-            </div>
-        </div>
+            </div >
+        </div >
     );
 };
 

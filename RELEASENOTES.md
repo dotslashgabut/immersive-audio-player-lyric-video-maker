@@ -1,5 +1,18 @@
 # Release Notes
 
+# v2.2.5
+
+## What's New
+- **Visual Editor Enhancements**:
+    - **Video Looping**: Automatically loops video clips when their duration on the timeline is extended beyond their original length. This allows for seamless background extensions without manual duplication.
+    - **Duration Reset**: Added a "Reset" button to video thumbnails in the editor. Clicking this instantly reverts the clip's duration to its original source length.
+    - **Consistent Rendering**: Looping behavior is perfectly synchronized between the Editor preview and the final Video Export.
+- **Render Settings**:
+    - **Gradient Overlay**: Added a "Black Gradient Overlay" toggle. This adds a subtle bottom-to-top fade to improve text readability against busy backgrounds.
+- **Bug Fixes**:
+    - **Subtitle Cropping**: Fixed an issue where subtitle text could appear cropped in the web view.
+    - **Audio Slider**: Fixed accuracy issues with the audio duration slider to ensure precise seeking.
+
 # v2.2.4
 
 ## What's New

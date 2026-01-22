@@ -132,4 +132,8 @@ export interface RenderConfig {
   channelInfoStyle?: 'classic' | 'modern' | 'minimal' | 'logo' | 'box' | 'circle';
   channelInfoSizeScale?: number;
   channelInfoMarginScale?: number;
+
+  visualTransitionType?: 'none' | 'crossfade' | 'fade-to-black';
+  visualTransitionDuration?: number; // Seconds (default 1.0)
+  enableGradientOverlay?: boolean;
 }

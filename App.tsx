@@ -112,6 +112,9 @@ function App() {
     renderConfigRef.current = renderConfig;
   }, [renderConfig]);
 
+  const progressBarRef = useRef<HTMLDivElement>(null);
+  const volumeBarRef = useRef<HTMLDivElement>(null);
+
   const isBlurEnabled = renderConfig.backgroundBlurStrength > 0;
 
   const supportedCodecs = useMemo(() => {
@@ -172,12 +175,30 @@ function App() {
 
   // Derived State
   const activeVisualSlides = useMemo(() => {
-    const slides = visualSlides.filter(
-      s => s.type !== 'audio' && currentTime >= s.startTime && currentTime < s.endTime
-    );
-    // Sort by layer (0 first, then 1) so 1 draws on top
-    return slides.sort((a, b) => (a.layer || 0) - (b.layer || 0));
-  }, [visualSlides, currentTime]);
+    // Transition Logic:
+    const transitionType = renderConfig.visualTransitionType || 'none';
+    const transitionDuration = renderConfig.visualTransitionDuration || 1.0;
+    const isTransitionActive = transitionType !== 'none';
+
+    const slides = visualSlides.filter(s => {
+      if (s.type === 'audio') return false;
+      const isActive = currentTime >= s.startTime && currentTime < s.endTime;
+      if (isActive) return true;
+
+      // Include tails for transitions (only for crossfade)
+      if (transitionType === 'crossfade') {
+        if (currentTime >= s.endTime && currentTime < s.endTime + transitionDuration) return true;
+      }
+      return false;
+    });
+
+    // Sort by layer (0 first, then 1) so 1 draws on top, then by startTime to handle crossfades properly
+    return slides.sort((a, b) => {
+      const layerDiff = (a.layer || 0) - (b.layer || 0);
+      if (layerDiff !== 0) return layerDiff;
+      return a.startTime - b.startTime;
+    });
+  }, [visualSlides, currentTime, renderConfig.visualTransitionType, renderConfig.visualTransitionDuration]);
 
   const activeAudioSlides = visualSlides.filter(
     s => s.type === 'audio' && currentTime >= s.startTime && currentTime < s.endTime
@@ -499,8 +520,34 @@ function App() {
     }
   };
 
+  const seekToPosition = (clientX: number) => {
+    if (!progressBarRef.current || isRendering || !duration) return;
+    const rect = progressBarRef.current.getBoundingClientRect();
+    const x = Math.max(0, Math.min(clientX - rect.left, rect.width));
+    const percentage = x / rect.width;
+    const newTime = percentage * duration;
+
+    if (audioRef.current) {
+      audioRef.current.currentTime = newTime;
+      setCurrentTime(newTime);
+    }
+  };
+
   const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newVol = parseFloat(e.target.value);
+    setVolume(newVol);
+    if (audioRef.current) {
+      audioRef.current.volume = newVol;
+    }
+    setIsMuted(newVol === 0);
+  };
+
+  const setVolumeToPosition = (clientX: number) => {
+    if (!volumeBarRef.current) return;
+    const rect = volumeBarRef.current.getBoundingClientRect();
+    const x = Math.max(0, Math.min(clientX - rect.left, rect.width));
+    const newVol = x / rect.width;
+
     setVolume(newVol);
     if (audioRef.current) {
       audioRef.current.volume = newVol;
@@ -878,7 +925,13 @@ function App() {
           if (s) {
             if (t >= s.startTime && t < s.endTime) {
               const speed = s.playbackRate || 1;
-              const rel = ((t - s.startTime) * speed) + (s.mediaStartOffset || 0);
+              let rel = ((t - s.startTime) * speed) + (s.mediaStartOffset || 0);
+
+              // Auto-Loop Logic: If render time exceeds source duration, wrap it
+              const sourceDuration = s.mediaDuration || v.duration;
+              if (sourceDuration && sourceDuration > 0 && rel >= sourceDuration) {
+                rel = rel % sourceDuration;
+              }
 
               if (Math.abs(v.playbackRate - speed) > 0.01) v.playbackRate = speed;
 
@@ -1478,7 +1531,13 @@ function App() {
             if (!vid.paused) vid.pause();
           } else {
             const speed = slide.playbackRate || 1;
-            const relTime = ((currentTime - slide.startTime) * speed) + (slide.mediaStartOffset || 0);
+            let relTime = ((currentTime - slide.startTime) * speed) + (slide.mediaStartOffset || 0);
+
+            // Auto-Loop Logic
+            const sourceDuration = slide.mediaDuration || vid.duration;
+            if (sourceDuration && sourceDuration > 0 && relTime >= sourceDuration) {
+              relTime = relTime % sourceDuration;
+            }
 
             // Sync Playback Rate
             if (Math.abs(vid.playbackRate - speed) > 0.01) vid.playbackRate = speed;
@@ -1712,8 +1771,61 @@ function App() {
             const layer = slide.layer || 0;
             if (renderConfig.layerVisibility?.visual?.[layer] === false) return null;
 
+            // Calculate Opacity for Transitions
+            const transitionType = renderConfig.visualTransitionType || 'none';
+            const transitionDuration = renderConfig.visualTransitionDuration || 1.0;
+            let opacity = 1.0;
+
+            if (transitionType !== 'none') {
+              // Fade In (Start)
+              if (currentTime < slide.startTime + transitionDuration) {
+                const prog = (currentTime - slide.startTime) / transitionDuration;
+                opacity = Math.max(0, Math.min(1, prog));
+              }
+
+              // Fade Out (End/Tail)
+              if (currentTime >= slide.endTime) {
+                // Check if there is a subsequent clip on the same layer starting immediately (gap < 0.1s)
+                // If so, we HOLD opacity at 1.0 (or current max) to let the next clip fade in ON TOP.
+
+                // Optimize: only scan if we are in crossfade mode
+                let isCovered = false;
+                if (transitionType === 'crossfade') {
+                  // We need to access all visualSlides to find neighbors
+                  // Note: using visualSlides from closure.
+                  isCovered = visualSlides.some(other =>
+                    other.id !== slide.id &&
+                    (other.layer || 0) === (slide.layer || 0) &&
+                    // Check if other starts substantially close to this end
+                    other.startTime >= slide.endTime - 0.1 &&
+                    other.startTime < slide.endTime + 0.2 // Tolerance
+                  );
+                }
+
+                if (isCovered) {
+                  // Hold opacity to allow dissolved incoming clip
+                  // But we should NOT hold if we are detected as "fading in" above? 
+                  // No, "Fading In" logic clamps opacity min(1).
+                  // Here we clamp max.
+                  // If we are covered, we don't reduce opacity.
+                } else {
+                  const past = currentTime - slide.endTime;
+                  const prog = 1 - (past / transitionDuration);
+                  opacity = Math.min(opacity, Math.max(0, Math.min(1, prog)));
+                }
+              } else if (transitionType === 'fade-to-black') {
+                // Fade to black logic implies dipping to black between clips.
+                // We fade out at the end of the clip *before* the join,
+                // and fade in at the start of the next clip (handled above).
+                if (currentTime > slide.endTime - transitionDuration) {
+                  const prog = (slide.endTime - currentTime) / transitionDuration;
+                  opacity = Math.min(opacity, Math.max(0, Math.min(1, prog)));
+                }
+              }
+            }
+
             return (
-              <div key={slide.id} className="absolute inset-0 flex items-center justify-center overflow-hidden">
+              <div key={slide.id} className="absolute inset-0 flex items-center justify-center overflow-hidden" style={{ opacity }}>
                 {slide.type === 'video' ? (
                   <video
                     id={`video-preview-${slide.id}`}
@@ -1742,6 +1854,11 @@ function App() {
             backgroundColor: (renderConfig.backgroundBlurStrength > 0 || isBlurEnabled) ? 'rgba(0,0,0,0.4)' : undefined
           }}
         ></div>
+
+        {/* Gradient Overlay (Black Bottom-to-Top) */}
+        {renderConfig.enableGradientOverlay && (
+          <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/60 to-transparent pointer-events-none z-0" />
+        )}
       </div>
 
       {/* --- Main Content Area --- */}
@@ -2070,7 +2187,7 @@ function App() {
                 // animating dimensions causes layout shifts during scroll calculation, leading to "jumps".
                 // We exclude font-size, line-height, margin, padding, width, height.
                 const transEffect = renderConfig.transitionEffect;
-                let containerClass = 'transition-[color,background-color,border-color,text-decoration-color,fill,stroke,opacity,box-shadow,transform,filter,backdrop-filter,text-shadow] duration-500 cursor-pointer whitespace-pre-wrap ';
+                let containerClass = 'transition-[color,background-color,border-color,text-decoration-color,fill,stroke,opacity,box-shadow,transform,filter,backdrop-filter,text-shadow] duration-500 cursor-pointer whitespace-pre-wrap break-words ';
 
                 // Handle Transitions
                 if (isActive) {
@@ -2252,18 +2369,21 @@ function App() {
                   inactiveClass = 'hidden';
                   // Position based on visible panels:
                   // - Editor/Playlist panel: ~280px
-                  // - Footer (audio controls): ~160px (bottom-40)
+                  // - Footer (audio controls): ~160px (bottom-40) -> Bumped to avoid overlap
                   // - Minimal (nothing visible): ~64px (bottom-16)
                   let bottomClass = 'bottom-16';
                   if (isEditor && isFooterVisible) {
                     // Both editor/playlist AND footer visible
-                    bottomClass = 'bottom-[480px]';
+                    // 280 + 180 = 460. Using 540 for safety.
+                    bottomClass = 'bottom-[540px]';
                   } else if (isEditor) {
                     // Only editor/playlist visible
-                    bottomClass = 'bottom-[320px]';
+                    // ~280px. Using 360 for safety.
+                    bottomClass = 'bottom-[360px]';
                   } else if (isFooterVisible) {
                     // Only footer visible
-                    bottomClass = 'bottom-40';
+                    // ~160px + buffer -> bottom-48 (192px)
+                    bottomClass = 'bottom-48';
                   }
                   containerClass += `fixed ${bottomClass} left-1/2 -translate-x-1/2 w-full max-w-4xl px-4 `;
                 } else if (preset === 'custom') {
@@ -2847,9 +2967,21 @@ function App() {
               {/* Progress Bar */}
               <div className="flex items-center gap-3 group">
                 <span className="text-xs text-zinc-400 font-mono w-10 text-right">{formatTime(currentTime)}</span>
-                <div className="flex-1 h-1 bg-zinc-700/50 rounded-full relative cursor-pointer group-hover:h-2 transition-all">
+                <div
+                  ref={progressBarRef}
+                  className="flex-1 h-1 bg-zinc-700/50 rounded-full relative cursor-pointer group-hover:h-2 transition-all touch-none"
+                  onPointerDown={(e) => {
+                    e.currentTarget.setPointerCapture(e.pointerId);
+                    seekToPosition(e.clientX);
+                  }}
+                  onPointerMove={(e) => {
+                    if (e.buttons === 1) {
+                      seekToPosition(e.clientX);
+                    }
+                  }}
+                >
                   <div
-                    className="absolute top-0 left-0 h-full bg-purple-500 rounded-full"
+                    className="absolute top-0 left-0 h-full bg-purple-500 rounded-full pointer-events-none"
                     style={{ width: `${(currentTime / duration) * 100}%` }}
                   ></div>
                   <input
@@ -2859,7 +2991,7 @@ function App() {
                     value={currentTime}
                     onChange={handleSeek}
                     disabled={isRendering}
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-wait"
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-wait pointer-events-none"
                   />
                 </div>
                 <span className="text-xs text-zinc-400 font-mono w-10">{formatTime(duration)}</span>
@@ -2869,9 +3001,21 @@ function App() {
                   <button onClick={() => setIsMuted(!isMuted)} className="text-zinc-400 hover:text-white">
                     {isMuted || volume === 0 ? <VolumeX size={16} /> : <Volume2 size={16} />}
                   </button>
-                  <div className="w-16 h-1 bg-zinc-700/50 rounded-full relative overflow-hidden group/vol">
+                  <div
+                    ref={volumeBarRef}
+                    className="w-16 h-1 bg-zinc-700/50 rounded-full relative overflow-hidden group/vol cursor-pointer touch-none"
+                    onPointerDown={(e) => {
+                      e.currentTarget.setPointerCapture(e.pointerId);
+                      setVolumeToPosition(e.clientX);
+                    }}
+                    onPointerMove={(e) => {
+                      if (e.buttons === 1) {
+                        setVolumeToPosition(e.clientX);
+                      }
+                    }}
+                  >
                     <div
-                      className="absolute top-0 left-0 h-full bg-zinc-300 group-hover/vol:bg-purple-400 transition-colors"
+                      className="absolute top-0 left-0 h-full bg-zinc-300 group-hover/vol:bg-purple-400 transition-colors pointer-events-none"
                       style={{ width: `${isMuted ? 0 : volume * 100}%` }}
                     ></div>
                     <input
@@ -2881,7 +3025,7 @@ function App() {
                       step="0.05"
                       value={isMuted ? 0 : volume}
                       onChange={handleVolumeChange}
-                      className="absolute inset-0 opacity-0 cursor-pointer"
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer pointer-events-none"
                     />
                   </div>
                 </div>

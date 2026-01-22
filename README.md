@@ -55,6 +55,7 @@
   - **Undo/Redo** (Ctrl+Z / Ctrl+Y): Never worry about mistakes.
   - **Copy/Cut/Paste** (Ctrl+C / Ctrl+X / Ctrl+V): Duplicate slides easily.
   - **Snapping**: Clips snap to each other, lyric timestamps, grid lines, and playhead for pixel-perfect timing.
+  - **Video Looping**: Automatically loops video clips when extended beyond their original duration.
 - **Advanced Selection**:
   - **Drag Selection**: Click and drag on the timeline background to interpretively select multiple clips.
   - **Shift + Click** for range selection.
@@ -98,6 +99,7 @@
   - **Smart Gradient**: Generate beautiful gradients from a single color.
   - **Custom Gradient**: Manually define complex linear gradients.
   - **Solid Color**: Simple, clean backgrounds.
+  - **Gradient Overlay**: Optional bottom-up fade for better text readability.
 - **Lyric Display Control**:
   - **Modes**: Show All, Previous/Next, Next Only, or Active Line Only highlighting.
   - **Visibility**: Toggle Lyrics, Title, Artist, Cover Art, and Intro overlays independently.

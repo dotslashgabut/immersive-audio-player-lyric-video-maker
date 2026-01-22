@@ -786,9 +786,33 @@ export const drawCanvasFrame = (
         let drawnAny = false;
 
         if (useTimeline) {
-            const activeSlides = visualSlides.filter(s => s.type !== 'audio' && time >= s.startTime && time < s.endTime);
-            // Sort by layer (0 first, then 1) so 1 draws on top
-            activeSlides.sort((a, b) => (a.layer || 0) - (b.layer || 0));
+            // 1. Determine Transition Config
+            const transitionType = renderConfig?.visualTransitionType || 'none';
+            const transitionDuration = renderConfig?.visualTransitionDuration || 1.0;
+
+            // 2. Select Slides: Include active AND fading-out slides if transition is enabled
+            // 'fading out' means: currently AFTER endTime but within transitionDuration
+            const activeSlides = visualSlides.filter(s => {
+                if (s.type === 'audio') return false;
+                const isActive = time >= s.startTime && time < s.endTime;
+                if (isActive) return true;
+                if (transitionType === 'crossfade') {
+                    // Check if in fade-out tail
+                    if (time >= s.endTime && time < s.endTime + transitionDuration) return true;
+                    // Note: Fade-in head is naturally handled because time >= startTime matches isActive.
+                    // We don't need to look ahead before startTime, logic handles fading IN during the start of the clip.
+                }
+                return false;
+            });
+
+            // 3. Sort Slides
+            // Sort by Layer first (higher layer on top)
+            // Then by Start Time (later start time on top -> essential for crossfades of sequential clips)
+            activeSlides.sort((a, b) => {
+                const layerDiff = (a.layer || 0) - (b.layer || 0);
+                if (layerDiff !== 0) return layerDiff;
+                return a.startTime - b.startTime;
+            });
 
             if (activeSlides.length > 0) {
                 activeSlides.forEach(slide => {
@@ -798,12 +822,73 @@ export const drawCanvasFrame = (
 
                     const vid = slide.type === 'video' ? videos.get(slide.id) : null;
                     const img = slide.type !== 'video' ? images.get(slide.id) : null;
-                    if (vid) drawScaled(vid);
-                    else if (img) drawScaled(img);
+
+                    // Calculate Opacity
+                    let opacity = 1.0;
+
+                    if (transitionType !== 'none') {
+                        // Fade In (Start)
+                        if (time < slide.startTime + transitionDuration) {
+                            const prog = (time - slide.startTime) / transitionDuration;
+                            opacity = Math.max(0, Math.min(1, prog));
+                        }
+
+                        // Fade Out (End) - applies if time is approaching endTime or past it
+                        // For 'crossfade', we extend past endTime.
+                        // For 'fade-to-black', we fade out leading up to endTime?
+                        // Actually, 'fade-to-black' is usually disjoint.
+                        // Impl: If we are past endTime (extended tail), we fade out.
+                        // Does 'fade-to-black' imply fading out BEFORE endTime?
+                        // Usually yes. But if we extend, we can fade out AFTER.
+                        // Let's stick to Extend-Logic for both to be robust for abutted clips.
+
+                        // IF we are in the "Tail" (time >= s.endTime):
+                        if (time >= slide.endTime) {
+                            // NEW: Check for adjacent coverage to prevent dip
+                            let isCovered = false;
+                            if (transitionType === 'crossfade') {
+                                isCovered = visualSlides.some(other =>
+                                    other.id !== slide.id &&
+                                    (other.layer || 0) === (slide.layer || 0) &&
+                                    other.startTime >= slide.endTime - 0.1 &&
+                                    other.startTime < slide.endTime + 0.2
+                                );
+                            }
+
+                            if (isCovered) {
+                                // Hold Opacity
+                            } else {
+                                const past = time - slide.endTime;
+                                const prog = 1 - (past / transitionDuration);
+                                opacity = Math.min(opacity, Math.max(0, Math.min(1, prog)));
+                            }
+                        } else if (transitionType === 'fade-to-black') {
+                            // If fade-to-black, we ALSO fade out approaching endTime (to create the dip)
+                            // Logic: Fade Out during last transitionDuration seconds of the clip itself?
+                            // No, let's keep it simple. If 'fade-to-black' is selected, we assume gaps or we force dip.
+                            // If we force dip: fade out during last T seconds of clip?
+                            // If clip is 5s, fade is 1s.
+                            // 0-1 Fade In. 4-5 Fade Out.
+                            // If clips abut (0-5, 5-10):
+                            // A fades out 4-5. B fades in 5-6.
+                            // Midpoint 5: A is 0. B is 0. Black. Correct.
+                            // So for 'fade-to-black', we modify opacity based on (endTime - time).
+                            if (time > slide.endTime - transitionDuration) {
+                                const prog = (slide.endTime - time) / transitionDuration;
+                                opacity = Math.min(opacity, Math.max(0, Math.min(1, prog)));
+                            }
+                        }
+                    }
+
+                    if (opacity > 0) {
+                        ctx.save();
+                        ctx.globalAlpha = opacity;
+                        if (vid) drawScaled(vid);
+                        else if (img) drawScaled(img);
+                        ctx.restore();
+                    }
                 });
-                drawnAny = true; // Mark as drawn even if filtered? No, only if actually drawn.
-                // Wait, if all are hidden, drawnAny stays false, so we fall back to cover?
-                // Probably desired behavior: if you hide video layers, show default cover.
+                drawnAny = true;
             }
         }
 
@@ -817,6 +902,19 @@ export const drawCanvasFrame = (
 
     if (!['just_video', 'none'].includes(activePreset)) {
         ctx.fillStyle = (renderConfig && (renderConfig.backgroundSource === 'color' || renderConfig.backgroundSource === 'gradient')) ? 'rgba(0, 0, 0, 0.2)' : 'rgba(0, 0, 0, 0.5)';
+        ctx.fillRect(0, 0, width, height);
+    }
+
+    // --- Feature: Bottom-to-Top Black Gradient Overlay ---
+    if (renderConfig?.enableGradientOverlay) {
+        // Gradient from Bottom (Black) to Top (Transparent)
+        // Helps with subtitle readability.
+        const gradient = ctx.createLinearGradient(0, height, 0, 0);
+        gradient.addColorStop(0, 'rgba(0, 0, 0, 0.95)'); // Strong black at bottom
+        gradient.addColorStop(0.35, 'rgba(0, 0, 0, 0.6)');
+        gradient.addColorStop(0.7, 'rgba(0, 0, 0, 0)'); // Fade to transparent
+
+        ctx.fillStyle = gradient;
         ctx.fillRect(0, 0, width, height);
     }
 
@@ -1159,7 +1257,7 @@ export const drawCanvasFrame = (
                 } else {
                     // Fallback (Legacy)
                     yPos = (activePreset === 'subtitle' && i === 0 && renderConfig?.lyricDisplayMode !== 'all')
-                        ? (height - 80 * scale)
+                        ? (height - 140 * scale)
                         : (centerY + (i * lineSpacing) + (i === 0 ? offsetY : 0));
 
                     if (activePreset !== 'custom') {
