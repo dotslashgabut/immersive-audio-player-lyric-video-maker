@@ -12,11 +12,21 @@ export default defineConfig(({ mode }) => {
       // port: 5173,
       strictPort: false,
       // host: '0.0.0.0',
+      // Required headers for FFmpeg WASM (SharedArrayBuffer support)
+      headers: {
+        'Cross-Origin-Opener-Policy': 'same-origin',
+        'Cross-Origin-Embedder-Policy': 'require-corp',
+      },
     },
     preview: {
       // port: 4173,
       strictPort: false,
       // host: '0.0.0.0',
+      // Required headers for FFmpeg WASM (SharedArrayBuffer support)
+      headers: {
+        'Cross-Origin-Opener-Policy': 'same-origin',
+        'Cross-Origin-Embedder-Policy': 'require-corp',
+      },
     },
     plugins: [
       react(),
@@ -51,6 +61,9 @@ export default defineConfig(({ mode }) => {
       alias: {
         '@': path.resolve(__dirname, '.'),
       }
+    },
+    optimizeDeps: {
+      exclude: ['@ffmpeg/ffmpeg', '@ffmpeg/util']
     }
   };
 });

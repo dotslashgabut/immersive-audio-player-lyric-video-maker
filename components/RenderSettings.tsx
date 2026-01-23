@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { X, Video, Settings, ImageIcon, Type, Layout, Palette, Music, FileText, Check, ListMusic, Bold, Italic, Underline, Strikethrough, AlignVerticalJustifyCenter, AlignVerticalJustifyStart, AlignVerticalJustifyEnd, Upload, Trash2, ChevronDown, Maximize, RotateCcw, Download, Keyboard as KeyboardIcon, Sparkles } from './Icons';
-import { RenderConfig, VideoPreset } from '../types';
+import { RenderConfig, VideoPreset, RenderEngine, FFmpegCodec } from '../types';
 import { fontGroups } from '../utils/fonts';
 import { PRESET_DEFINITIONS, videoPresetGroups } from '../utils/presets';
 import { useUI } from '../contexts/UIContext';
@@ -621,6 +621,11 @@ interface RenderSettingsProps {
     setRenderQuality: (q: 'low' | 'med' | 'high') => void;
     renderFps: number;
     setRenderFps: (fps: number) => void;
+    // FFmpeg render engine options
+    renderEngine: RenderEngine;
+    setRenderEngine: (engine: RenderEngine) => void;
+    ffmpegCodec: FFmpegCodec;
+    setFfmpegCodec: (codec: FFmpegCodec) => void;
 }
 
 // Generate font options from presets
@@ -665,7 +670,11 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
     renderQuality,
     setRenderQuality,
     renderFps,
-    setRenderFps
+    setRenderFps,
+    renderEngine,
+    setRenderEngine,
+    ffmpegCodec,
+    setFfmpegCodec
 }) => {
     const { toast, confirm } = useUI();
     const sidebarRef = useRef<HTMLDivElement>(null);
@@ -766,6 +775,8 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
             setRenderCodec('auto');
             setRenderFps(30);
             setRenderQuality('med');
+            setRenderEngine('mediarecorder');
+            setFfmpegCodec('h264');
 
             // Reset File Inputs
             if (channelImageInputRef.current) channelImageInputRef.current.value = '';
@@ -797,6 +808,8 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
             renderCodec,
             renderFps,
             renderQuality,
+            renderEngine,
+            ffmpegCodec,
             customFontName // Include custom font name meta-data
         } as any;
 
@@ -842,6 +855,8 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                         renderCodec: importedRenderCodec,
                         renderFps: importedRenderFps,
                         renderQuality: importedRenderQuality,
+                        renderEngine: importedRenderEngine,
+                        ffmpegCodec: importedFfmpegCodec,
                         preset: importedPreset,
                         customFontName: importedCustomFontName,
                         ...importedConfig
@@ -934,6 +949,8 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                     if (importedRenderCodec) setRenderCodec(importedRenderCodec as string);
                     if (importedRenderFps) setRenderFps(Number(importedRenderFps));
                     if (importedRenderQuality) setRenderQuality(importedRenderQuality as any);
+                    if (importedRenderEngine) setRenderEngine(importedRenderEngine as any);
+                    if (importedFfmpegCodec) setFfmpegCodec(importedFfmpegCodec as any);
 
                     // Set Preset State (without overwriting config again)
                     if (importedPreset) {
@@ -2021,22 +2038,76 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                             </div>
                         </div>
 
+                        {/* Render Engine Selection */}
                         <div className="space-y-1.5">
-                            <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Video Codec</label>
-                            <GroupedSelection
-                                value={renderCodec}
-                                onChange={(val) => setRenderCodec(val)}
-                                groups={[
-                                    {
-                                        label: "Format",
-                                        options: [
-                                            { label: "Auto Select (Best)", value: "auto" },
-                                            ...supportedCodecs
-                                        ]
-                                    }
-                                ]}
-                            />
+                            <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Render Engine</label>
+                            <div className="flex bg-zinc-800 rounded-lg p-1">
+                                <button
+                                    onClick={() => setRenderEngine('mediarecorder')}
+                                    className={`flex-1 py-2 rounded-md text-[10px] font-bold uppercase transition-all ${renderEngine === 'mediarecorder' ? 'bg-purple-600 text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
+                                    title="Uses browser's MediaRecorder API. Renders in realtime while playing audio."
+                                >
+                                    MediaRecorder
+                                </button>
+                                <button
+                                    onClick={() => setRenderEngine('ffmpeg')}
+                                    className={`flex-1 py-2 rounded-md text-[10px] font-bold uppercase transition-all ${renderEngine === 'ffmpeg' ? 'bg-orange-500 text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
+                                    title="Uses FFmpeg WASM. Frame-by-frame rendering with professional codecs. Faster than realtime!"
+                                >
+                                    FFmpeg ⚡
+                                </button>
+                            </div>
+                            <p className="text-[9px] text-zinc-600 ml-1 leading-tight">
+                                {renderEngine === 'mediarecorder'
+                                    ? 'Realtime recording while audio plays. Browser-dependent codecs.'
+                                    : 'Frame-by-frame capture. Faster than realtime with pro codecs (H.264, H.265, VP9, AV1).'}
+                            </p>
                         </div>
+
+                        {/* Video Codec - Conditional based on engine */}
+                        {renderEngine === 'mediarecorder' ? (
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Video Codec</label>
+                                <GroupedSelection
+                                    value={renderCodec}
+                                    onChange={(val) => setRenderCodec(val)}
+                                    groups={[
+                                        {
+                                            label: "Format",
+                                            options: [
+                                                { label: "Auto Select (Best)", value: "auto" },
+                                                ...supportedCodecs
+                                            ]
+                                        }
+                                    ]}
+                                />
+                            </div>
+                        ) : (
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">FFmpeg Codec</label>
+                                <div className="grid grid-cols-2 gap-1">
+                                    {[
+                                        { label: 'H.264', value: 'h264', desc: 'Best Compatibility' },
+                                        { label: 'H.265', value: 'h265', desc: 'Higher Quality' },
+                                        // { label: 'VP9', value: 'vp9', desc: 'Open Format' },
+                                        // { label: 'AV1', value: 'av1', desc: 'Best Compression' },
+                                    ].map((codec) => (
+                                        <button
+                                            key={codec.value}
+                                            onClick={() => setFfmpegCodec(codec.value as any)}
+                                            className={`py-2 px-2 rounded-md text-[10px] font-medium transition-all border text-left ${ffmpegCodec === codec.value
+                                                ? 'bg-orange-500 border-orange-400 text-white'
+                                                : 'bg-zinc-800 border-white/5 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200'
+                                                }`}
+                                            title={codec.desc}
+                                        >
+                                            <div className="font-bold">{codec.label}</div>
+                                            <div className="text-[8px] opacity-75">{codec.desc}</div>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
 
                         <div className="space-y-1.5">
                             <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Render Quality (Bitrate)</label>

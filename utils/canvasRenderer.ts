@@ -597,12 +597,29 @@ export const drawCanvasFrame = (
                         ctx.shadowBlur = 20; ctx.shadowColor = '#ff00de'; ctx.fillText(word.text, wordX, wordY);
                         ctx.shadowBlur = 35; ctx.shadowColor = '#00ffff'; ctx.fillText(word.text, wordX, wordY);
                     } else if (effect.includes('retro') || effect.includes('vhs')) {
-                        ctx.fillStyle = '#ff0000'; ctx.globalCompositeOperation = 'screen'; ctx.fillText(word.text, wordX - 2, wordY);
-                        ctx.fillStyle = '#00ff00'; ctx.fillText(word.text, wordX, wordY);
-                        ctx.fillStyle = '#0000ff'; ctx.fillText(word.text, wordX + 2, wordY);
+                        // Dynamic VHS Drift
+                        const drift = Math.sin(time * 5) * 2 * scale;
+                        const vJump = Math.random() > 0.95 ? (Math.random() - 0.5) * 5 : 0; // Occasional vertical jitter
+
+                        ctx.globalCompositeOperation = 'screen';
+                        ctx.fillStyle = '#ff0000'; ctx.fillText(word.text, wordX - 3 * scale + drift, wordY + vJump);
+                        ctx.fillStyle = '#00ff00'; ctx.fillText(word.text, wordX + vJump, wordY - drift);
+                        ctx.fillStyle = '#0000ff'; ctx.fillText(word.text, wordX + 3 * scale - drift, wordY + vJump);
                     } else if (effect.includes('fire')) {
-                        ctx.shadowBlur = 5; ctx.shadowColor = '#ff0000'; ctx.fillStyle = '#ff4500'; ctx.fillText(word.text, wordX, wordY);
-                        ctx.shadowBlur = 2; ctx.shadowColor = '#ffff00'; ctx.fillStyle = '#ffcc00'; ctx.fillText(word.text, wordX + 1 * scale, wordY - 1 * scale);
+                        // Dynamic Fire Animation
+                        const flicker = Math.abs(Math.sin(time * 15)) * 5; // 0 to 5 blur variation
+                        const moveY = Math.sin(time * 20) * 1 * scale; // Vertical heat wave
+
+                        ctx.shadowBlur = 5 + flicker;
+                        ctx.shadowColor = '#ff0000';
+                        ctx.fillStyle = '#ff4500';
+                        ctx.fillText(word.text, wordX, wordY + moveY);
+
+                        ctx.shadowBlur = 2;
+                        ctx.shadowColor = '#ffff00';
+                        ctx.fillStyle = '#ffcc00';
+                        // Yellow core shifts slightly
+                        ctx.fillText(word.text, wordX + (Math.sin(time * 25) * 1 * scale), wordY - 1 * scale + moveY);
                     } else if (effect.includes('typewriter')) {
                         const elapsed = time - word.startTime;
                         // Duration of word play

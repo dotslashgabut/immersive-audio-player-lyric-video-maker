@@ -1,5 +1,22 @@
 # Release Notes
 
+# v2.2.6
+
+## What's New
+- **FFmpeg WASM Integration**: Added a new "Pro" rendering engine option in the export panel.
+  - **Frame-by-Frame Rendering**: Ensures perfect synchronization and zero dropped frames, even on slower devices.
+  - **High Quality**: Supports direct encoding to **H.264 (MP4)**, **VP9 (WebM)**, and **AV1**.
+  - **Smart Fallback**: Automatically switches between Multi-threaded (faster) and Single-threaded (compatible) modes based on your browser environment (COOP/COEP headers).
+- **Offline Mode Support**: FFmpeg core files are now intelligently cached. The app works fully offline using local resources if available, falling back to CDN only when needed.
+- **Visual Effects Compatibility**: Improved the export renderer to match the web preview more closely.
+  - **Animated Fire**: Added dynamic flickering and heat wave animations to the 'Fire' text effect during export.
+  - **VHS/Retro Drift**: Added color channel drift and static noise to the 'VHS' effect during export.
+- **Settings Management**: Updated Export/Import JSON schema to include new Render Engine and Codec preferences.
+- **Bug Fixes**:
+  - Fixed discrepancy between Web View and Export for animated text effects.
+  - Fixed dependency optimizer issues with FFmpeg worker files. 
+
+
 # v2.2.5
 
 ## What's New

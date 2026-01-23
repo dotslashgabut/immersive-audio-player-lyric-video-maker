@@ -72,6 +72,9 @@
 
 ### 🎥 Content Creation & Export
 - **Flexible Render Settings**:
+  - **Render Engine**: 
+    - **Browser Recorder**: Fast, real-time capture.
+    - **FFmpeg WASM**: Professional frame-by-frame rendering (No dropped frames).
   - **Resolution**: 720p / 1080p.
   - **Frame Rate**: Support for **24, 25, 30, 50, and 60 FPS**.
   - **Quality**: Adjustable bitrate presets (**Low, Med, High**).
@@ -129,8 +132,13 @@
 ![Export Interface](screenshot-render.jpg)
 
 ### 🛠 Technical Architecture
-- **Rendering Engine**: Highly optimized **Canvas 2D** pipeline. Text rendering is handled natively by the browser, ensuring perfect clarity and compatibility with all languages and writing systems.
-- **OffscreenCanvas Ready**: The application structure decouples rendering logic from the UI thread (`utils/canvasRenderer.ts`). This architecture supports `OffscreenCanvas` and Web Workers, enabling potential future upgrades for background rendering or "lag-free" exports on lower-end devices.
+- **Dual Rendering Engine**: 
+  - **MediaRecorder (Real-time)**: Captures the canvas stream in real-time. Fast for simple exports.
+  - **FFmpeg WASM (Offline/High-Quality)**: Client-side video encoding using FFmpeg compiled to WebAssembly. Supports frame-by-frame rendering for perfect synchronization and higher bitrates, regardless of computer speed.
+  - **Smart Fallback**: Automatically switches between Multi-threaded (SharedArrayBuffer) and Single-threaded cores based on browser capabilities and server headers (COOP/COEP).
+  - **Offline-First**: Intelligently loads FFmpeg cores from local cache (`/public/ffmpeg`) if available, falling back to CDN only when necessary.
+- **Rendering Pipeline**: Highly optimized **Canvas 2D** pipeline. Text rendering is handled natively by the browser, ensuring perfect clarity. Advanced effects (Fire, VHS, etc.) are simulated in Canvas to match CSS visuals during export.
+- **OffscreenCanvas Ready**: The application structure decouples rendering logic from the UI thread (`utils/canvasRenderer.ts`). This architecture supports `OffscreenCanvas` and Web Workers.
 - **WebGPU Note**: While not currently used, the modular design allows for a hybrid approach in the future (e.g., using WebGPU for background visualizers while keeping Canvas 2D for crisp text overlays).
 
 ## Related Tools

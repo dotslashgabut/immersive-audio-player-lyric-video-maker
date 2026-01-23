@@ -5,7 +5,7 @@ import {
   Repeat, Repeat1, Square, Eye, EyeOff, Video, Download, Film, Type, X, ListMusic, Rewind, FastForward,
   ChevronUp, ChevronDown
 } from './components/Icons';
-import { AudioMetadata, LyricLine, TabView, VisualSlide, VideoPreset, PlaylistItem, RenderConfig } from './types';
+import { AudioMetadata, LyricLine, TabView, VisualSlide, VideoPreset, PlaylistItem, RenderConfig, RenderEngine, FFmpegCodec } from './types';
 import { formatTime, parseLRC, parseSRT, parseTTML } from './utils/parsers';
 import VisualEditor from './components/VisualEditor';
 import PlaylistEditor from './components/PlaylistEditor';
@@ -14,6 +14,8 @@ import { drawCanvasFrame } from './utils/canvasRenderer';
 import { loadGoogleFonts } from './utils/fonts';
 import { PRESET_CYCLE_LIST, PRESET_DEFINITIONS, videoPresetGroups } from './utils/presets';
 import { useUI } from './contexts/UIContext';
+import { renderWithFFmpeg, isFFmpegAvailable, getFFmpegCodecs } from './utils/ffmpegRenderer';
+
 
 
 function App() {
@@ -24,7 +26,7 @@ function App() {
   const lyricsContainerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const abortRenderRef = useRef(false);
+  const abortRenderRef = useRef<{ aborted: boolean }>({ aborted: false });
   const exportVideoRef = useRef<() => void>(() => { });
 
   // Load fonts
@@ -71,6 +73,11 @@ function App() {
   const [renderCodec, setRenderCodec] = useState<string>('auto');
   const [renderFps, setRenderFps] = useState<number>(30);
   const [renderQuality, setRenderQuality] = useState<'low' | 'med' | 'high'>('med');
+
+  // FFmpeg WASM render engine options
+  const [renderEngine, setRenderEngine] = useState<RenderEngine>('mediarecorder');
+  const [ffmpegCodec, setFfmpegCodec] = useState<FFmpegCodec>('h264');
+  const [ffmpegRenderStage, setFfmpegRenderStage] = useState<string>('');
 
   const [showRenderSettings, setShowRenderSettings] = useState(false);
   const [renderConfig, setRenderConfig] = useState<RenderConfig>({
@@ -627,7 +634,10 @@ function App() {
     setShowRenderSettings(false);
     setIsRendering(true);
     setRenderProgress(0);
-    abortRenderRef.current = false;
+
+    // Create new abort signal for this render session
+    const currentAbortSignal = { aborted: false };
+    abortRenderRef.current = currentAbortSignal;
 
     // Stop and Reset
     stopPlayback();
@@ -766,7 +776,7 @@ function App() {
 
     await Promise.all(loadPromises);
 
-    if (abortRenderRef.current) {
+    if (currentAbortSignal.aborted) {
       setIsRendering(false);
       if (isPlaylistRender) queue.forEach(q => q.isFileSource && URL.revokeObjectURL(q.audioSrc));
       return;
@@ -842,7 +852,7 @@ function App() {
     };
 
     mediaRecorder.onstop = () => {
-      if (!abortRenderRef.current) {
+      if (!currentAbortSignal.aborted) {
         const blob = new Blob(chunks, { type: mimeType });
         const downloadBlob = (blobToDownload: Blob) => {
           const url = URL.createObjectURL(blobToDownload);
@@ -889,7 +899,7 @@ function App() {
     const renderInterval = 1000 / renderFps;
 
     const renderFrameLoop = (now: number) => {
-      if (abortRenderRef.current) return;
+      if (currentAbortSignal.aborted) return;
 
       if (mediaRecorder.state === 'recording' || mediaRecorder.state === 'paused') {
         requestAnimationFrame(renderFrameLoop);
@@ -996,7 +1006,7 @@ function App() {
 
 
     const processNextTrack = async () => {
-      if (abortRenderRef.current) {
+      if (currentAbortSignal.aborted) {
         mediaRecorder.stop();
         return;
       }
@@ -1085,15 +1095,198 @@ function App() {
 
   };
 
+  // --- FFmpeg WASM Video Export Logic ---
+  const handleExportVideoFFmpeg = async () => {
+    if (!canvasRef.current) return;
+
+    // Determine Render Scope  
+    const isPlaylistRender = renderConfig.renderMode === 'playlist' && playlist.length > 0;
+
+    // Get audio file - need the actual File object for FFmpeg
+    let audioFile: File | null = null;
+    let lyricsToRender = adjustedLyrics;
+    let metadataToRender = metadata;
+
+    if (isPlaylistRender && playlist.length > 0) {
+      // For playlist, we'll render the first track (full playlist support can be added later)
+      audioFile = playlist[0].audioFile;
+      lyricsToRender = playlist[0].parsedLyrics || [];
+      metadataToRender = playlist[0].metadata;
+    } else if (playlist.length > 0 && currentTrackIndex >= 0) {
+      audioFile = playlist[currentTrackIndex].audioFile;
+    } else {
+      toast.error('Please load an audio file first.');
+      return;
+    }
+
+    if (!audioFile) {
+      toast.error('No audio file available for FFmpeg export.');
+      return;
+    }
+
+    // Check FFmpeg availability
+    if (!isFFmpegAvailable()) {
+      toast.error('FFmpeg requires SharedArrayBuffer. Please ensure proper server headers (COOP/COEP) or use MediaRecorder instead.');
+      return;
+    }
+
+    // Confirm
+    const confirmMsg = `Start FFmpeg rendering at ${resolution} (${aspectRatio})? This uses frame-by-frame capture for higher quality. Rendering may take several minutes.`;
+    const isConfirmed = await confirm(confirmMsg, "Start FFmpeg Rendering?");
+    if (!isConfirmed) return;
+
+    setShowRenderSettings(false);
+    setIsRendering(true);
+    setRenderProgress(0);
+    setFfmpegRenderStage('Initializing...');
+
+    // Create new abort signal
+    const currentAbortSignal = { aborted: false };
+    abortRenderRef.current = currentAbortSignal;
+
+    // Stop playback
+    stopPlayback();
+
+    // Prepare canvas dimensions
+    const canvas = canvasRef.current;
+    const { w, h } = getCanvasDimensions();
+    canvas.width = w;
+    canvas.height = h;
+
+    // Preload resources (images/videos used in visual slides)
+    const imageMap = new Map<string, HTMLImageElement>();
+    const videoMap = new Map<string, HTMLVideoElement>();
+
+    // Load visual slides
+    const loadPromises: Promise<void>[] = [];
+
+    const loadImg = (id: string, url: string) => {
+      return new Promise<void>((resolve) => {
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        img.onload = () => { imageMap.set(id, img); resolve(); };
+        img.onerror = () => resolve();
+        img.src = url;
+      });
+    };
+
+    const loadVid = (id: string, url: string) => {
+      return new Promise<void>((resolve) => {
+        const vid = document.createElement('video');
+        vid.crossOrigin = "anonymous";
+        vid.muted = true;
+        vid.playsInline = true;
+        vid.preload = "auto";
+        let resolved = false;
+        const safeResolve = () => { if (!resolved) { resolved = true; videoMap.set(id, vid); resolve(); } };
+        vid.oncanplay = () => { if (!resolved) { vid.currentTime = 0.001; } };
+        vid.onseeked = () => safeResolve();
+        vid.onerror = () => { console.warn("Failed to load video:", url); safeResolve(); };
+        setTimeout(() => safeResolve(), 5000);
+        vid.src = url;
+        vid.load();
+      });
+    };
+
+    // Preload visual slides
+    visualSlides.forEach(s => {
+      if (s.type === 'video') loadPromises.push(loadVid(s.id, s.url));
+      else if (s.type !== 'audio') loadPromises.push(loadImg(s.id, s.url));
+    });
+
+    // Load cover art
+    if (metadataToRender.coverUrl) {
+      loadPromises.push(loadImg('cover', metadataToRender.coverUrl));
+    }
+
+    // Load custom background
+    if (renderConfig.backgroundSource === 'image' && renderConfig.backgroundImage) {
+      loadPromises.push(loadImg('__custom_bg__', renderConfig.backgroundImage));
+    }
+
+    // Load channel info
+    if (renderConfig.showChannelInfo && renderConfig.channelInfoImage) {
+      loadPromises.push(loadImg('__channel_info__', renderConfig.channelInfoImage));
+    }
+
+    await Promise.all(loadPromises);
+
+    if (currentAbortSignal.aborted) {
+      setIsRendering(false);
+      return;
+    }
+
+    try {
+      const result = await renderWithFFmpeg({
+        canvas,
+        audioFile,
+        lyrics: lyricsToRender,
+        metadata: metadataToRender,
+        visualSlides,
+        imageMap,
+        videoMap,
+        preset,
+        customFontName,
+        renderConfig,
+        resolution,
+        aspectRatio,
+        fps: renderFps,
+        quality: renderQuality,
+        codec: ffmpegCodec,
+        onProgress: (progress, stage) => {
+          setRenderProgress(progress);
+          setFfmpegRenderStage(stage);
+        },
+        onLog: (msg) => console.log(msg),
+        abortSignal: currentAbortSignal,
+        isFirstSong: true,
+        isLastSong: true
+      });
+
+      // Download the result
+      const filename = `${metadataToRender.title || 'video'}_${aspectRatio.replace(':', '-')}_ffmpeg.${result.format}`;
+      const url = URL.createObjectURL(result.blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      toast.success(`Video exported successfully! (${result.format.toUpperCase()}, ${Math.round(result.duration)}s)`);
+    } catch (error: any) {
+      if (error.message !== 'Render aborted') {
+        console.error('FFmpeg render failed:', error);
+        toast.error(`FFmpeg render failed: ${error.message}`);
+      }
+    } finally {
+      setIsRendering(false);
+      setFfmpegRenderStage('');
+    }
+  };
+
+  // Dispatch to correct export handler based on render engine
+  const handleExportVideoDispatch = async () => {
+    if (renderEngine === 'ffmpeg') {
+      await handleExportVideoFFmpeg();
+    } else {
+      await handleExportVideo();
+    }
+  };
+
   // Keep export function ref up to date for shortcuts
   useEffect(() => {
-    exportVideoRef.current = handleExportVideo;
+    exportVideoRef.current = handleExportVideoDispatch;
   });
 
 
 
   const handleAbortRender = useCallback(() => {
-    abortRenderRef.current = true;
+    if (abortRenderRef.current) {
+      abortRenderRef.current.aborted = true;
+    }
+
     if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
       mediaRecorderRef.current.stop();
     } else {
@@ -3346,10 +3539,10 @@ function App() {
 
                   {/* Export Button */}
                   <button
-                    onClick={handleExportVideo}
+                    onClick={handleExportVideoDispatch}
                     disabled={isRendering || !audioSrc}
                     className="p-2 rounded-lg hover:bg-white/10 text-zinc-400 hover:text-white cursor-pointer transition-colors"
-                    title="Export as Video"
+                    title={`Export as Video (${renderEngine === 'ffmpeg' ? 'FFmpeg' : 'MediaRecorder'})`}
                   >
                     <Video size={18} />
                   </button>
@@ -3436,19 +3629,31 @@ function App() {
       {
         isRendering && (
           <div className="absolute inset-0 z-50 bg-black/90 flex flex-col items-center justify-center p-8 text-center space-y-6">
-            <div className="animate-bounce">
-              <Video size={48} className="text-purple-500" />
+            <div className={renderEngine === 'ffmpeg' ? "animate-pulse" : "animate-bounce"}>
+              <Video size={48} className={renderEngine === 'ffmpeg' ? "text-orange-500" : "text-purple-500"} />
             </div>
-            <h2 className="text-2xl font-bold text-white">Rendering Video ({aspectRatio} {resolution})</h2>
+            <h2 className="text-2xl font-bold text-white">
+              {renderEngine === 'ffmpeg' ? 'FFmpeg Rendering' : 'Rendering Video'} ({aspectRatio} {resolution})
+            </h2>
             <p className="text-zinc-400 max-w-md">
-              Rendering in real-time using Canvas 2D engine.<br />
-              The audio will play during capture.<br />
-              Please keep this tab active for best performance.
+              {renderEngine === 'ffmpeg' ? (
+                <>
+                  Frame-by-frame capture using FFmpeg WASM.<br />
+                  <span className="text-orange-400 font-medium">{ffmpegRenderStage || 'Initializing...'}</span><br />
+                  This is faster than realtime - no audio playback needed.
+                </>
+              ) : (
+                <>
+                  Rendering in real-time using Canvas 2D engine.<br />
+                  The audio will play during capture.<br />
+                  Please keep this tab active for best performance.
+                </>
+              )}
             </p>
 
             <div className="w-full max-w-md h-2 bg-zinc-800 rounded-full overflow-hidden">
               <div
-                className="h-full bg-purple-500 transition-all duration-300 ease-linear"
+                className={`h-full transition-all duration-300 ease-linear ${renderEngine === 'ffmpeg' ? 'bg-orange-500' : 'bg-purple-500'}`}
                 style={{ width: `${renderProgress}%` }}
               ></div>
             </div>
@@ -3474,7 +3679,7 @@ function App() {
           onClose={() => setShowRenderSettings(false)}
           isPlaylistMode={isPlaylistMode}
           hasPlaylist={playlist.length > 0}
-          onRender={handleExportVideo}
+          onRender={handleExportVideoDispatch}
           customFontName={customFontName}
           onFontUpload={handleFontUpload}
           onClearCustomFont={() => setCustomFontName(null)}
@@ -3489,6 +3694,10 @@ function App() {
           setRenderQuality={setRenderQuality}
           renderFps={renderFps}
           setRenderFps={setRenderFps}
+          renderEngine={renderEngine}
+          setRenderEngine={setRenderEngine}
+          ffmpegCodec={ffmpegCodec}
+          setFfmpegCodec={setFfmpegCodec}
         />
       )}
     </div >
