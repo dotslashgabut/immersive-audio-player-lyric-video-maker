@@ -51,6 +51,7 @@ const DEFAULT_CONFIG: RenderConfig = {
     visualTransitionType: 'none',
     visualTransitionDuration: 1.0,
     enableGradientOverlay: false,
+    useRealColorMedia: false,
 };
 
 
@@ -702,6 +703,10 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
             if (derived) {
                 newConfig.highlightColor = derived.color;
                 newConfig.highlightBackground = derived.bg;
+            } else {
+                // Return to default orange if the effect doesn't enforce a color
+                newConfig.highlightColor = '#fb923c';
+                newConfig.highlightBackground = '#fb923c';
             }
         }
 
@@ -786,6 +791,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
             onClearCustomFont();
             // Reset additional properties not in DEFAULT_CONFIG spread if any (explicitly setting undefined/false where needed if DEFAULT_CONFIG isn't enough - but it is)
             handleChange('enableGradientOverlay', false);
+            handleChange('useRealColorMedia', false);
 
             toast.success("All settings have been reset to default.");
         }
@@ -887,6 +893,9 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                     // Ensure boolean values
                     if (newConfig.useCustomHighlightColors !== undefined) {
                         newConfig.useCustomHighlightColors = Boolean(newConfig.useCustomHighlightColors);
+                    }
+                    if (newConfig.useRealColorMedia !== undefined) {
+                        newConfig.useRealColorMedia = Boolean(newConfig.useRealColorMedia);
                     }
                     if (newConfig.showChannelInfo !== undefined) newConfig.showChannelInfo = Boolean(newConfig.showChannelInfo);
                     if (newConfig.showIntro !== undefined) newConfig.showIntro = Boolean(newConfig.showIntro);
@@ -1264,6 +1273,24 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                         )}
                     </div>
 
+
+
+                    {/* Real Color Media Source Toggle */}
+                    <label className="bg-zinc-800/30 border border-white/5 rounded-lg p-2.5 flex items-center justify-between cursor-pointer hover:bg-zinc-800/50 transition-colors">
+                        <div className="flex flex-col">
+                            <span className="text-xs text-zinc-300 font-medium">Real Color Media Source</span>
+                            <span className="text-[10px] text-zinc-500">Disable dark dimming effect on background</span>
+                        </div>
+                        <div className="relative inline-flex items-center cursor-pointer">
+                            <input
+                                type="checkbox"
+                                checked={config.useRealColorMedia ?? false}
+                                onChange={(e) => handleChange('useRealColorMedia', e.target.checked)}
+                                className="sr-only peer"
+                            />
+                            <div className="w-8 h-4 bg-zinc-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-purple-600"></div>
+                        </div>
+                    </label>
 
                     {/* Gradient Overlay Toggle */}
                     <label className="bg-zinc-800/30 border border-white/5 rounded-lg p-2.5 flex items-center justify-between cursor-pointer hover:bg-zinc-800/50 transition-colors">
@@ -2060,7 +2087,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                             <p className="text-[9px] text-zinc-600 ml-1 leading-tight">
                                 {renderEngine === 'mediarecorder'
                                     ? 'Realtime recording while audio plays. Browser-dependent codecs.'
-                                    : 'Frame-by-frame capture. Faster than realtime with pro codecs (H.264, H.265, VP9, AV1).'}
+                                    : 'Frame-by-frame capture. With pro codecs (H.264, H.265).'}
                             </p>
                         </div>
 

@@ -1,5 +1,17 @@
 # Release Notes
 
+# v2.2.7
+
+## What's New
+- **Real Color Media Source**: Added a new toggle in Render Settings under "Background Effects".
+  - **Disable Darkening**: When enabled, removes the default semi-transparent dark overlay (used for text readability), allowing your background images and videos to display their true, vibrant original colors.
+  - **Universal Support**: Works seamlessly in the Web Player, Live Recorder, and FFmpeg Render engine.
+- **Settings Management**:
+  - **Reset Logic**: "Reset All Settings" now correctly resets the Real Color Media Source preferences to default (false).
+  - **Import/Export**: JSON settings import/export fully supports the new Real Color configuration.
+- **Bug Fixes**:
+  - Fixed loop video issue where videos would not loop correctly.
+
 # v2.2.6
 
 ## What's New
@@ -15,7 +27,6 @@
 - **Bug Fixes**:
   - Fixed discrepancy between Web View and Export for animated text effects.
   - Fixed dependency optimizer issues with FFmpeg worker files. 
-
 
 # v2.2.5
 
@@ -73,7 +84,6 @@
 - **Render Settings**: Fixed synchronization between UI toggles and internal render config.
 - **Lyric Scroll**: Fixed scrolling behavior to reset correctly on song repeat.
 - **Canvas Renderer**: Resolved type errors and custom color rendering issues.
-
 
 # v2.2.2
 
@@ -154,7 +164,6 @@
 - **Improved TTML Handling**: Enhanced parsing and export of Word-Level timing data (`<span>` tags) for precise karaoke synchronization.
 - **Smart Presets**: Selecting a named color effect (e.g., "Karaoke Blue") automatically configures the custom color pickers.
 - **Refined Rendering**: Improved visual consistency for both live playback and video export.
-
 
 # v2.1.0
 

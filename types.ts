@@ -136,10 +136,11 @@ export interface RenderConfig {
   visualTransitionType?: 'none' | 'crossfade' | 'fade-to-black';
   visualTransitionDuration?: number; // Seconds (default 1.0)
   enableGradientOverlay?: boolean;
+  useRealColorMedia?: boolean;
 }
 
 // Render Engine: MediaRecorder (realtime) vs FFmpeg (frame-by-frame)
 export type RenderEngine = 'mediarecorder' | 'ffmpeg';
 
 // FFmpeg-specific codec options
-export type FFmpegCodec = 'h264' | 'h265' | 'vp9' | 'av1';
+export type FFmpegCodec = 'h264' | 'h265';

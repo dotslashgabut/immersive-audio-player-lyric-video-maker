@@ -103,6 +103,7 @@
   - **Custom Gradient**: Manually define complex linear gradients.
   - **Solid Color**: Simple, clean backgrounds.
   - **Gradient Overlay**: Optional bottom-up fade for better text readability.
+  - **Real Color Media**: Toggle to disable the default dark dimming overlay, allowing background visual colors to pop.
 - **Lyric Display Control**:
   - **Modes**: Show All, Previous/Next, Next Only, or Active Line Only highlighting.
   - **Visibility**: Toggle Lyrics, Title, Artist, Cover Art, and Intro overlays independently.
