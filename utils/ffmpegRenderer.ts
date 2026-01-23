@@ -85,30 +85,25 @@ export async function getFFmpeg(onLog?: (message: string) => void): Promise<FFmp
       onLog?.('[FFmpeg] Cross-Origin Isolated: YES. Using Multi-Threaded Core 🚀');
 
       // Load FFmpeg with multi-threaded core
-      // Load FFmpeg with multi-threaded core
-      // Use absolute URL for local files to avoid relative path issues
-      const localBaseURL = new URL('/ffmpeg', window.location.origin).href; 
-      // Result: "http://localhost:5173/ffmpeg" (without trailing slash usually)
-      
+      const localBaseURL = '/ffmpeg';
       const remoteBaseURL = 'https://unpkg.com/@ffmpeg/core-mt@0.12.6/dist/esm';
       let coreURL: string, wasmURL: string, workerURL: string;
-      let localError: any = null;
 
       try {
         // Try to load local files first
-        onLog?.(`[FFmpeg] Attempting to load local core files from: ${localBaseURL}`);
+        onLog?.('[FFmpeg] Attempting to load local core files...');
 
         // Helper to safely load local files and detect 404s (SPA fallback to index.html)
         const loadLocal = async (url: string, type: string) => {
           const res = await fetch(url);
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          
+
           // Check if we got HTML back (indicates SPA fallback / 404)
           const contentType = res.headers.get('Content-Type');
           if (contentType && contentType.includes('text/html')) {
             throw new Error('Received HTML instead of binary');
           }
-          
+
           const blob = await res.blob();
           return URL.createObjectURL(new Blob([blob], { type }));
         };
@@ -120,24 +115,16 @@ export async function getFFmpeg(onLog?: (message: string) => void): Promise<FFmp
         ]);
 
         onLog?.('[FFmpeg] Using local core files (Offline Mode)');
-      } catch (e: any) {
-        localError = e;
-        onLog?.(`[FFmpeg] Local load failed (${e.message}). CDN fallback...`);
+      } catch (e) {
+        onLog?.('[FFmpeg] Local core files not found or failed to load. Falling back to online CDN.');
         console.warn('Local FFmpeg files not found:', e);
 
-        try {
-          // Fallback to remote files
-          [coreURL, wasmURL, workerURL] = await Promise.all([
-            toBlobURL(`${remoteBaseURL}/ffmpeg-core.js`, 'text/javascript'),
-            toBlobURL(`${remoteBaseURL}/ffmpeg-core.wasm`, 'application/wasm'),
-            toBlobURL(`${remoteBaseURL}/ffmpeg-core.worker.js`, 'text/javascript'),
-          ]);
-        } catch (remoteError: any) {
-           // If remote also fails, throw a combined error
-           const localMsg = localError?.message || String(localError);
-           const remoteMsg = remoteError?.message || String(remoteError);
-           throw new Error(`Failed to load FFmpeg. Local: ${localMsg}. Remote: ${remoteMsg}`);
-        }
+        // Fallback to remote files
+        [coreURL, wasmURL, workerURL] = await Promise.all([
+          toBlobURL(`${remoteBaseURL}/ffmpeg-core.js`, 'text/javascript'),
+          toBlobURL(`${remoteBaseURL}/ffmpeg-core.wasm`, 'application/wasm'),
+          toBlobURL(`${remoteBaseURL}/ffmpeg-core.worker.js`, 'text/javascript'),
+        ]);
       }
 
       await ffmpeg.load({
