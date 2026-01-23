@@ -1256,9 +1256,10 @@ function App() {
 
       toast.success(`Video exported successfully! (${result.format.toUpperCase()}, ${Math.round(result.duration)}s)`);
     } catch (error: any) {
-      if (error.message !== 'Render aborted') {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      if (errorMsg !== 'Render aborted') {
         console.error('FFmpeg render failed:', error);
-        toast.error(`FFmpeg render failed: ${error.message}`);
+        toast.error(`FFmpeg render failed: ${errorMsg}`);
       }
     } finally {
       setIsRendering(false);
