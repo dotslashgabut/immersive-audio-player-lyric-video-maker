@@ -111,6 +111,7 @@ function App() {
     introText: '',
     textCase: 'none',
     highlightEffect: 'karaoke',
+    useRealColorMedia: false,
   });
 
   // Ref to access latest config in event handlers without triggering re-renders
@@ -1196,7 +1197,11 @@ function App() {
 
     // Load cover art
     if (metadataToRender.coverUrl) {
-      loadPromises.push(loadImg('cover', metadataToRender.coverUrl));
+      if (metadataToRender.backgroundType === 'video') {
+        loadPromises.push(loadVid('background', metadataToRender.coverUrl));
+      } else {
+        loadPromises.push(loadImg('cover', metadataToRender.coverUrl));
+      }
     }
 
     // Load custom background
@@ -2045,7 +2050,7 @@ function App() {
           className="absolute inset-0 bg-black/30 transition-all duration-700"
           style={{
             backdropFilter: (renderConfig.backgroundBlurStrength > 0) ? `blur(${renderConfig.backgroundBlurStrength}px)` : (isBlurEnabled ? 'blur(12px)' : 'none'),
-            backgroundColor: (renderConfig.backgroundBlurStrength > 0 || isBlurEnabled) ? 'rgba(0,0,0,0.4)' : undefined
+            backgroundColor: renderConfig.useRealColorMedia ? 'transparent' : ((renderConfig.backgroundBlurStrength > 0 || isBlurEnabled) ? 'rgba(0,0,0,0.4)' : undefined)
           }}
         ></div>
 

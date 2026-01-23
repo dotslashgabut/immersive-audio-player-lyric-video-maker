@@ -917,7 +917,7 @@ export const drawCanvasFrame = (
     }
     if ((renderConfig && renderConfig.backgroundBlurStrength > 0) || isBlurEnabled) ctx.filter = 'none';
 
-    if (!['just_video', 'none'].includes(activePreset)) {
+    if (!['just_video', 'none'].includes(activePreset) && !renderConfig?.useRealColorMedia) {
         ctx.fillStyle = (renderConfig && (renderConfig.backgroundSource === 'color' || renderConfig.backgroundSource === 'gradient')) ? 'rgba(0, 0, 0, 0.2)' : 'rgba(0, 0, 0, 0.5)';
         ctx.fillRect(0, 0, width, height);
     }

@@ -547,6 +547,14 @@ function syncVideoElements(
   time: number
 ) {
   videoMap.forEach((vid, id) => {
+    if (id === 'background') {
+      const duration = vid.duration || 1;
+      if (duration > 0) {
+        vid.currentTime = time % duration;
+      }
+      return;
+    }
+
     const slide = visualSlides.find(s => s.id === id);
     if (slide && slide.type === 'video') {
       if (time >= slide.startTime && time < slide.endTime) {
