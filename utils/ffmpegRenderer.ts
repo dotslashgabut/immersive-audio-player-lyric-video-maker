@@ -93,25 +93,10 @@ export async function getFFmpeg(onLog?: (message: string) => void): Promise<FFmp
         // Try to load local files first
         onLog?.('[FFmpeg] Attempting to load local core files...');
 
-        // Helper to safely load local files and detect 404s (SPA fallback to index.html)
-        const loadLocal = async (url: string, type: string) => {
-          const res = await fetch(url);
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
-          // Check if we got HTML back (indicates SPA fallback / 404)
-          const contentType = res.headers.get('Content-Type');
-          if (contentType && contentType.includes('text/html')) {
-            throw new Error('Received HTML instead of binary');
-          }
-
-          const blob = await res.blob();
-          return URL.createObjectURL(new Blob([blob], { type }));
-        };
-
         [coreURL, wasmURL, workerURL] = await Promise.all([
-          loadLocal(`${localBaseURL}/ffmpeg-core.js`, 'text/javascript'),
-          loadLocal(`${localBaseURL}/ffmpeg-core.wasm`, 'application/wasm'),
-          loadLocal(`${localBaseURL}/ffmpeg-core.worker.js`, 'text/javascript'),
+          toBlobURL(`${localBaseURL}/ffmpeg-core.js`, 'text/javascript'),
+          toBlobURL(`${localBaseURL}/ffmpeg-core.wasm`, 'application/wasm'),
+          toBlobURL(`${localBaseURL}/ffmpeg-core.worker.js`, 'text/javascript'),
         ]);
 
         onLog?.('[FFmpeg] Using local core files (Offline Mode)');
