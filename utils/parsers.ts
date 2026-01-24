@@ -49,12 +49,15 @@ export const parseLRC = (lrcContent: string): LyricLine[] => {
 
     if (matches.length > 0) {
       let rawContent = line.replace(timeRegex, '').trim();
+      // Normalize newlines early: replace literal "\n" with newline character
+      rawContent = rawContent.replace(/\\n/g, '\n');
+
       const wordMatches = [...rawContent.matchAll(wordTimeRegex)];
       let words: { text: string; startTime: number; endTime: number }[] | undefined;
 
-
+      // cleanText generation (remove tags)
       let cleanText = rawContent.replace(wordTimeRegex, '').replace(/  +/g, ' ').trim();
-      cleanText = cleanText.replace(/\\n/g, '\n');
+      // cleanText already has newlines from rawContent replacement
 
       if (wordMatches.length > 0) {
         words = [];
@@ -74,11 +77,20 @@ export const parseLRC = (lrcContent: string): LyricLine[] => {
           const textPart = rawContent.substring(startIdx, endIdx);
 
           if (textPart) {
-            const parts = textPart.split(/(\\n)/g);
-            parts.forEach(p => {
+            // Split by standard newline since we normalized it
+            const parts = textPart.split('\n');
+            parts.forEach((p, pIdx) => {
               if (p) {
-                words.push({
-                  text: p === '\\n' ? '\n' : p, // Convert literal \n to newline char
+                words!.push({
+                  text: p,
+                  startTime: startTime,
+                  endTime: 0
+                });
+              }
+              // Re-insert newline as a word if not the last part
+              if (pIdx < parts.length - 1) {
+                words!.push({
+                  text: '\n',
                   startTime: startTime,
                   endTime: 0
                 });
@@ -87,6 +99,14 @@ export const parseLRC = (lrcContent: string): LyricLine[] => {
           }
         }
 
+        // Fix logic for initial text before first timestamp? 
+        // Standard spec says text before first tag belongs to previous line or ignored? 
+        // We only handle text AFTER tags here. 
+        // If there is text before first tag: "<00:01>Word". StartIdx=0? No.
+        // If "Intro <00:01> Word".
+        // wordMatches[0].index > 0.
+        // We currently ignore text before first tag. This is standard behavior for Enhanced LRC word-sync.
+        // But if we want to be safe, we could check. But let's stick to current logic which iterates matches.
 
         for (let i = 0; i < words.length; i++) {
           if (i < words.length - 1) {

@@ -252,14 +252,24 @@ export const drawCanvasFrame = (
         let words: LyricWord[] = line.words || [];
 
         if (words.length === 0) {
-            // Fallback: Split by space if no timings
-            const rawWords = line.text.split(' ');
-            words = rawWords.map(t => ({ text: t, startTime: line.time, endTime: line.endTime || (line.time + 3) }));
+            // Fallback: Split by space but preserve newlines
+            const rawLines = line.text.split('\n');
+            words = [];
+            rawLines.forEach((lText, lIdx) => {
+                // Split by spaces
+                const lWords = lText.split(' ').map(t => ({ text: t, startTime: line.time, endTime: line.endTime || (line.time + 3) }));
+                words.push(...lWords);
+                // valid word check is done later
+                if (lIdx < rawLines.length - 1) {
+                    // Insert explicit newline marker
+                    words.push({ text: '\n', startTime: line.time, endTime: line.endTime });
+                }
+            });
         }
 
         const displayWords = words
-            .filter(w => w.text.trim().length > 0)
-            .map((w, index) => ({ ...w, text: transformText(w.text, index === 0).trim() }));
+            .filter(w => w.text === '\n' || w.text.trim().length > 0)
+            .map((w, index) => ({ ...w, text: w.text === '\n' ? '\n' : transformText(w.text, index === 0).trim() }));
 
         // Explicitly set font for measurement
         ctx.font = `${style} ${weight} ${baseFontSize}px ${fontFamily}`;
@@ -278,6 +288,13 @@ export const drawCanvasFrame = (
         const spaceWidth = ctx.measureText('M').width * spaceMultiplier;
 
         displayWords.forEach((word, index) => {
+            if (word.text === '\n') {
+                if (currentLine.length > 0) lines.push(currentLine);
+                currentLine = [];
+                currentLineWidth = 0;
+                return;
+            }
+
             const wordWidth = ctx.measureText(word.text).width;
 
             // Check spacing with next word
@@ -291,7 +308,7 @@ export const drawCanvasFrame = (
             if (hyphenEndRegex.test(word.text.trim())) addSpace = false;
 
             const nextWord = displayWords[index + 1];
-            if (nextWord && hyphenStartRegex.test(nextWord.text.trim())) addSpace = false;
+            if (nextWord && (hyphenStartRegex.test(nextWord.text.trim()) || nextWord.text === '\n')) addSpace = false;
 
             const spaceToAdd = addSpace ? spaceWidth : 0;
 
@@ -981,9 +998,9 @@ export const drawCanvasFrame = (
         // Vertical Position Logic
         let centerY = height / 2;
         if (renderConfig?.contentPosition === 'top') {
-            centerY = height * 0.25;
+            centerY = height * 0.15; // Adjusted to be closer to top edge
         } else if (renderConfig?.contentPosition === 'bottom') {
-            centerY = height * 0.75;
+            centerY = height * 0.9; // Adjusted to be closer to bottom edge (Subtitle standard)
         }
 
         let activeLineShift = 0;
@@ -1337,9 +1354,9 @@ export const drawCanvasFrame = (
                     const isKaraokeMode = renderConfig && renderConfig.highlightEffect && renderConfig.highlightEffect !== 'none';
 
                     if (isCurrent && line) {
-                        drawKaraokeText(ctx, line, xPos, yPos, width * 0.9, fs * 1.2, time, renderConfig!, fontFamily, fs, weight, style, scale);
+                        drawKaraokeText(ctx, line, xPos, yPos, width * 0.9, fs * (renderConfig?.lyricLineHeight || 1.2), time, renderConfig!, fontFamily, fs, weight, style, scale);
                     } else {
-                        drawWrappedText(ctx, textToDraw, xPos, yPos, width * 0.9, fs * 1.2, textEffect, decoration);
+                        drawWrappedText(ctx, textToDraw, xPos, yPos, width * 0.9, fs * (renderConfig?.lyricLineHeight || 1.2), textEffect, decoration);
                     }
                 }
                 ctx.restore();

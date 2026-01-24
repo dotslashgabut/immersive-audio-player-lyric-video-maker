@@ -14,8 +14,9 @@ const DEFAULT_CONFIG: RenderConfig = {
     contentPosition: 'center',
     fontFamily: 'ui-sans-serif, system-ui, sans-serif',
     fontSizeScale: 1.0,
+    lyricLineHeight: 1.2,
     fontColor: '#ffffff',
-    textEffect: 'shadow',
+    textEffect: 'preset',
     textAnimation: 'none',
     transitionEffect: 'none',
     lyricDisplayMode: 'all',
@@ -728,7 +729,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                 textAlign: 'center',
                 contentPosition: 'center',
                 textDecoration: 'none',
-                textEffect: 'shadow',
+                textEffect: 'preset',
                 textAnimation: 'none',
                 highlightEffect: 'karaoke',
                 highlightColor: '#fb923c',
@@ -881,7 +882,10 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                         'infoSizeScale',
                         'channelInfoSizeScale',
                         'channelInfoMarginScale',
-                        'visualTransitionDuration'
+                        'channelInfoSizeScale',
+                        'channelInfoMarginScale',
+                        'visualTransitionDuration',
+                        'lyricLineHeight'
                     ];
 
                     numericFields.forEach(field => {
@@ -1923,6 +1927,25 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                                     className="w-full h-1 bg-zinc-600 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full hover:[&::-webkit-slider-thumb]:bg-purple-400 transition-all"
                                 />
                                 <span className="text-zinc-300"><Type size={16} /></span>
+                            </div>
+                        </div>
+
+                        <div className="space-y-1.5">
+                            <div className="flex justify-between items-center">
+                                <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Current Line Height</label>
+                                <span className="text-[10px] text-zinc-400 font-mono">{(config.lyricLineHeight || 1.2).toFixed(1)}x</span>
+                            </div>
+                            <div className="flex items-center gap-2 bg-zinc-800 border border-white/10 rounded-lg px-2 py-1.5">
+                                <span className="text-zinc-500"><AlignVerticalJustifyCenter size={12} /></span>
+                                <input
+                                    type="range"
+                                    min="1.0"
+                                    max="3.0"
+                                    step="0.1"
+                                    value={config.lyricLineHeight || 1.2}
+                                    onChange={(e) => handleChange('lyricLineHeight', parseFloat(e.target.value))}
+                                    className="w-full h-1 bg-zinc-600 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full hover:[&::-webkit-slider-thumb]:bg-purple-400 transition-all"
+                                />
                             </div>
                         </div>
 
