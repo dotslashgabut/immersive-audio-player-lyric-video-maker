@@ -1,6 +1,7 @@
 <div align="center">
   <img src="public/icon.svg" width="100" />
   <h1>Immersive Audio Player & Lyric Video Maker</h1>
+  <p><b>Version 2.2.8</b></p>
 </div>
 
 **Immersive Audio Player & Lyric Video Maker** is a powerful all-in-one web tool designed for music lovers and content creators. It combines a distraction-free audio player with a professional-grade timeline editor, allowing you to create stunning, synchronized lyric videos directly in your browser. Whether you want to enjoy your local music library with beautiful visuals or create viral content for TikTok, Instagram, and YouTube, this app delivers high-quality results without watermarks or server uploads.

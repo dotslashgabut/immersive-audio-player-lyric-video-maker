@@ -1,5 +1,12 @@
 # Release Notes
 
+# v2.2.8
+
+## What's New
+- **Bug Fixes**:
+  - **Visual Presets**: Fixed text truncation issues in the **Subtitle** preset for both Web View and Exported Video.
+  - **Code Cleanup**: Removed unrelated comments and unused code. 
+
 # v2.2.7
 
 ## What's New

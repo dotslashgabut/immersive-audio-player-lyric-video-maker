@@ -90,7 +90,7 @@ function App() {
     fontFamily: 'ui-sans-serif, system-ui, sans-serif',
     fontSizeScale: 1.0,
     fontColor: '#ffffff',
-    textEffect: 'shadow',
+    textEffect: 'preset',
     textAnimation: 'none',
     transitionEffect: 'none',
     lyricDisplayMode: 'all',
@@ -111,6 +111,7 @@ function App() {
     introText: '',
     textCase: 'none',
     highlightEffect: 'karaoke',
+    lyricLineHeight: 1.2,
     useRealColorMedia: false,
   });
 
@@ -1261,10 +1262,9 @@ function App() {
 
       toast.success(`Video exported successfully! (${result.format.toUpperCase()}, ${Math.round(result.duration)}s)`);
     } catch (error: any) {
-      const errorMsg = error instanceof Error ? error.message : String(error);
-      if (errorMsg !== 'Render aborted') {
+      if (error.message !== 'Render aborted') {
         console.error('FFmpeg render failed:', error);
-        toast.error(`FFmpeg render failed: ${errorMsg}`);
+        toast.error(`FFmpeg render failed: ${error.message}`);
       }
     } finally {
       setIsRendering(false);
@@ -1580,7 +1580,7 @@ function App() {
               textAlign: 'center',
               contentPosition: 'center',
               textDecoration: 'none',
-              textEffect: 'shadow',
+              textEffect: 'preset',
               textAnimation: 'none',
               highlightEffect: 'karaoke', // Default to karaoke if not specified? Or 'none'? Use DEFAULT_CONFIG values.
               highlightColor: '#fb923c',
@@ -2338,21 +2338,21 @@ function App() {
               className={`w-full max-w-5xl max-h-full overflow-y-auto no-scrollbar px-4 md:px-6 space-y-4 md:space-y-6 transition-all duration-500 lyrics-root ${renderConfig.textAlign === 'left' ? 'text-left' : renderConfig.textAlign === 'right' ? 'text-right' : 'text-center'
                 } ${!renderConfig.showLyrics ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
               style={{
-                maskImage: (isHeaderVisible || isFooterVisible)
+                maskImage: (isHeaderVisible || isFooterVisible) && preset !== 'subtitle'
                   ? 'linear-gradient(to bottom, transparent, black 10%, black 90%, transparent)'
                   : 'none'
               }}
             >
               <style>{`
-                .lyrics-root .text-lg { font-size: calc(1.125rem * ${renderConfig.fontSizeScale}); line-height: calc(1.75rem * ${renderConfig.fontSizeScale}); }
-                .lyrics-root .text-xl { font-size: calc(1.25rem * ${renderConfig.fontSizeScale}); line-height: calc(1.75rem * ${renderConfig.fontSizeScale}); }
-                .lyrics-root .text-2xl { font-size: calc(1.5rem * ${renderConfig.fontSizeScale}); line-height: calc(2rem * ${renderConfig.fontSizeScale}); }
-                .lyrics-root .text-3xl { font-size: calc(1.875rem * ${renderConfig.fontSizeScale}); line-height: calc(2.25rem * ${renderConfig.fontSizeScale}); }
-                .lyrics-root .text-4xl { font-size: calc(2.25rem * ${renderConfig.fontSizeScale}); line-height: calc(2.5rem * ${renderConfig.fontSizeScale}); }
-                .lyrics-root .text-5xl { font-size: calc(3rem * ${renderConfig.fontSizeScale}); }
-                .lyrics-root .text-6xl { font-size: calc(3.75rem * ${renderConfig.fontSizeScale}); }
-                .lyrics-root .text-7xl { font-size: calc(4.5rem * ${renderConfig.fontSizeScale}); }
-                .lyrics-root .text-8xl { font-size: calc(6rem * ${renderConfig.fontSizeScale}); }
+                .lyrics-root .text-lg { font-size: calc(1.125rem * ${renderConfig.fontSizeScale}); line-height: calc(1.75rem * ${renderConfig.fontSizeScale} * ${renderConfig.lyricLineHeight || 1.2}); }
+                .lyrics-root .text-xl { font-size: calc(1.25rem * ${renderConfig.fontSizeScale}); line-height: calc(1.75rem * ${renderConfig.fontSizeScale} * ${renderConfig.lyricLineHeight || 1.2}); }
+                .lyrics-root .text-2xl { font-size: calc(1.5rem * ${renderConfig.fontSizeScale}); line-height: calc(2rem * ${renderConfig.fontSizeScale} * ${renderConfig.lyricLineHeight || 1.2}); }
+                .lyrics-root .text-3xl { font-size: calc(1.875rem * ${renderConfig.fontSizeScale}); line-height: calc(2.25rem * ${renderConfig.fontSizeScale} * ${renderConfig.lyricLineHeight || 1.2}); }
+                .lyrics-root .text-4xl { font-size: calc(2.25rem * ${renderConfig.fontSizeScale}); line-height: calc(2.5rem * ${renderConfig.fontSizeScale} * ${renderConfig.lyricLineHeight || 1.2}); }
+                .lyrics-root .text-5xl { font-size: calc(3rem * ${renderConfig.fontSizeScale}); line-height: calc(1 * ${renderConfig.lyricLineHeight || 1.2}); }
+                .lyrics-root .text-6xl { font-size: calc(3.75rem * ${renderConfig.fontSizeScale}); line-height: calc(1 * ${renderConfig.lyricLineHeight || 1.2}); }
+                .lyrics-root .text-7xl { font-size: calc(4.5rem * ${renderConfig.fontSizeScale}); line-height: calc(1 * ${renderConfig.lyricLineHeight || 1.2}); }
+                .lyrics-root .text-8xl { font-size: calc(6rem * ${renderConfig.fontSizeScale}); line-height: calc(1 * ${renderConfig.lyricLineHeight || 1.2}); }
               `}</style>
               <div className={`transition-all duration-500 ${renderConfig.contentPosition === 'center' ? ((activeTab === TabView.EDITOR || isPlaylistMode) ? 'h-[25vh]' : (!isHeaderVisible && !isFooterVisible) ? 'h-[50vh]' : 'h-[40vh]') : 'h-0'}`}></div>
               {adjustedLyrics.map((line, idx) => {
@@ -2560,31 +2560,26 @@ function App() {
                   activeClass = `${activeSize} text-white tracking-wide text-center`;
                   inactiveClass = 'hidden';
                 } else if (preset === 'subtitle') {
-                  // Subtitle: Small, bottom-center (adjusts based on footer visibility and editor/playlist)
+                  // Subtitle: Small, bottom-center (adjusts based on visible panels)
                   const activeSize = isPortraitPreview
                     ? (isEditor ? 'text-2xl' : 'text-3xl')
                     : (isEditor ? 'text-3xl' : 'text-4xl');
-                  activeClass = `${activeSize} text-white tracking-wide text-center`;
+                  activeClass = `${activeSize} text-white tracking-wide text-center whitespace-pre-wrap`;
                   inactiveClass = 'hidden';
-                  // Position based on visible panels:
-                  // - Editor/Playlist panel: ~280px
-                  // - Footer (audio controls): ~160px (bottom-40) -> Bumped to avoid overlap
-                  // - Minimal (nothing visible): ~64px (bottom-16)
-                  let bottomClass = 'bottom-16';
+
+                  // Position bumping to avoid footer overlap
+                  let bottomClass = 'bottom-16'; // Minimal mode (approx 64px)
                   if (isEditor && isFooterVisible) {
-                    // Both editor/playlist AND footer visible
-                    // 280 + 180 = 460. Using 540 for safety.
-                    bottomClass = 'bottom-[540px]';
+                    bottomClass = 'bottom-[560px]'; // Editor + Footer
                   } else if (isEditor) {
-                    // Only editor/playlist visible
-                    // ~280px. Using 360 for safety.
-                    bottomClass = 'bottom-[360px]';
+                    bottomClass = 'bottom-[360px]'; // Editor only
                   } else if (isFooterVisible) {
-                    // Only footer visible
-                    // ~160px + buffer -> bottom-48 (192px)
-                    bottomClass = 'bottom-48';
+                    bottomClass = 'bottom-[280px]'; // Footer only (approx 280px to clear max-h-60 footer)
                   }
-                  containerClass += `fixed ${bottomClass} left-1/2 -translate-x-1/2 w-full max-w-4xl px-4 `;
+
+                  // Clean up conflicting classes (remove absolute/transform if we want reliable fixed behavior)
+                  containerClass = containerClass.replace('absolute', '').replace('transform', '');
+                  containerClass += `fixed ${bottomClass} left-1/2 -translate-x-1/2 w-full px-8 z-[100] pointer-events-none `;
                 } else if (preset === 'custom') {
                   const activeSize = isPortraitPreview
                     ? (isEditor ? 'text-4xl' : 'text-5xl')
@@ -2790,6 +2785,9 @@ function App() {
                             wordStyle.padding = '2px 6px';
                             wordStyle.borderRadius = '4px';
                             wordStyle.opacity = 1;
+                          } else if (hEffect === 'karaoke-smooth') {
+                            wordStyle.color = renderConfig.highlightColor || '#fb923c';
+                            wordStyle.opacity = 1;
                           } else {
                             // Standard Karaoke:
                             // User Request: Only highlight CURRENT word for presets (non-custom).
@@ -2798,26 +2796,6 @@ function App() {
 
                             if (preset === 'custom') {
                               wordStyle.color = renderConfig.fontColor;
-                              // Actually, if it's custom, maybe they WANT the fill?
-                              // The user said "preset-preset itu (selain custom)". 
-                              // Use old logic for Custom?
-                              // "fix issue untuk preset-preset itu (selain custom)"
-                              // So for Custom, we do what we did? 
-                              // Logic in Step 90 was: wordStyle.color = preset === 'custom' ? renderConfig.fontColor : hColor;
-                              // Wait, if custom, it used fontColor (which is NOT highlighted).
-                              // If NOT custom, it used hColor (Highlighted).
-                              // So previous logic was: Custom -> Normal Color, Presets -> Highlighted.
-                              // Now I want: Presets -> Normal Color.
-
-                              // So for ALL cases (Custom OR Presets), we want Normal Color for past words?
-                              // "seharusnya hanya kata (current word/current timestamp) yang terhighlight."
-                              // This implies "highlight" is transient.
-
-                              // So, remove the explicit hColor assignment for everyone?
-                              // Or does Custom allow configuring it?
-                              // Let's just remove the assignment so it inherits the base color (which is opacity 1).
-                              // But wait, standard karaoke usually keeps the color.
-                              // I will explicitly set opacity 1. And NOT set color (so it inherits white/preset color).
                             }
 
                             // wordStyle.color = ... (Remove this to inherit)
@@ -2825,56 +2803,25 @@ function App() {
                           }
                         }
 
-                        // Construct Element
-                        // Note: For 'shouldAddSpace', we append {' '} in the return.
-                        // We do NOT use marginRight.
-
-                        // However, we must return a single node or fragment.
-                        // For styling and effects application later in the code (below this block),
-                        // we need to keep 'wordStyle' mutable or apply it now.
-                        // The code CONTINUES after this block to apply Active Effects to 'wordStyle'.
-                        // So we cannot return the JSX yet.
-                        // We must adapt the existing structure which returns at the END of the map.
-                        // But wait, the previous code had 'return' inside the map? No, it returns the result of the map.
-                        // The previous code had a monolithic block.
-                        // I am editing a chunk in the middle.
-                        // I CANNOT return the JSX here because the user code continues with `if (isWordActive) { ... }`
-                        // AND THEN returns the component at the very end of the map function (which is likely hidden in truncated view).
-                        // Let's check where the map returns.
-                        // The truncated view at line 2420 shows `} else if (hEffect === 'karaoke-scale') {`.
-                        // The map function is HUGE.
-                        // I cannot change the return structure to React.Fragment easily without replacing the ENTIRE map function, 
-                        // which is very risky and large.
-
-                        // ALTERNATIVE FIX for Alignment:
-                        // Keep marginRight logic but make it '0px' always, and insert a space character INSIDE the span or AFTER?
-                        // If I return <span style={...}>{wText} </span> (space inside), it works for wrapping IF white-space is normal.
-                        // `whiteSpace: 'pre-wrap'` is set on the container (line 2017: `whitespace-pre-wrap`).
-                        // If I put space inside span, underline/bg will cover the space.
-                        // Usually undesirable for karaoke.
-                        // Ideally space is outside.
-                        // Since I cannot change the return signature easily (limitations of view), I will try to FIX the margin logic to be cleaner, 
-                        // OR I will assume I can edit the `return` statement if I view enough lines.
-
-                        // Let's stick to the Color Fix first and the Margin Fix attempts.
-                        // If sticking to Margin: The issue is wrapped aligned lines.
-                        // Browser treats inline-block with margin-right at end of line ... does it ignore margin?
-                        // Generally yes, but webkit sometimes doesn't for centering.
-                        // If I cannot use {' '}, I will use `marginRight: shouldAddSpace ? '0.25em' : '0px'`.
-                        // I already did that. User says it still shifts "wrap text (current lyric line)".
-                        // This implies the 0.25em is still there on the edge word of the FIRST line of the wrap.
-                        // I cannot detect line wrap in JS easily.
-
-                        // I MUST switch to {' '}.
-                        // To do that, I must replace the RETURN statement of the map.
-                        // I need to view the end of the map function.
+                        // Active State Per Effect
 
                         // Active State Per Effect
                         if (isWordActive) {
                           const hColor = renderConfig.highlightColor || '#fb923c';
                           const hBg = renderConfig.highlightBackground || '#fb923c';
 
-                          if (hEffect === 'karaoke' || hEffect === 'color') {
+                          if (hEffect === 'karaoke-smooth') {
+                            const duration = w.endTime - w.startTime;
+                            const elapsed = currentTime - wStart;
+                            const progress = Math.min(100, Math.max(0, (elapsed / duration) * 100));
+
+                            wordStyle.backgroundImage = `linear-gradient(90deg, ${hColor} ${progress}%, ${renderConfig.fontColor || '#ffffff'} ${progress}%)`;
+                            wordStyle.backgroundClip = 'text';
+                            wordStyle.WebkitBackgroundClip = 'text';
+                            wordStyle.color = 'transparent';
+                            wordStyle.WebkitTextFillColor = 'transparent';
+                            wordStyle.textShadow = 'none';
+                          } else if (hEffect === 'karaoke' || hEffect === 'color') {
                             wordStyle.color = hColor;
                             wordStyle.textShadow = `0 0 10px ${hColor}`;
                           } else if (hEffect === 'karaoke-neon') {
@@ -3342,7 +3289,7 @@ function App() {
                             textAlign: 'center',
                             contentPosition: 'center',
                             textDecoration: 'none',
-                            textEffect: 'shadow',
+                            textEffect: 'preset',
                             textAnimation: 'none',
                             highlightEffect: 'karaoke',
                             highlightColor: '#fb923c',
