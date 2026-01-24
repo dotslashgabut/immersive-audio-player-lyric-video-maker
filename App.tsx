@@ -3067,8 +3067,7 @@ function App() {
                   <p
                     key={idx}
                     data-lyric-active={isActive ? "true" : "false"}
-                    className={`${containerClass} ${isActive ? activeClass : inactiveClass} ${isActive && renderConfig.textAnimation !== 'none' && renderConfig.textAnimation !== 'typewriter' ? `text-anim-${renderConfig.textAnimation}` : ''}`}
-                    style={textEffectStyles}
+                    className={`${containerClass} ${isActive ? activeClass : inactiveClass}`}
                     onClick={() => {
                       if (isActive) {
                         navigator.clipboard.writeText(line.text);
@@ -3076,18 +3075,15 @@ function App() {
                       }
                       if (audioRef.current && !isRendering) {
                         audioRef.current.currentTime = line.time;
-                        // If we want to jump to the EXACT point in audio where this lyric is SUPPOSED to play now:
-                        // line.time IS (originalTime + offset).
-                        // So if we seek to line.time, we are seeking to the adjusted time.
-                        // Example: Lyric originally 10s. Offset +5s. adjusted time = 15s.
-                        // We see text. Click it. Audio jumps to 15s.
-                        // At 15s, currentLyricIndex checks if time >= 15s. Yes.
-                        // So the lyric matches the audio at that new point. Correct.
                         setCurrentTime(line.time);
                       }
                     }}
                   >
-                    {contentRender}
+                    <span className={`inline-block ${isActive && renderConfig.textAnimation !== 'none' && renderConfig.textAnimation !== 'typewriter' ? `text-anim-${renderConfig.textAnimation}` : ''}`}>
+                      <span style={textEffectStyles} className="inline-block">
+                        {contentRender}
+                      </span>
+                    </span>
                   </p>
                 );
               })}
