@@ -5,7 +5,7 @@
 ## What's New
 - **VTT Support**: Full support for WebVTT (`.vtt`) subtitle format.
   - **Import**: Drag & Drop or manually load `.vtt` files for any track.
-  - **Playback**: Native parsing and synchronization of VTT timestamps.
+  - **Playback**: Native parsing and synchronization of VTT timestamps, including **Word-Level** `<timestamp>` tags for karaoke effects.
   - **Export**: Export lyrics to **VTT** format, including robust end-time management (fallback logic matching SRT) and support for **Word-Level** tags (`<timestamp>`) for karaoke displays.
 - **Playlist Management**:
   - **Auto-Detection**: The playlist editor now recognizes `.vtt` files during drag-and-drop operations for automatic pairing.

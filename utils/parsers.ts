@@ -319,10 +319,10 @@ export const parseVTT = (vttContent: string): LyricLine[] => {
   const parseTime = (timeStr: string): number | null => {
     const match = timeStr.match(timeRegex);
     if (match) {
-        // match[1] is HH: (optional)
-        // match[2] is MM
-        // match[3] is SS
-        // match[4] is mmm
+      // match[1] is HH: (optional)
+      // match[2] is MM
+      // match[3] is SS
+      // match[4] is mmm
       const hrs = match[1] ? parseInt(match[1].replace(':', ''), 10) : 0;
       const mins = parseInt(match[2], 10);
       const secs = parseInt(match[3], 10);
@@ -334,61 +334,130 @@ export const parseVTT = (vttContent: string): LyricLine[] => {
 
   // VTT parsing is slightly more complex than SRT due to optional headers and settings
   // But for simple lyric extraction, we can look for timestamp lines.
-  
+
   let i = 0;
   // Skip WEBVTT header
   if (lines[0] && lines[0].startsWith('WEBVTT')) {
-      i = 1;
+    i = 1;
   }
 
   while (i < lines.length) {
-      const line = lines[i].trim();
-      
-      // Check for timestamp line: "00:00:10.000 --> 00:00:15.000" (possibly with settings)
-      if (line.includes('-->')) {
-          const parts = line.split('-->');
-          if (parts.length >= 2) {
-              const startStr = parts[0].trim();
-              const endStr = parts[1].trim().split(' ')[0]; // ignore settings after timestamp
-              
-              const startTime = parseTime(startStr);
-              const endTime = parseTime(endStr);
-              
-              if (startTime !== null) {
-                  // Collect text lines until next blank line or timestamp
-                  i++;
-                  let textLines: string[] = [];
-                  while(i < lines.length) {
-                      const nextLine = lines[i].trim();
-                      if (nextLine === '' || nextLine.includes('-->')) {
-                          break;
-                      }
-                      textLines.push(lines[i]); // Keep original spacing/indent? usually trim is safe for lyrics
-                      i++;
-                  }
-                  
-                  // Backtrack if we hit a timestamp line (unlikely if strictly followed by blank, but VTT can be loose)
-                  if (i < lines.length && lines[i].includes('-->')) {
-                      // We consumed a timestamp line in the inner loop? 
-                      // actually the condition `nextLine.includes('-->')` breaks before consuming it usually.
-                      // But if we broke because of that, we shouldn't increment i in the outer loop yet?
-                      // Wait, the outer loop continues.
-                  } 
-                  
-                  if (textLines.length > 0) {
-                      const rawText = textLines.join(' ').trim();
-                      const text = fixCJKSpacing(rawText);
-                      lyrics.push({
-                          time: startTime,
-                          text,
-                          endTime: endTime !== null ? endTime : undefined
-                      });
-                  }
-                  continue; // loop continues from current i
-              }
+    const line = lines[i].trim();
+
+    // Check for timestamp line: "00:00:10.000 --> 00:00:15.000" (possibly with settings)
+    if (line.includes('-->')) {
+      const parts = line.split('-->');
+      if (parts.length >= 2) {
+        const startStr = parts[0].trim();
+        const endStr = parts[1].trim().split(' ')[0]; // ignore settings after timestamp
+
+        const startTime = parseTime(startStr);
+        const endTime = parseTime(endStr);
+
+        if (startTime !== null) {
+          // Collect text lines until next blank line or timestamp
+          i++;
+          let textLines: string[] = [];
+          while (i < lines.length) {
+            const nextLine = lines[i].trim();
+            if (nextLine === '' || nextLine.includes('-->')) {
+              break;
+            }
+            textLines.push(lines[i]); // Keep original spacing/indent? usually trim is safe for lyrics
+            i++;
           }
+
+          // Backtrack if we hit a timestamp line (unlikely if strictly followed by blank, but VTT can be loose)
+          if (i < lines.length && lines[i].includes('-->')) {
+            // We consumed a timestamp line in the inner loop? 
+            // actually the condition `nextLine.includes('-->')` breaks before consuming it usually.
+            // But if we broke because of that, we shouldn't increment i in the outer loop yet?
+            // Wait, the outer loop continues.
+          }
+
+          if (textLines.length > 0) {
+            const rawText = textLines.join(' ').trim();
+
+            // Check for word-level timestamps
+            // Format: <00:00:01.000>Word or <00:01.000>Word
+            // Regex to find tags: <(\d{2}:)?(\d{2}):(\d{2})\.(\d{3})>
+            const wordTimeRegex = /<(\d{2}:)?(\d{2}):(\d{2})\.(\d{3})>/g;
+
+            let words: { text: string; startTime: number; endTime: number }[] | undefined;
+
+            // Use matchAll directly to avoid stateful issues with .test()
+            const matches = [...rawText.matchAll(wordTimeRegex)];
+
+            if (matches.length > 0) {
+              words = [];
+
+              // We need to split the text by these matches to get the words associated with them
+
+              matches.forEach((m, idx) => {
+                // Calculate time
+                const hrs = m[1] ? parseInt(m[1].replace(':', ''), 10) : 0;
+                const mins = parseInt(m[2], 10);
+                const secs = parseInt(m[3], 10);
+                const ms = parseInt(m[4], 10);
+                const wStartTime = (hrs * 3600) + (mins * 60) + secs + (ms / 1000);
+
+                const tagEndIndex = (m.index || 0) + m[0].length;
+
+                // Text for this word starts at tagEndIndex and goes until next match index or end of string
+                let nextMatchIndex = rawText.length;
+                if (idx + 1 < matches.length) {
+                  nextMatchIndex = matches[idx + 1].index || rawText.length;
+                }
+
+                const wordText = rawText.substring(tagEndIndex, nextMatchIndex);
+
+                // Also handle text BEFORE the first tag if any?
+                if (idx === 0 && (m.index || 0) > 0) {
+                  const preText = rawText.substring(0, m.index);
+                  if (preText.trim()) {
+                    words!.push({
+                      text: preText.trim(),
+                      startTime: startTime, // Line start time
+                      endTime: wStartTime
+                    });
+                  }
+                }
+
+                if (wordText) {
+                  words!.push({
+                    text: wordText,
+                    startTime: wStartTime,
+                    endTime: 0 // placeholder
+                  });
+                }
+              });
+
+              // Fix end times
+              for (let j = 0; j < words.length; j++) {
+                if (j < words.length - 1) {
+                  words[j].endTime = words[j + 1].startTime;
+                } else {
+                  words[j].endTime = endTime !== null ? endTime : words[j].startTime + 0.5;
+                }
+              }
+            }
+
+            // aggressive cleanup of tags using a broader regex
+            const cleanText = rawText.replace(/<[\d:.]+>/g, '').replace(/\s+/g, ' ').trim();
+            const text = fixCJKSpacing(cleanText);
+
+            lyrics.push({
+              time: startTime,
+              text,
+              endTime: endTime !== null ? endTime : undefined,
+              words: words && words.length > 0 ? words : undefined
+            });
+          }
+          continue; // loop continues from current i
+        }
       }
-      i++;
+    }
+    i++;
   }
 
   return lyrics;
