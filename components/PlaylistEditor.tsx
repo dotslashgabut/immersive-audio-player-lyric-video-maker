@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import { PlaylistItem, LyricLine } from '../types';
 import { Plus, Trash2, Play, Pause, Volume2, FileText, ListMusic, Shuffle, User, Disc, Music, X, Sparkles, Loader2, FileJson, FileType, FileDown, Key, Upload, Square, Search, Folder } from './Icons';
-import { formatTime, parseLRC, parseSRT, parseTTML, parseTimestamp, parseJSON } from '../utils/parsers';
+import { formatTime, parseLRC, parseSRT, parseTTML, parseTimestamp, parseJSON, parseVTT } from '../utils/parsers';
 import { useUI } from '../contexts/UIContext';
 import { transcribeAudio } from '../services/geminiService';
 
@@ -187,7 +187,7 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
             // Simple extension check
             if (['mp3', 'wav', 'ogg', 'flac', 'm4a'].includes(ext || '')) {
                 group.audio = file;
-            } else if (['lrc', 'srt', 'ttml', 'xml', 'json'].includes(ext || '')) {
+            } else if (['lrc', 'srt', 'ttml', 'xml', 'json', 'vtt'].includes(ext || '')) {
                 group.lyric = file;
             }
         });
@@ -244,6 +244,7 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
                 if (ext === 'lrc') return parseLRC(text);
                 if (ext === 'srt') return parseSRT(text);
                 if (ext === 'ttml' || ext === 'xml') return parseTTML(text);
+                if (ext === 'vtt') return parseVTT(text);
                 if (ext === 'json') return parseJSON(text);
             } catch (e) {
                 console.error("Failed to parse lyrics", e);
@@ -661,7 +662,7 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
         URL.revokeObjectURL(url);
     };
 
-    const exportLyrics = async (item: PlaylistItem, format: 'txt' | 'json' | 'srt' | 'lrc' | 'lrc-enhanced' | 'ttml') => {
+    const exportLyrics = async (item: PlaylistItem, format: 'txt' | 'json' | 'srt' | 'lrc' | 'lrc-enhanced' | 'ttml' | 'vtt') => {
         const rawLyrics = item.parsedLyrics || [];
         if (rawLyrics.length === 0) return;
 
@@ -879,6 +880,40 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
                 content += `\n      </p>`;
             });
             content += `\n    </div>\n  </body>\n</tt>`;
+        } else if (format === 'vtt') {
+            // WebVTT Format
+            const toVTTTime = (sec: number) => {
+                const hrs = Math.floor(sec / 3600).toString().padStart(2, '0');
+                const mins = Math.floor((sec % 3600) / 60).toString().padStart(2, '0');
+                const secs = Math.floor(sec % 60).toString().padStart(2, '0');
+                const ms = Math.floor((sec % 1) * 1000).toString().padStart(3, '0');
+                return `${hrs}:${mins}:${secs}.${ms}`;
+            };
+
+            content = "WEBVTT\n\n";
+
+            processedLyrics.forEach((l) => {
+                const start = toVTTTime(l.time);
+                // SRT-style fallback for end time: if missing or invalid, use start + 2s (or based on duration from pre-processing)
+                const endVal = (l.endTime !== undefined && l.endTime > l.time) ? l.endTime : l.time + 2;
+                const end = toVTTTime(endVal);
+
+                let lineText = l.text.trim();
+
+                // If word-level data exists (Enhanced LRC), generate karaoke-style VTT tags
+                if (l.words && l.words.length > 0) {
+                    const wordLine = l.words.map(w => {
+                        const wStart = toVTTTime(w.startTime);
+                        return `<${wStart}>${w.text.trim()}`;
+                    }).join(' ');
+
+                    if (wordLine.length > 0) {
+                        lineText = wordLine;
+                    }
+                }
+
+                content += `${start} --> ${end}\n${lineText}\n\n`;
+            });
         }
 
         downloadFile(content, filename, 'application/octet-stream');
@@ -908,6 +943,7 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
             if (ext === 'lrc') parsed = parseLRC(text);
             else if (ext === 'srt') parsed = parseSRT(text);
             else if (ext === 'ttml' || ext === 'xml') parsed = parseTTML(text);
+            else if (ext === 'vtt') parsed = parseVTT(text);
 
             if (parsed.length > 0) {
                 setPlaylist(prev => prev.map(p =>
@@ -918,7 +954,7 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
                     } : p
                 ));
             } else {
-                alert("Could not parse lyrics. Ensure file is .lrc or .srt");
+                alert("Could not parse lyrics. Ensure file is .lrc, .srt, or .vtt");
             }
         } catch (err) {
             console.error("Failed to load lyrics", err);
@@ -942,7 +978,7 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
                     <div className="flex flex-col items-center gap-4 text-orange-500 animate-pulse">
                         <Upload size={48} />
                         <h3 className="text-xl font-bold">Drop Audio & Lyrics Here</h3>
-                        <p className="text-sm text-zinc-400">Supported formats: MP3, WAV, OGG, FLAC, M4A, LRC, SRT, TTML</p>
+                        <p className="text-sm text-zinc-400">Supported formats: MP3, WAV, OGG, FLAC, M4A, LRC, SRT, TTML, VTT</p>
                     </div>
                 </div>
             )}
@@ -950,7 +986,7 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
                 type="file"
                 ref={lyricFileInputRef}
                 className="hidden"
-                accept=".lrc,.srt,.ttml,.xml"
+                accept=".lrc,.srt,.ttml,.xml,.vtt"
                 onChange={handleManualLyricUpload}
             />
             {/* Header */}
@@ -964,7 +1000,7 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
                     <div className="flex bg-orange-600 rounded overflow-hidden">
                         <label className="flex items-center gap-2 px-3 py-1 hover:bg-orange-500 cursor-pointer transition-colors text-white text-xs font-medium whitespace-nowrap border-r border-orange-700">
                             <Plus size={14} /> Add Files
-                            <input type="file" className="hidden" accept="audio/*,.lrc,.srt,.ttml,.xml" multiple onChange={handleFileUpload} />
+                            <input type="file" className="hidden" accept="audio/*,.lrc,.srt,.ttml,.xml,.vtt" multiple onChange={handleFileUpload} />
                         </label>
                         <label className="flex items-center gap-2 px-2 py-1 hover:bg-orange-500 cursor-pointer transition-colors text-white text-xs whitespace-nowrap" title="Add Folder">
                             <Folder size={14} />
@@ -1265,6 +1301,7 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
                                             <button onClick={(e) => { e.stopPropagation(); exportLyrics(item, 'lrc'); }} className="p-1 hover:bg-white/10 rounded text-[8px] text-zinc-400 font-bold" title="Download LRC">LRC</button>
                                             <button onClick={(e) => { e.stopPropagation(); exportLyrics(item, 'lrc-enhanced'); }} className="p-1 hover:bg-white/10 rounded text-[8px] text-zinc-400 font-bold" title="Download Enhanced LRC (Word Level)">eLRC</button>
                                             <button onClick={(e) => { e.stopPropagation(); exportLyrics(item, 'srt'); }} className="p-1 hover:bg-white/10 rounded text-[8px] text-zinc-400 font-bold" title="Download SRT">SRT</button>
+                                            <button onClick={(e) => { e.stopPropagation(); exportLyrics(item, 'vtt'); }} className="p-1 hover:bg-white/10 rounded text-[8px] text-zinc-400 font-bold" title="Download VTT">VTT</button>
                                             <button onClick={(e) => { e.stopPropagation(); exportLyrics(item, 'ttml'); }} className="p-1 hover:bg-white/10 rounded text-[8px] text-zinc-400 font-bold" title="Download TTML">TTML</button>
                                             <button onClick={(e) => { e.stopPropagation(); exportLyrics(item, 'json'); }} className="p-1 hover:bg-white/10 rounded text-[8px] text-zinc-400 font-bold" title="Download JSON">JSON</button>
                                             <div className="w-px h-3 bg-zinc-700 mx-0.5"></div>

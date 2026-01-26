@@ -308,3 +308,88 @@ export const parseJSON = (jsonContent: string): LyricLine[] => {
   }
   return [];
 };
+
+export const parseVTT = (vttContent: string): LyricLine[] => {
+  const content = vttContent.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  const lines = content.split('\n');
+  const lyrics: LyricLine[] = [];
+
+  const timeRegex = /(\d{2}:)?(\d{2}):(\d{2})\.(\d{3})/;
+
+  const parseTime = (timeStr: string): number | null => {
+    const match = timeStr.match(timeRegex);
+    if (match) {
+        // match[1] is HH: (optional)
+        // match[2] is MM
+        // match[3] is SS
+        // match[4] is mmm
+      const hrs = match[1] ? parseInt(match[1].replace(':', ''), 10) : 0;
+      const mins = parseInt(match[2], 10);
+      const secs = parseInt(match[3], 10);
+      const ms = parseInt(match[4], 10);
+      return (hrs * 3600) + (mins * 60) + secs + (ms / 1000);
+    }
+    return null;
+  };
+
+  // VTT parsing is slightly more complex than SRT due to optional headers and settings
+  // But for simple lyric extraction, we can look for timestamp lines.
+  
+  let i = 0;
+  // Skip WEBVTT header
+  if (lines[0] && lines[0].startsWith('WEBVTT')) {
+      i = 1;
+  }
+
+  while (i < lines.length) {
+      const line = lines[i].trim();
+      
+      // Check for timestamp line: "00:00:10.000 --> 00:00:15.000" (possibly with settings)
+      if (line.includes('-->')) {
+          const parts = line.split('-->');
+          if (parts.length >= 2) {
+              const startStr = parts[0].trim();
+              const endStr = parts[1].trim().split(' ')[0]; // ignore settings after timestamp
+              
+              const startTime = parseTime(startStr);
+              const endTime = parseTime(endStr);
+              
+              if (startTime !== null) {
+                  // Collect text lines until next blank line or timestamp
+                  i++;
+                  let textLines: string[] = [];
+                  while(i < lines.length) {
+                      const nextLine = lines[i].trim();
+                      if (nextLine === '' || nextLine.includes('-->')) {
+                          break;
+                      }
+                      textLines.push(lines[i]); // Keep original spacing/indent? usually trim is safe for lyrics
+                      i++;
+                  }
+                  
+                  // Backtrack if we hit a timestamp line (unlikely if strictly followed by blank, but VTT can be loose)
+                  if (i < lines.length && lines[i].includes('-->')) {
+                      // We consumed a timestamp line in the inner loop? 
+                      // actually the condition `nextLine.includes('-->')` breaks before consuming it usually.
+                      // But if we broke because of that, we shouldn't increment i in the outer loop yet?
+                      // Wait, the outer loop continues.
+                  } 
+                  
+                  if (textLines.length > 0) {
+                      const rawText = textLines.join(' ').trim();
+                      const text = fixCJKSpacing(rawText);
+                      lyrics.push({
+                          time: startTime,
+                          text,
+                          endTime: endTime !== null ? endTime : undefined
+                      });
+                  }
+                  continue; // loop continues from current i
+              }
+          }
+      }
+      i++;
+  }
+
+  return lyrics;
+};

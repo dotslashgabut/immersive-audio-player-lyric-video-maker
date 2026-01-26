@@ -1,7 +1,7 @@
 <div align="center">
   <img src="public/icon.svg" width="100" />
   <h1>Immersive Audio Player & Lyric Video Maker</h1>
-  <p><b>Version 2.2.8</b></p>
+  <p><b>Version 2.2.9</b></p>
 </div>
 
 **Immersive Audio Player & Lyric Video Maker** is a powerful all-in-one web tool designed for music lovers and content creators. It combines a distraction-free audio player with a professional-grade timeline editor, allowing you to create stunning, synchronized lyric videos directly in your browser. Whether you want to enjoy your local music library with beautiful visuals or create viral content for TikTok, Instagram, and YouTube, this app delivers high-quality results without watermarks or server uploads.
@@ -24,7 +24,7 @@
 ![Playlist Management](screenshot-playlist.jpg)
 
 ### 📝 Synchronized Lyrics
-- **Multi-Format Support**: Compatible with `.lrc` (Standard & Enhanced with **newline support**), `.srt` (Subtitle style), and **`.ttml` / `.xml`** (Word-level precision).
+- **Multi-Format Support**: Compatible with `.lrc` (Standard & Enhanced with **newline support**), `.srt` (Subtitle style), **`.vtt` (WebVTT)**, and **`.ttml` / `.xml`** (Word-level precision).
 - **Auto-Scroll & Centering**: Lyrics scroll automatically and active lines are perfectly centered.
 - **Lyric Offset Control**: Fine-tune sync issues with **+0.1s / -0.1s** buttons directly in the player.
 - **Click-to-Seek & Copy**: Click any lyric line to instantly jump to that exact time. **Click the active line** to copy its text to the clipboard.
@@ -43,7 +43,7 @@
   - **Display Modes**: Control lyric visibility context and **Style Target** (Apply styles to Active Line only or All Lines).
 - **AI Transcription**: Built-in integration with **Google Gemini** (supports **Gemini 2.5 Flash** and **3.0 Flash Preview**) for automatic high-accuracy audio transcription.
   - **Mixed-Language Support**: Expertly handles code-switching (e.g., K-Pop, J-Pop with English) and preserves native scripts (No forced transliteration).
-- **Export Lyrics**: Save your transcribed or edited lyrics as `.lrc` (Standard or **Enhanced/Karaoke**), `.srt`, `.json`, or `.txt` files.
+- **Export Lyrics**: Save your transcribed or edited lyrics as `.lrc` (Standard or **Enhanced/Karaoke**), `.srt`, `.vtt`, `.json`, or `.txt` files.
 - **Online Lyric Search**: Built-in search engine to find and download synchronized lyrics from **Musixmatch**, **LRCLIB**, and **Netease** with a single click.
 - **Manual Management**: Manually load external `.lrc` / `.srt` files or clear existing lyrics for any track.
 
@@ -236,13 +236,13 @@ This application is built with React + Vite and requires **Node.js** to run.
 - **Timeline Lirik Interaktif**: Lihat cuplikan lirik di playlist. Klik baris mana saja untuk langsung memutar lagu itu.
 - **Sorting Fleksibel**: Urutkan playlist berdasarkan Artis, Judul, Album (Bolak-balik Ascending/Descending), atau acak.
 - **Kontrol Akurasi**: Atur offset lirik (maju/mundur 0.1s) jika teks kurang pas dengan suara.
-- **Format Lirik Luas**: Dukungan untuk `.lrc`, `.srt`, dan **`.ttml` / `.xml`** untuk presisi per kata (Mode Karaoke).
+- **Format Lirik Luas**: Dukungan untuk `.lrc`, `.srt`, **`.vtt`**, dan **`.ttml` / `.xml`** untuk presisi per kata (Mode Karaoke).
 - **Karaoke Kustom**: Pilihan efek highlight baru (**Neon, Glow, Box, Pill**) dengan **Pewarnaan Kustom** (Text & Background Color).
 - **Visual Efek**: Fitur **Background Blur** (dengan **Slider Kekuatan Blur**), **Smart Gradient**, dan **Text Animation** (Bounce, Pulse, Glitch, dll).
 - **Kustomisasi Info Lagu**: Atur posisi, gaya tampilan, jarak tepi (padding) untuk **Info Lagu & Channel**, serta **Intro** teks (Auto/Manual).
 - **Mode Tampilan Lirik**: Pilih mau tampilkan semua baris, atau hanya aktif/berikutnya saja.
 - **AI Transkripsi**: Dukungan model **Gemini 2.5 Flash** dan **3.0 Flash Preview** untuk transkripsi audio otomatis yang presisi.
-- **Ekspor Lirik**: Simpan hasil transkripsi dalam format `.lrc`, `.srt`, `.json`, atau `.txt`.
+- **Ekspor Lirik**: Simpan hasil transkripsi dalam format `.lrc`, `.srt`, `.vtt`, `.json`, atau `.txt`.
 - **Timeline Canggih**: Dukungan **Multi-Layer** (2 Visual + 2 Audio), **Undo/Redo**, **Cut/Copy/Paste**, **Drag Selection**, dan **Snapping** otomatis.
 - **Shortcut Baru**: Tekan **D** (Render Settings), **O** (Minimal Mode), **N**/**B** (Next/Prev), **M** (Mute), **R** (Repeat), **L** (Playlist), **+/-** (Font), dan **Ctrl/Cmd+Shift+E** (Export).
 
