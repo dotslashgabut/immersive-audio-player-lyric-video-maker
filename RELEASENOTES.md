@@ -10,6 +10,8 @@
   - **Format Support**: Validated support for standard web video formats including `mp4`, `webm`, `mkv`, `mov`, etc.
 - **Enhanced Lyric Support**:
   - **Input Acceptance**: File pickers and drop zones now explicitly accept and parse `.vtt` and `.ttml` files alongside existing formats.
+- **User Interaction**:
+  - **Minimal Mode Shortcut**: Added "Double-Tap" / "Double-Click" gesture on the main screen area to quickly exit Minimal Mode, providing an alternative to the "O" keyboard shortcut for touch devices and mouse users.
 
 
 # v2.2.9
