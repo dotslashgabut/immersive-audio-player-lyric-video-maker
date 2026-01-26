@@ -185,7 +185,7 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
             const group = fileGroups.get(basename)!;
 
             // Simple extension check
-            if (['mp3', 'wav', 'ogg', 'flac', 'm4a'].includes(ext || '')) {
+            if (['mp3', 'wav', 'ogg', 'flac', 'm4a', 'mp4', 'webm', 'ogg', 'mkv', 'mov', 'avi', 'm4v'].includes(ext || '')) {
                 group.audio = file;
             } else if (['lrc', 'srt', 'ttml', 'xml', 'json', 'vtt'].includes(ext || '')) {
                 group.lyric = file;
@@ -195,8 +195,18 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
         const newItems: PlaylistItem[] = [];
 
 
-        const extractMetadata = async (file: File, fallbackTitle: string): Promise<{ title: string; artist: string; album?: string; coverUrl: string | null }> => {
+        const extractMetadata = async (file: File, fallbackTitle: string): Promise<{ title: string; artist: string; album?: string; coverUrl: string | null; backgroundType?: 'image' | 'video' }> => {
             return new Promise((resolve) => {
+                if (file.type.startsWith('video/')) {
+                    resolve({
+                        title: fallbackTitle,
+                        artist: 'Unknown Artist',
+                        coverUrl: URL.createObjectURL(file),
+                        backgroundType: 'video'
+                    });
+                    return;
+                }
+
                 // @ts-ignore
                 import('jsmediatags/dist/jsmediatags.min.js').then((jsmediatags) => {
                     jsmediatags.read(file, {
@@ -978,7 +988,7 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
                     <div className="flex flex-col items-center gap-4 text-orange-500 animate-pulse">
                         <Upload size={48} />
                         <h3 className="text-xl font-bold">Drop Audio & Lyrics Here</h3>
-                        <p className="text-sm text-zinc-400">Supported formats: MP3, WAV, OGG, FLAC, M4A, LRC, SRT, TTML, VTT</p>
+                        <p className="text-sm text-zinc-400">Supported formats: MP3, WAV, FLAC, Video (MP4/WebM), LRC, SRT, VTT</p>
                     </div>
                 </div>
             )}
@@ -1000,7 +1010,7 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
                     <div className="flex bg-orange-600 rounded overflow-hidden">
                         <label className="flex items-center gap-2 px-3 py-1 hover:bg-orange-500 cursor-pointer transition-colors text-white text-xs font-medium whitespace-nowrap border-r border-orange-700">
                             <Plus size={14} /> Add Files
-                            <input type="file" className="hidden" accept="audio/*,.lrc,.srt,.ttml,.xml,.vtt" multiple onChange={handleFileUpload} />
+                            <input type="file" className="hidden" accept="audio/*,video/*,.lrc,.srt,.ttml,.xml,.vtt" multiple onChange={handleFileUpload} />
                         </label>
                         <label className="flex items-center gap-2 px-2 py-1 hover:bg-orange-500 cursor-pointer transition-colors text-white text-xs whitespace-nowrap" title="Add Folder">
                             <Folder size={14} />

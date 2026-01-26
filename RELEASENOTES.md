@@ -1,5 +1,17 @@
 # Release Notes
 
+
+# 2.3.0
+
+## What's New
+- **Video File Support**:
+  - **Video as Audio Source**: You can now load video files (MP4, WebM, etc.) directly into the player or playlist. The audio track will be played, and the video itself will automatically be set as the dynamic background.
+  - **Seamless Integration**: Supports drag-and-drop in the Playlist Editor, automatically detecting video files and setting them up as visual covers.
+  - **Format Support**: Validated support for standard web video formats including `mp4`, `webm`, `mkv`, `mov`, etc.
+- **Enhanced Lyric Support**:
+  - **Input Acceptance**: File pickers and drop zones now explicitly accept and parse `.vtt` and `.ttml` files alongside existing formats.
+
+
 # v2.2.9
 
 ## What's New
@@ -11,12 +23,14 @@
   - **Auto-Detection**: The playlist editor now recognizes `.vtt` files during drag-and-drop operations for automatic pairing.
   - **Export Options**: Added 'VTT' to the quick export menu in the playlist item row.
 
+
 # v2.2.8
 
 ## What's New
 - **Bug Fixes**:
   - **Visual Presets**: Fixed text truncation issues in the **Subtitle** preset for both Web View and Exported Video.
   - **Code Cleanup**: Removed unrelated comments and unused code. 
+
 
 # v2.2.7
 
@@ -29,6 +43,7 @@
   - **Import/Export**: JSON settings import/export fully supports the new Real Color configuration.
 - **Bug Fixes**:
   - Fixed loop video issue where videos would not loop correctly.
+
 
 # v2.2.6
 
@@ -46,6 +61,7 @@
   - Fixed discrepancy between Web View and Export for animated text effects.
   - Fixed dependency optimizer issues with FFmpeg worker files. 
 
+
 # v2.2.5
 
 ## What's New
@@ -59,6 +75,7 @@
 ## Bug Fixes
 - **Subtitle Cropping**: Fixed an issue where subtitle text could appear cropped in the web view.
 - **Audio Slider**: Fixed accuracy issues with the audio duration slider to ensure precise seeking.
+
 
 # v2.2.4
 
@@ -79,6 +96,7 @@
 - **Song Info Layout**: Fixed positioning and styling mismatches for Song Info overlays in the final render.
 - **Visual Presets**: Fixed vertical alignment in the **Subtitle** preset and ensured **Classic Serif** renders properly in Italic during video export.
 - **Channel Info**: Resolved a bug that caused duplicate Channel Info overlays to appear in certain render configurations.
+
 
 # v2.2.3
 
@@ -102,6 +120,7 @@
 - **Render Settings**: Fixed synchronization between UI toggles and internal render config.
 - **Lyric Scroll**: Fixed scrolling behavior to reset correctly on song repeat.
 - **Canvas Renderer**: Resolved type errors and custom color rendering issues.
+
 
 # v2.2.2
 
@@ -133,6 +152,7 @@
 - **Channel Info**: Fixed layout consistency for 'Minimal' style in render output to match web preview.
 - **Transcription State**: Fixed an infinite loading state if an API key was not provided.
 - **Internal Cleanup**: Removed unused code and comments for better performance and maintainability.
+
 
 # v2.2.1
 
@@ -167,6 +187,7 @@
 - **Sync**: Fixed double notifications when changing effects via shortcuts.
 - **Defaults**: Fixed issue where toggling off settings (Channel Info/Intro) didn't correctly reset their sub-settings to defaults.
 
+
 # v2.2.0
 
 ## What's New
@@ -182,6 +203,7 @@
 - **Improved TTML Handling**: Enhanced parsing and export of Word-Level timing data (`<span>` tags) for precise karaoke synchronization.
 - **Smart Presets**: Selecting a named color effect (e.g., "Karaoke Blue") automatically configures the custom color pickers.
 - **Refined Rendering**: Improved visual consistency for both live playback and video export.
+
 
 # v2.1.0
 
@@ -213,6 +235,7 @@
 - **UX**: Fixed issue where the Transcribe Model dropdown wasn't selected by default.
 - **Export**: Resolved timestamp overflow issues in LRC/SRT exports.
 
+
 # v2.0.9
 
 ## What's New
@@ -241,6 +264,7 @@
 - **Playback**: Resolved browser playback issues after a render cycle.
 - **Settings Sync**: Fixed synchronization of blur settings between main view and render panel.
 - **Dependencies**: Removed unused packages for a cleaner build.
+
 
 # v2.0.8
 

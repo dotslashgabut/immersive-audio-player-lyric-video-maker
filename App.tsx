@@ -248,32 +248,42 @@ function App() {
       setMetadata(fallbackMeta);
 
       // jsmediatags parsing
-      // @ts-ignore
-      import('jsmediatags/dist/jsmediatags.min.js').then((jsmediatags) => {
-        jsmediatags.read(file, {
-          onSuccess: (tag: any) => {
-            const { title, artist, picture } = tag.tags;
-            let coverUrl = null;
-            if (picture) {
-              const { data, format } = picture;
-              let base64String = "";
-              for (let i = 0; i < data.length; i++) {
-                base64String += String.fromCharCode(data[i]);
+      if (file.type.startsWith('audio/')) {
+        // @ts-ignore
+        import('jsmediatags/dist/jsmediatags.min.js').then((jsmediatags) => {
+          jsmediatags.read(file, {
+            onSuccess: (tag: any) => {
+              const { title, artist, picture } = tag.tags;
+              let coverUrl = null;
+              if (picture) {
+                const { data, format } = picture;
+                let base64String = "";
+                for (let i = 0; i < data.length; i++) {
+                  base64String += String.fromCharCode(data[i]);
+                }
+                coverUrl = `data:${format};base64,${window.btoa(base64String)}`;
               }
-              coverUrl = `data:${format};base64,${window.btoa(base64String)}`;
-            }
 
-            setMetadata({
-              title: title || fallbackMeta.title,
-              artist: artist || fallbackMeta.artist,
-              coverUrl: coverUrl || null
-            });
-          },
-          onError: (error: any) => {
-            console.log('Error reading tags:', error);
-          }
+              setMetadata({
+                title: title || fallbackMeta.title,
+                artist: artist || fallbackMeta.artist,
+                coverUrl: coverUrl || null
+              });
+            },
+            onError: (error: any) => {
+              console.log('Error reading tags:', error);
+            }
+          });
         });
-      });
+      } else if (file.type.startsWith('video/')) {
+        // If video, use it as background
+        setIsBgVideoReady(false);
+        setMetadata({
+          ...fallbackMeta,
+          coverUrl: url,
+          backgroundType: 'video'
+        });
+      }
 
       // Reset play state
       setLyricOffset(0);
@@ -396,7 +406,7 @@ function App() {
       title: track.metadata.title,
       artist: track.metadata.artist,
       coverUrl: track.metadata.coverUrl || null,
-      backgroundType: 'image'
+      backgroundType: track.metadata.backgroundType || 'image'
     });
 
     // Reset Lyrics
@@ -3180,14 +3190,14 @@ function App() {
               {/* Main Buttons */}
               <div className="flex flex-wrap lg:grid lg:grid-cols-[1fr_auto_1fr] items-center justify-center gap-4">
                 <div className="flex gap-1 justify-center lg:justify-start flex-wrap order-2 lg:order-none w-auto lg:w-full">
-                  <label className="p-2 rounded-lg hover:bg-white/10 text-zinc-400 hover:text-white cursor-pointer transition-colors" title="Load Audio">
+                  <label className="p-2 rounded-lg hover:bg-white/10 text-zinc-400 hover:text-white cursor-pointer transition-colors" title="Load Audio or video">
                     <Music size={18} />
-                    <input type="file" accept="audio/*" className="hidden" onChange={handleAudioUpload} disabled={isRendering} />
+                    <input type="file" accept="audio/*,video/*" className="hidden" onChange={handleAudioUpload} disabled={isRendering} />
                   </label>
                   <div className="flex items-center gap-1">
-                    <label className={`p-2 rounded-lg hover:bg-white/10 cursor-pointer transition-colors ${lyrics.length > 0 ? 'text-purple-400' : 'text-zinc-400 hover:text-white'}`} title="Load Lyrics (.lrc, .srt)">
+                    <label className={`p-2 rounded-lg hover:bg-white/10 cursor-pointer transition-colors ${lyrics.length > 0 ? 'text-purple-400' : 'text-zinc-400 hover:text-white'}`} title="Load Lyrics (.lrc, .srt, .vtt, .ttml)">
                       <FileText size={18} />
-                      <input type="file" accept=".lrc,.srt,.ttml,.xml" className="hidden" onChange={handleLyricsUpload} disabled={isRendering} />
+                      <input type="file" accept=".lrc,.srt,.ttml,.xml,.vtt" className="hidden" onChange={handleLyricsUpload} disabled={isRendering} />
                     </label>
                     {lyrics.length > 0 && (
                       <button
