@@ -6,7 +6,7 @@ import {
   ChevronUp, ChevronDown
 } from './components/Icons';
 import { AudioMetadata, LyricLine, TabView, VisualSlide, VideoPreset, PlaylistItem, RenderConfig, RenderEngine, FFmpegCodec } from './types';
-import { formatTime, parseLRC, parseSRT, parseTTML } from './utils/parsers';
+import { formatTime, parseLRC, parseSRT, parseTTML, parseVTT } from './utils/parsers';
 import VisualEditor from './components/VisualEditor';
 import PlaylistEditor from './components/PlaylistEditor';
 import RenderSettings, { highlightEffectGroups, deriveHighlightColors, lyricDisplayGroups, textCaseOptions } from './components/RenderSettings';
@@ -318,6 +318,8 @@ function App() {
           parsedLyrics = parseSRT(text);
         } else if (ext === 'ttml' || ext === 'xml') {
           parsedLyrics = parseTTML(text);
+        } else if (ext === 'vtt') {
+          parsedLyrics = parseVTT(text);
         }
 
         // Auto-enable karaoke highlight if word-level data is detected
@@ -413,6 +415,7 @@ function App() {
         if (ext === 'lrc') parsed = parseLRC(text);
         else if (ext === 'srt') parsed = parseSRT(text);
         else if (ext === 'ttml' || ext === 'xml') parsed = parseTTML(text);
+        else if (ext === 'vtt') parsed = parseVTT(text);
 
         setLyrics(parsed);
 
@@ -593,6 +596,7 @@ function App() {
             if (ext === 'lrc') trackLyrics = parseLRC(text);
             else if (ext === 'srt') trackLyrics = parseSRT(text);
             else if (ext === 'ttml' || ext === 'xml') trackLyrics = parseTTML(text);
+            else if (ext === 'vtt') trackLyrics = parseVTT(text);
           } catch (e) {
             console.error("Failed to parse lyrics for playlist item", e);
           }
