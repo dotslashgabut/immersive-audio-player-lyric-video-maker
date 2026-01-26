@@ -1,7 +1,7 @@
 <div align="center">
   <img src="public/icon.svg" width="100" />
   <h1>Immersive Audio Player & Lyric Video Maker</h1>
-  <p><b>Version 2.2.9</b></p>
+  <p><b>Version 2.3.0</b></p>
 </div>
 
 **Immersive Audio Player & Lyric Video Maker** is a powerful all-in-one web tool designed for music lovers and content creators. It combines a distraction-free audio player with a professional-grade timeline editor, allowing you to create stunning, synchronized lyric videos directly in your browser. Whether you want to enjoy your local music library with beautiful visuals or create viral content for TikTok, Instagram, and YouTube, this app delivers high-quality results without watermarks or server uploads.
@@ -13,7 +13,7 @@
 ## Key Features
 
 ### 🎧 Advanced Audio Player & Playlist
-- **Smart Playlist**: Drag & drop multiple files. Automatically groups audio files with matching lyric files (`.lrc` or `.srt`) based on filename.
+- **Smart Playlist**: Drag & drop multiple files. Automatically groups audio/video files with matching lyric files (`.lrc`, `.srt`, `.vtt`, `.ttml`, `.xml`) based on filename.
 - **Interactive Lyric Timeline**: Each playlist item shows a mini-timeline of lyrics. Click any line to play that specific track starting from that time.
 - **Sorting & Management**: Sort by Filename, Artist, Title, Album (Ascending/Descending), or Shuffle.
 - **Repeat Modes**: Cycle between **Off**, **Repeat One**, **Play All** (Play playlist once), and **Repeat All** (Loop playlist).
@@ -236,7 +236,8 @@ This application is built with React + Vite and requires **Node.js** to run.
 - **Timeline Lirik Interaktif**: Lihat cuplikan lirik di playlist. Klik baris mana saja untuk langsung memutar lagu itu.
 - **Sorting Fleksibel**: Urutkan playlist berdasarkan Artis, Judul, Album (Bolak-balik Ascending/Descending), atau acak.
 - **Kontrol Akurasi**: Atur offset lirik (maju/mundur 0.1s) jika teks kurang pas dengan suara.
-- **Format Lirik Luas**: Dukungan untuk `.lrc`, `.srt`, **`.vtt` (termasuk Karaoke/Word-Level)**, dan **`.ttml` / `.xml`** untuk presisi per kata (Mode Karaoke).
+- **Formato Luas**: Dukungan untuk `.lrc`, `.srt`, **`.vtt` (termasuk Karaoke/Word-Level)**, dan **`.ttml` / `.xml`**.
+- **Support Video**: Load file video (MP4, WebM) sebagai track audio + background otomatis.
 - **Karaoke Kustom**: Pilihan efek highlight baru (**Neon, Glow, Box, Pill**) dengan **Pewarnaan Kustom** (Text & Background Color).
 - **Visual Efek**: Fitur **Background Blur** (dengan **Slider Kekuatan Blur**), **Smart Gradient**, dan **Text Animation** (Bounce, Pulse, Glitch, dll).
 - **Kustomisasi Info Lagu**: Atur posisi, gaya tampilan, jarak tepi (padding) untuk **Info Lagu & Channel**, serta **Intro** teks (Auto/Manual).
