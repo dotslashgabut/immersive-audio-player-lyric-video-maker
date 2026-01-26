@@ -1407,6 +1407,19 @@ function App() {
     resetIdleTimer();
   };
 
+  const lastTapRef = useRef(0);
+  const handleTouchStart = () => {
+    resetIdleTimer();
+
+    // Manual Double Tap Detection
+    const now = Date.now();
+    const DOUBLE_TAP_DELAY = 300;
+    if (now - lastTapRef.current < DOUBLE_TAP_DELAY) {
+      handleDisplayDoubleClick();
+    }
+    lastTapRef.current = now;
+  };
+
   // Keyboard Shortcuts
   // Keyboard Shortcuts
   useEffect(() => {
@@ -1842,7 +1855,7 @@ function App() {
     <div
       ref={containerRef}
       onMouseMove={handleMouseMove}
-      onTouchStart={handleMouseMove}
+      onTouchStart={handleTouchStart}
       onDoubleClick={handleDisplayDoubleClick}
       className={`relative w-full h-[100dvh] bg-black overflow-hidden flex font-sans select-none ${isMouseIdle && !bypassAutoHide ? 'cursor-none' : ''}`}
     >
