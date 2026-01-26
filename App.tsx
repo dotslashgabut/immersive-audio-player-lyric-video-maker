@@ -519,6 +519,13 @@ function App() {
     }
   };
 
+  const handleDisplayDoubleClick = () => {
+    if (isMinimalMode) {
+      setIsMinimalMode(false);
+      toast.success("Minimal Mode: Off", { id: 'minimal-mode' });
+    }
+  };
+
   const handleTimeUpdate = () => {
     if (audioRef.current) {
       setCurrentTime(audioRef.current.currentTime);
@@ -1836,6 +1843,7 @@ function App() {
       ref={containerRef}
       onMouseMove={handleMouseMove}
       onTouchStart={handleMouseMove}
+      onDoubleClick={handleDisplayDoubleClick}
       className={`relative w-full h-[100dvh] bg-black overflow-hidden flex font-sans select-none ${isMouseIdle && !bypassAutoHide ? 'cursor-none' : ''}`}
     >
       <audio

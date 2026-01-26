@@ -18,6 +18,7 @@
 - **Sorting & Management**: Sort by Filename, Artist, Title, Album (Ascending/Descending), or Shuffle.
 - **Repeat Modes**: Cycle between **Off**, **Repeat One**, **Play All** (Play playlist once), and **Repeat All** (Loop playlist).
 - **Immersive Mode**: UI controls automatically fade out when idle for a distraction-free experience.
+- **Minimal Mode Interaction**: Double-click or double-tap anywhere on the screen to quickly exit Minimal Mode.
 - **Smart Play/Pause**: Clicking the active track in the playlist toggles Play/Pause.
 - **Auto-Load**: Automatically cues the first track for playback when adding new audio files.
 
