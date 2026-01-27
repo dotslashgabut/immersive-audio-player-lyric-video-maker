@@ -45,22 +45,53 @@ if (typeof window === 'undefined') {
 
 } else {
     // Adapter for client code
-    const n = navigator;
-    if (window.crossOriginIsolated !== false) {
-        // We are active!
-    } else {
+    (async function () {
+        if (window.crossOriginIsolated) {
+            console.log("Integrity check: crossOriginIsolated is true. COI active.");
+            return;
+        }
+
+        // Guard against infinite loops
+        if (window.sessionStorage.getItem("coiReloaded")) {
+            console.warn("COI Service Worker reloaded but privacy headers are still missing. GitHub Pages or browser restrictions might be interfering with SharedArrayBuffer.");
+            // We do NOT return here effectively, we let it try to register again just in case,
+            // but we stop the RELOAD loop below.
+        }
+
+        const n = navigator;
         if (n.serviceWorker) {
-            n.serviceWorker.register(window.document.currentScript.src).then(
-                (r) => {
-                    console.log("COI Service Worker registered");
-                    if (r.active && !n.serviceWorker.controller) {
+            try {
+                // Ensure we register with the correct relative path
+                const registration = await n.serviceWorker.register(window.document.currentScript.src || "./coi-serviceworker.js");
+                console.log("COI SW Registered");
+
+                // If it's already active, (and we aren't isolated), we might need a reload.
+                // But check the loop guard.
+                if (registration.active && !n.serviceWorker.controller) {
+                    console.log("COI SW Active, checking reload guard...");
+                    if (!window.sessionStorage.getItem("coiReloaded")) {
+                        window.sessionStorage.setItem("coiReloaded", "true");
+                        console.log("Reloading to activate COI...");
                         window.location.reload();
                     }
-                },
-                (err) => {
-                    console.error("COI Service Worker failed to register", err);
                 }
-            );
+
+                registration.addEventListener("updatefound", () => {
+                    const worker = registration.installing;
+                    worker.addEventListener("statechange", () => {
+                        if (worker.state === "activated" && !n.serviceWorker.controller) {
+                            if (!window.sessionStorage.getItem("coiReloaded")) {
+                                window.sessionStorage.setItem("coiReloaded", "true");
+                                console.log("COI SW Activated, reloading...");
+                                window.location.reload();
+                            }
+                        }
+                    });
+                });
+
+            } catch (err) {
+                console.error("COI SW Register Failed", err);
+            }
         }
-    }
+    })();
 }

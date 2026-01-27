@@ -31,6 +31,7 @@ export default defineConfig(({ mode }) => {
     plugins: [
       react(),
       VitePWA({
+        injectRegister: null, // Disable auto-registration to prevent conflict with coi-serviceworker
         registerType: 'autoUpdate',
         workbox: {
           globPatterns: ['**/*.{js,css,html,ico,png,svg}']
