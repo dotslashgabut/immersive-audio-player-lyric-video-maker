@@ -225,13 +225,18 @@ export async function transcribeAudio(
     1. STRUCTURE: Group words into short, natural lines/phrases (this is the parent object).
     2. LINE LENGTH: **CRITICAL** Keep lines SHORT (approx 3-8 words). Split long sentences into multiple lines.
        - Example: "I will love you forever and ever" -> Line 1: "I will love you", Line 2: "forever and ever".
-    3. DETAILS: Inside each line object, you MUST provide a "words" array.
-    4. WORDS: The "words" array must contain EVERY single word from that line with its own precise start/end time.
-    5. CJK HANDLING: For Chinese, Japanese, or Korean scripts, treat each character (or logical block of characters) as a separate "word" for the purposes of karaoke timing.
-    6. FAST SPEECH / RAP HANDLING:
+    3. REPEATED WORDS & STUTTERS: **EXTREMELY IMPORTANT**
+       - Treat every spoken utterance as a distinct word which must be timestamped.
+       - Example: "No no no wait" -> 4 distinct word objects.
+       - Example: "I I I didn't mean it" -> 3 distinct "I" objects followed by "didn't", "mean", "it".
+       - NEVER merge repeated words into a single event.
+    4. DETAILS: Inside each line object, you MUST provide a "words" array.
+    5. WORDS: The "words" array must contain EVERY single word from that line with its own precise start/end time.
+    6. CJK HANDLING: For Chinese, Japanese, or Korean scripts, treat each character (or logical block of characters) as a separate "word" for the purposes of karaoke timing.
+    7. FAST SPEECH / RAP / CONVERSATION HANDLING:
        - Anticipate RAPID speech delivery (high words-per-minute).
        - Ensure NO DRIFT: Align every word's start/end exactly to its pronunciation.
-       - For rapid-fire lyrics, word segments should be distinct and tightly packed.
+       - For rapid-fire lyrics or conversation, word segments should be distinct and tightly packed.
       `;
     } else {
       segmentationPolicy = `
@@ -248,7 +253,7 @@ export async function transcribeAudio(
     }
 
     const systemInstructions = `
-    You are an expert Audio Transcription AI specialized in generating timed lyrics.
+    You are an expert Audio Transcription AI specialized in generating precise timed lyrics and subtitled conversations.
     
     TASK: Transcribe the audio file into JSON segments.
     MODE: ${granularity.toUpperCase()} LEVEL.
