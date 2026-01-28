@@ -374,11 +374,11 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
         const keyToUse = apiKey || process.env.GEMINI_API_KEY || process.env.API_KEY || import.meta.env.VITE_GEMINI_API_KEY || '';
 
         // Simple validation for API Key length (approx 39 chars for Gemini)
-        if (!keyToUse || keyToUse.trim().length !== 39) {
+        if (!keyToUse || keyToUse.trim().length < 39) {
             if (!keyToUse) {
                 alert("Please set your Gemini API Key first!");
             } else {
-                alert(`Invalid API Key length (${keyToUse.trim().length}). It must be exactly 39 characters.`);
+                alert(`Invalid API Key length (${keyToUse.trim().length}). It must be at least 39 characters.`);
             }
             setShowApiKeyInput(true);
             return;
