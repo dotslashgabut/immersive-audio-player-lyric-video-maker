@@ -1021,7 +1021,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
         <div
             ref={sidebarRef}
             onMouseDown={(e) => e.stopPropagation()}
-            className="absolute right-0 top-0 bottom-0 w-full sm:w-80 bg-zinc-900/95 backdrop-blur-xl border-l border-white/10 z-50 flex flex-col shadow-2xl animate-in slide-in-from-right duration-300"
+            className="no-minimal-mode-toggle absolute right-0 top-0 bottom-0 w-full sm:w-80 bg-zinc-900/95 backdrop-blur-xl border-l border-white/10 z-50 flex flex-col shadow-2xl animate-in slide-in-from-right duration-300"
         >
             {/* Header */}
             <div className="h-14 border-b border-white/10 flex items-center justify-between px-3 md:px-4 bg-zinc-900/50">
@@ -2215,7 +2215,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                 {
                     showShortcuts && (
                         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in cursor-default" onClick={() => setShowShortcuts(false)}>
-                            <div className="bg-zinc-900 border border-white/10 rounded-xl shadow-2xl w-[480px] max-w-[90vw] overflow-hidden flex flex-col max-h-[85vh] animate-in slide-in-from-bottom-5" onClick={(e) => e.stopPropagation()}>
+                            <div className="no-minimal-mode-toggle bg-zinc-900 border border-white/10 rounded-xl shadow-2xl w-[480px] max-w-[90vw] overflow-hidden flex flex-col max-h-[85vh] animate-in slide-in-from-bottom-5" onClick={(e) => e.stopPropagation()}>
                                 <div className="flex items-center justify-between p-4 border-b border-white/10 bg-zinc-800/50">
                                     <h3 className="font-bold text-white flex items-center gap-2">
                                         <KeyboardIcon size={18} className="text-purple-400" />
