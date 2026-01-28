@@ -520,7 +520,10 @@ function App() {
     }
   };
 
-  const handleDisplayDoubleClick = () => {
+  const handleDisplayDoubleClick = (e?: React.MouseEvent | React.TouchEvent | Event) => {
+    if (e && (e.target as HTMLElement).closest('.no-minimal-mode-toggle')) {
+      return;
+    }
     const newVal = !isMinimalMode;
     setIsMinimalMode(newVal);
     if (newVal) {
@@ -1411,14 +1414,17 @@ function App() {
   };
 
   const lastTapRef = useRef(0);
-  const handleTouchStart = () => {
+  const handleTouchStart = (e: React.TouchEvent) => {
     resetIdleTimer();
 
     // Manual Double Tap Detection
     const now = Date.now();
     const DOUBLE_TAP_DELAY = 300;
     if (now - lastTapRef.current < DOUBLE_TAP_DELAY) {
-      handleDisplayDoubleClick();
+      if ((e.target as HTMLElement).closest('.no-minimal-mode-toggle')) {
+        return;
+      }
+      handleDisplayDoubleClick(e);
     }
     lastTapRef.current = now;
   };
@@ -3567,7 +3573,7 @@ function App() {
         </div>
         {/* --- Bottom Timeline Editor or Playlist --- */}
         {isPlaylistMode ? (
-          <div className="animate-slide-up border-t border-white/10 z-30 shrink-0 w-full max-w-[100vw] overflow-hidden">
+          <div className="no-minimal-mode-toggle animate-slide-up border-t border-white/10 z-30 shrink-0 w-full max-w-[100vw] overflow-hidden">
             <PlaylistEditor
               playlist={playlist}
               setPlaylist={setPlaylist}
@@ -3612,7 +3618,7 @@ function App() {
           </div>
         ) : (
           activeTab === TabView.EDITOR && (
-            <div className="animate-slide-up border-t border-white/10 z-30 shrink-0 w-full max-w-[100vw] overflow-hidden">
+            <div className="no-minimal-mode-toggle animate-slide-up border-t border-white/10 z-30 shrink-0 w-full max-w-[100vw] overflow-hidden">
               <VisualEditor
                 slides={visualSlides}
                 setSlides={setVisualSlides}
@@ -3720,7 +3726,7 @@ function App() {
           onClick={() => setShowShortcutInfo(false)}
         >
           <div
-            className="bg-zinc-900 border border-white/10 rounded-2xl p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto shadow-2xl relative"
+            className="no-minimal-mode-toggle bg-zinc-900 border border-white/10 rounded-2xl p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto shadow-2xl relative"
             onClick={e => e.stopPropagation()}
           >
             <button
