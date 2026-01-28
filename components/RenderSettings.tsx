@@ -234,6 +234,7 @@ export const highlightEffectGroups = [
         options: [
             { label: "Default (Line/Fill)", value: "karaoke" },
             { label: "Smooth Transition", value: "karaoke-smooth" },
+            { label: "Smooth Transition Plus", value: "karaoke-smooth-plus" },
             { label: "Fill Background", value: "karaoke-fill" },
             { label: "Outline Only", value: "karaoke-outline" },
             { label: "Underline", value: "karaoke-underline" },
@@ -706,6 +707,19 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                 newConfig.highlightBackground = derived.bg;
             } else {
                 // Return to default orange if the effect doesn't enforce a color
+                newConfig.highlightColor = '#fb923c';
+                newConfig.highlightBackground = '#fb923c';
+            }
+        } else if (key === 'useCustomHighlightColors' && value === false) {
+            // When turning off custom colors, revert to the effect's default colors
+            const effect = config.highlightEffect;
+            const derived = deriveHighlightColors(effect);
+
+            if (derived) {
+                newConfig.highlightColor = derived.color;
+                newConfig.highlightBackground = derived.bg;
+            } else {
+                // Default fallback (Orange)
                 newConfig.highlightColor = '#fb923c';
                 newConfig.highlightBackground = '#fb923c';
             }

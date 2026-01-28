@@ -808,7 +808,7 @@ function App() {
     // 3. Setup Audio Mixing & Recording
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
-    const stream = canvas.captureStream(renderFps);
+    const stream = canvas.captureStream(renderFps); // Use selected FPS for capture stream
 
     let audioStream: MediaStream | null = null;
     try {
@@ -919,7 +919,7 @@ function App() {
 
     // Render Loop (Frame Drawer)
     let lastRenderTime = 0;
-    const renderInterval = 1000 / renderFps;
+    const renderInterval = 1000 / renderFps; // Will be 1000/60 approx 16.6ms if 60FPS selected
 
     const renderFrameLoop = (now: number) => {
       if (currentAbortSignal.aborted) return;
@@ -2713,6 +2713,16 @@ function App() {
                     textEffectStyles.color = '#ff00ff';
                     textEffectStyles.textShadow = '4px 4px 0px #00ffff';
                   }
+                  else if (textEf === 'cyberpunk') {
+                    textEffectStyles.color = '#fcee0a';
+                    textEffectStyles.textShadow = '2px 2px 0px #000, -1px -1px 0 #05d9e8';
+                    textEffectStyles.fontFamily = "'Orbitron', sans-serif";
+                    textEffectStyles.letterSpacing = '1px';
+                  }
+                  else if (textEf === 'glitch-text') {
+                    textEffectStyles.animation = 'anim-glitch 0.4s infinite linear';
+                    textEffectStyles.position = 'relative';
+                  }
                   else if (textEf === 'hologram') {
                     textEffectStyles.color = 'rgba(0, 255, 255, 0.7)';
                     textEffectStyles.textShadow = '0 0 5px rgba(0,255,255,0.5), 0 0 10px rgba(0,255,255,0.5)';
@@ -2957,6 +2967,7 @@ function App() {
                           } else if (hEffect === 'karaoke-cyberpunk') {
                             wordStyle.color = '#fcee0a';
                             wordStyle.textShadow = '2px 2px 0px #000, -1px -1px 0 #05d9e8';
+                            wordStyle.fontFamily = "'Orbitron', sans-serif";
                           } else if (hEffect === 'karaoke-hologram') {
                             wordStyle.color = 'rgba(0, 255, 255, 0.7)';
                             wordStyle.textShadow = '0 0 5px rgba(0,255,255,0.5)';

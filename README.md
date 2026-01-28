@@ -80,7 +80,7 @@
     - **Browser Recorder**: Fast, real-time capture.
     - **FFmpeg WASM**: Professional frame-by-frame rendering (No dropped frames).
   - **Resolution**: 720p / 1080p.
-  - **Frame Rate**: Support for **24, 25, 30, 50, and 60 FPS**.
+  - **Frame Rate**: Support for **24, 30, and 60 FPS**.
   - **Quality**: Adjustable bitrate presets (**Low, Med, High**).
   - **Visual Toggles**: Quick toggle for **Background Blur** with **Adjustable Blur Strength** directly in the export panel.
   - **Codecs**: Full control over output format, supporting **H.264 (MP4)**, **VP9 (WebM)**, and **AV1** (where supported).
