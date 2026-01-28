@@ -1498,6 +1498,10 @@ function App() {
           setBypassAutoHide(nextBypass);
           toast.success(nextBypass ? "HUD: Always Visible" : "HUD: Auto-Hide", { id: 'hud-mode' });
           break;
+        case 'y':
+          e.preventDefault();
+          setShowShortcutInfo(prev => !prev);
+          break;
         case 'g': // Cycle Lyric Display Mode
           e.preventDefault();
           const modes = lyricDisplayGroups.flatMap(g => g.options.map(o => o.value));
@@ -3747,7 +3751,8 @@ function App() {
                   <div className="flex justify-between text-sm"><span className="text-zinc-300">Fullscreen</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">F</span></div>
                   <div className="flex justify-between text-sm"><span className="text-zinc-300">Minimal Mode</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">O</span></div>
                   <div className="flex justify-between text-sm"><span className="text-zinc-300">Hold UI (No Auto-Hide)</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">H</span></div>
-                  <div className="flex justify-between text-sm"><span className="text-zinc-300">Toggle Subtitles</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">I</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-zinc-300">Toggle Header Info</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">I</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-zinc-300">Toggle Shortcut Info</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">Y</span></div>
                   <div className="flex justify-between text-sm"><span className="text-zinc-300">Toggle Player</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">P</span></div>
                 </div>
               </div>
