@@ -1,5 +1,22 @@
 # Release Notes
 
+# 2.3.1
+
+## What's New
+- **Render Settings**:
+  - **Reset to Defaults**: Added a dedicated "Reset to Defaults" button (refresh icon) in the Render Settings panel. Quickly revert all visual, layout, and export configurations to their factory state.
+  - **Color Fixes**: Resolved an issue where disabling "Custom Colors" did not correctly revert the highlight color to the default orange.
+- **Visual Effects**:
+  - **Cyberpunk Refinement**: Updated the "Cyberpunk" text effect with a more authentic font and improved glitch aesthetics.
+  - **Smooth Transition Plus**: Fixed a bug where the active text color was not correctly applied in the Web View.
+- **User Interface**:
+  - **New Shortcut**: Added **Y** key to quickly toggle the "Keyboard Shortcuts" info overlay.
+  - **Shortcuts Help**: Updated the Keyboard Shortcuts modal (`?` or `Y`) to include a new section for **Mouse & Touch Interactions** (e.g., Click-to-Seek, Double-Tap for Minimal Mode).
+- **Documentation**:
+  - **README Update**: Added detailed "Mouse & Touch Gestures" section and missing shortcuts to the main documentation.
+- **AI Transcription**:
+  - **Precision**: Tuned system prompts for Gemini to improve stability and reduce text repetition on longer audio files.
+
 
 # 2.3.0
 

@@ -1,13 +1,12 @@
 <div align="center">
   <img src="public/icon.svg" width="100" />
   <h1>Immersive Audio Player & Lyric Video Maker</h1>
-  <p><b>Version 2.3.0</b></p>
+  <p><b>Version 2.3.1</b></p>
 </div>
 
 **Immersive Audio Player & Lyric Video Maker** is a powerful all-in-one web tool designed for music lovers and content creators. It combines a distraction-free audio player with a professional-grade timeline editor, allowing you to create stunning, synchronized lyric videos directly in your browser. Whether you want to enjoy your local music library with beautiful visuals or create viral content for TikTok, Instagram, and YouTube, this app delivers high-quality results without watermarks or server uploads.
 
-**Online version** :
-[**GitHub Page**](https://dotslashgabut.github.io/audioplayer/) | [**Vercel**](https://immersiveaudioplayer.vercel.app/) | [**Netlify**](https://immersiveaudioplayer.netlify.app)
+**Online version** : via [**GitHub Page**](https://dotslashgabut.github.io/audioplayer/) | [**Vercel**](https://immersiveaudioplayer.vercel.app/) | [**Netlify**](https://immersiveaudioplayer.netlify.app)
 
 ![Immersive Audio Player Main Screen](screenshot-main-page.jpg)
 
@@ -81,7 +80,7 @@
     - **Browser Recorder**: Fast, real-time capture.
     - **FFmpeg WASM**: Professional frame-by-frame rendering (No dropped frames).
   - **Resolution**: 720p / 1080p.
-  - **Frame Rate**: Support for **24, 25, 30, 50, and 60 FPS**.
+  - **Frame Rate**: Support for **24, 30, and 60 FPS**.
   - **Quality**: Adjustable bitrate presets (**Low, Med, High**).
   - **Visual Toggles**: Quick toggle for **Background Blur** with **Adjustable Blur Strength** directly in the export panel.
   - **Codecs**: Full control over output format, supporting **H.264 (MP4)**, **VP9 (WebM)**, and **AV1** (where supported).
@@ -101,6 +100,7 @@
 - **Rendering Scope**: Batch export the entire playlist or just the current song.
 - **Settings Management**:
   - **JSON Import/Export**: Backup, share, or restore your exact render configurations (visuals, fonts, layouts) with a single click.
+  - **Reset to Defaults**: Instantly revert all specific render settings to their factory state with the new Reset button.
 - **Advanced Backgrounds**:
   - **Timeline Media**: Use your custom images and videos from the timeline.
   - **Custom Image**: Direct support for single custom background images.
@@ -174,8 +174,9 @@ Check out our other AI-powered tools for music and visuals:
 | **L** | Toggle Playlist View |
 | **T** | Open/Close Timeline Editor |
 | **D** | Toggle Render Settings Panel |
-| **I** | Toggle Info Header |
+| **I** | Toggle Header Info |
 | **O** | Toggle Minimal Mode |
+| **Y** | Toggle Shortcut Info Overlay |
 | **P** | Toggle Player Controls |
 | **X** | Toggle Highlight Effect On/Off |
 | **Z** | Cycle Next Highlight Effect |
@@ -185,8 +186,18 @@ Check out our other AI-powered tools for music and visuals:
 | **Ctrl + C / X / V** | Copy / Cut / Paste (Editor) |
 | **Escape** | Abort Video Rendering / Close Modal |
 | **Enter** | Confirm Dialog Action |
-
 | **Ctrl/Cmd + Shift + E** | Export / Render Video |
+
+### Mouse & Touch Gestures
+| Action | Function |
+| :--- | :--- |
+| **Double Click / Tap** | Toggle Minimal Mode (O) |
+| **Click Lyric Line** | Seek to that timestamp |
+| **Click Active Lyric** | Copy lyric text to clipboard |
+| **Drag Timeline** | Select multiple clips (Editor) |
+| **Shift + Click** | Range Selection (Editor) |
+| **Ctrl + Click** | Multi-Selection (Editor) |
+
 
 ## Installation
 
@@ -248,8 +259,9 @@ This application is built with React + Vite and requires **Node.js** to run.
 - **Mode Tampilan Lirik**: Pilih mau tampilkan semua baris, atau hanya aktif/berikutnya saja.
 - **AI Transkripsi**: Dukungan model **Gemini 2.5 Flash** dan **3.0 Flash Preview** untuk transkripsi audio otomatis yang presisi.
 - **Ekspor Lirik**: Simpan hasil transkripsi dalam format `.lrc`, `.srt`, `.vtt`, `.json`, atau `.txt`.
+- **Manajemen Pengaturan**: Backup & Restore konfigurasi render via JSON, serta tombol **Reset** untuk kembali ke pengaturan awal.
 - **Timeline Canggih**: Dukungan **Multi-Layer** (2 Visual + 2 Audio), **Undo/Redo**, **Cut/Copy/Paste**, **Drag Selection**, dan **Snapping** otomatis.
-- **Shortcut Baru**: Tekan **D** (Render Settings), **O** (Minimal Mode), **N**/**B** (Next/Prev), **M** (Mute), **R** (Repeat), **L** (Playlist), **+/-** (Font), dan **Ctrl/Cmd+Shift+E** (Export).
+- **Shortcut Baru**: Tekan **D** (Render Settings), **O** (Minimal Mode), **Y** (Info Shortcut), **N**/**B** (Next/Prev), **M** (Mute), **R** (Repeat), **L** (Playlist), **+/-** (Font), dan **Ctrl/Cmd+Shift+E** (Export).
 
 ### Cara Install & Jalan
 1.  Pastikan sudah install **Node.js**.
