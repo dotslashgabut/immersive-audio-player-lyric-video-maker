@@ -3,7 +3,7 @@ import {
   Play, Pause, SkipBack, SkipForward, Volume2, VolumeX,
   Maximize, Minimize, Upload, Music, FileText, Settings, ImageIcon,
   Repeat, Repeat1, Square, Eye, EyeOff, Video, Download, Film, Type, X, ListMusic, Rewind, FastForward,
-  ChevronUp, ChevronDown
+  ChevronUp, ChevronDown, Keyboard
 } from './components/Icons';
 import { AudioMetadata, LyricLine, TabView, VisualSlide, VideoPreset, PlaylistItem, RenderConfig, RenderEngine, FFmpegCodec } from './types';
 import { formatTime, parseLRC, parseSRT, parseTTML, parseVTT } from './utils/parsers';
@@ -80,6 +80,7 @@ function App() {
   const [ffmpegRenderStage, setFfmpegRenderStage] = useState<string>('');
 
   const [showRenderSettings, setShowRenderSettings] = useState(false);
+  const [showShortcutInfo, setShowShortcutInfo] = useState(false);
   const [renderConfig, setRenderConfig] = useState<RenderConfig>({
     backgroundSource: 'timeline',
     backgroundColor: '#581c87',
@@ -520,10 +521,12 @@ function App() {
   };
 
   const handleDisplayDoubleClick = () => {
-    if (isMinimalMode) {
-      setIsMinimalMode(false);
-      toast.success("Minimal Mode: Off", { id: 'minimal-mode' });
+    const newVal = !isMinimalMode;
+    setIsMinimalMode(newVal);
+    if (newVal) {
+      setBypassAutoHide(true);
     }
+    toast.success(`Minimal Mode: ${newVal ? 'On' : 'Off'}`, { id: 'minimal-mode' });
   };
 
   const handleTimeUpdate = () => {
@@ -808,7 +811,7 @@ function App() {
     // 3. Setup Audio Mixing & Recording
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
-    const stream = canvas.captureStream(renderFps);
+    const stream = canvas.captureStream(renderFps); // Use selected FPS for capture stream
 
     let audioStream: MediaStream | null = null;
     try {
@@ -919,7 +922,7 @@ function App() {
 
     // Render Loop (Frame Drawer)
     let lastRenderTime = 0;
-    const renderInterval = 1000 / renderFps;
+    const renderInterval = 1000 / renderFps; // Will be 1000/60 approx 16.6ms if 60FPS selected
 
     const renderFrameLoop = (now: number) => {
       if (currentAbortSignal.aborted) return;
@@ -1494,6 +1497,10 @@ function App() {
           const nextBypass = !bypassAutoHide;
           setBypassAutoHide(nextBypass);
           toast.success(nextBypass ? "HUD: Always Visible" : "HUD: Auto-Hide", { id: 'hud-mode' });
+          break;
+        case 'y':
+          e.preventDefault();
+          setShowShortcutInfo(prev => !prev);
           break;
         case 'g': // Cycle Lyric Display Mode
           e.preventDefault();
@@ -2355,6 +2362,16 @@ function App() {
                 <Settings size={20} />
               </button>
               <button
+                onMouseDown={(e) => {
+                  e.stopPropagation();
+                  setShowShortcutInfo(!showShortcutInfo);
+                }}
+                className={`p-2 rounded-full transition-colors ${showShortcutInfo ? 'bg-purple-600 text-white' : 'bg-black/30 text-zinc-300 hover:bg-white/10'}`}
+                title="Keyboard Shortcuts"
+              >
+                <Keyboard size={20} />
+              </button>
+              <button
                 onClick={toggleFullscreen}
                 className="p-2 rounded-full bg-black/30 text-zinc-300 hover:bg-white/10 transition-colors"
                 title="Fullscreen (F)"
@@ -2713,6 +2730,16 @@ function App() {
                     textEffectStyles.color = '#ff00ff';
                     textEffectStyles.textShadow = '4px 4px 0px #00ffff';
                   }
+                  else if (textEf === 'cyberpunk') {
+                    textEffectStyles.color = '#fcee0a';
+                    textEffectStyles.textShadow = '2px 2px 0px #000, -1px -1px 0 #05d9e8';
+                    textEffectStyles.fontFamily = "'Orbitron', sans-serif";
+                    textEffectStyles.letterSpacing = '1px';
+                  }
+                  else if (textEf === 'glitch-text') {
+                    textEffectStyles.animation = 'anim-glitch 0.4s infinite linear';
+                    textEffectStyles.position = 'relative';
+                  }
                   else if (textEf === 'hologram') {
                     textEffectStyles.color = 'rgba(0, 255, 255, 0.7)';
                     textEffectStyles.textShadow = '0 0 5px rgba(0,255,255,0.5), 0 0 10px rgba(0,255,255,0.5)';
@@ -2957,6 +2984,7 @@ function App() {
                           } else if (hEffect === 'karaoke-cyberpunk') {
                             wordStyle.color = '#fcee0a';
                             wordStyle.textShadow = '2px 2px 0px #000, -1px -1px 0 #05d9e8';
+                            wordStyle.fontFamily = "'Orbitron', sans-serif";
                           } else if (hEffect === 'karaoke-hologram') {
                             wordStyle.color = 'rgba(0, 255, 255, 0.7)';
                             wordStyle.textShadow = '0 0 5px rgba(0,255,255,0.5)';
@@ -3683,6 +3711,83 @@ function App() {
           ffmpegCodec={ffmpegCodec}
           setFfmpegCodec={setFfmpegCodec}
         />
+      )}
+
+      {/* Shortcut Info Overlay */}
+      {showShortcutInfo && (
+        <div
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200"
+          onClick={() => setShowShortcutInfo(false)}
+        >
+          <div
+            className="bg-zinc-900 border border-white/10 rounded-2xl p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto shadow-2xl relative"
+            onClick={e => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setShowShortcutInfo(false)}
+              className="absolute top-4 right-4 p-2 rounded-full hover:bg-white/10 text-zinc-400 hover:text-white transition-colors"
+            >
+              <X size={20} />
+            </button>
+            <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
+              <Keyboard className="text-purple-500" />
+              Keyboard Shortcuts
+            </h2>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6">
+              <div className="space-y-4">
+                <h3 className="text-sm font-bold text-zinc-500 uppercase tracking-wider">Playback</h3>
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm"><span className="text-zinc-300">Play / Pause</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">Space</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-zinc-300">Stop</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">S</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-zinc-300">Rewind 5s</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">←</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-zinc-300">Forward 5s</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">→</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-zinc-300">Repeat Mode</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">R</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-zinc-300">Mute</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">M</span></div>
+                </div>
+
+                <h3 className="text-sm font-bold text-zinc-500 uppercase tracking-wider mt-6">Interface</h3>
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm"><span className="text-zinc-300">Fullscreen</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">F</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-zinc-300">Minimal Mode</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">O</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-zinc-300">Hold UI (No Auto-Hide)</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">H</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-zinc-300">Toggle Header Info</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">I</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-zinc-300">Toggle Shortcut Info</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">Y</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-zinc-300">Toggle Player</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">P</span></div>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <h3 className="text-sm font-bold text-zinc-500 uppercase tracking-wider">Editor & Styles</h3>
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm"><span className="text-zinc-300">Toggle Timeline</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">T</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-zinc-300">Toggle Playlist</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">L</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-zinc-300">Render Settings</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">D</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-zinc-300">Export Video</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">Ctrl+Shift+E</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-zinc-300">Font Size</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">+ / -</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-zinc-300">Cycle Visual Preset</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">J</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-zinc-300">Cycle Highight Effect</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">Z</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-zinc-300">Toggle Highlight</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">X</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-zinc-300">Cycle Text Case</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">C</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-zinc-300">Cycle Lyric Mode</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">G</span></div>
+                </div>
+
+                <h3 className="text-sm font-bold text-zinc-500 uppercase tracking-wider mt-6">Mouse & Touch</h3>
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm"><span className="text-zinc-300">Toggle Minimal Mode</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">Double Click / Tap</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-zinc-300">Seek to Lyric</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">Click Line</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-zinc-300">Copy Active Lyric</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">Click Active Line</span></div>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-8 pt-6 border-t border-white/5 text-center">
+              <p className="text-zinc-500 text-sm">
+                Shortcuts are disabled during video rendering.
+              </p>
+            </div>
+          </div>
+        </div>
       )}
     </div >
   );

@@ -180,6 +180,40 @@ export const drawCanvasFrame = (
         } else if (effect === 'retro') {
             ctx.fillStyle = '#ff00ff'; ctx.shadowColor = '#00ffff'; ctx.shadowBlur = 0; ctx.shadowOffsetX = 4; ctx.shadowOffsetY = 4;
             ctx.fillText(text, x, y);
+        } else if (effect === 'cyberpunk') {
+            // Cyan (Back)
+            ctx.save();
+            ctx.fillStyle = '#05d9e8';
+            ctx.fillText(text, x - 1, y - 1);
+            ctx.restore();
+
+            // Black (Middle)
+            ctx.save();
+            ctx.fillStyle = '#000000';
+            ctx.fillText(text, x + 2, y + 2);
+            ctx.restore();
+
+            // Main (Front)
+            ctx.save();
+            ctx.fillStyle = '#fcee0a';
+            ctx.fillText(text, x, y);
+            ctx.restore();
+        } else if (effect === 'glitch-text') {
+            const jitterX = (Math.random() - 0.5) * 5;
+            const jitterY = (Math.random() - 0.5) * 2;
+            ctx.save();
+            ctx.fillStyle = 'red';
+            ctx.fillText(text, x + jitterX, y + jitterY);
+            ctx.restore();
+
+            ctx.save();
+            ctx.fillStyle = 'cyan';
+            ctx.fillText(text, x - jitterX, y - jitterY);
+            ctx.restore();
+
+            ctx.fillStyle = '#ffffff';
+            ctx.fillText(text, x, y);
+
         } else if (effect === 'hologram') {
             ctx.fillStyle = 'rgba(0, 255, 255, 0.7)'; ctx.shadowColor = 'rgba(0,255,255,0.5)'; ctx.shadowBlur = 10;
             ctx.fillText(text, x, y);
@@ -270,6 +304,10 @@ export const drawCanvasFrame = (
         const displayWords = words
             .filter(w => w.text === '\n' || w.text.trim().length > 0)
             .map((w, index) => ({ ...w, text: w.text === '\n' ? '\n' : transformText(w.text, index === 0).trim() }));
+
+        if (renderConfig?.highlightEffect?.includes('cyberpunk') || renderConfig?.textEffect === 'cyberpunk') {
+            fontFamily = "'Orbitron', sans-serif";
+        }
 
         // Explicitly set font for measurement
         ctx.font = `${style} ${weight} ${baseFontSize}px ${fontFamily}`;
@@ -390,7 +428,7 @@ export const drawCanvasFrame = (
                 let fill: string | CanvasGradient = baseColor;
 
                 // Determine if we should highlight this word
-                const isFillType = effect.includes('fill') || effect === 'karaoke-smooth';
+                const isFillType = effect.includes('fill') || effect.includes('smooth');
                 const shouldHighlight = isFillType ? isPassed : isCurrentWord;
 
                 if (shouldHighlight && effect !== 'none') {
@@ -587,7 +625,79 @@ export const drawCanvasFrame = (
 
                 if (shouldHighlight) {
                     // Fancy Draws
-                    if (effect.includes('gradient') || effect.includes('chrome') || effect.includes('gold')) {
+                    if (effect === 'karaoke-smooth-plus') {
+                        const textEffect = renderConfig.textEffect || 'none';
+                        if (isCurrentWord) {
+                            const duration = word.endTime - word.startTime;
+                            const elapsed = time - word.startTime;
+                            const progress = Math.max(0, Math.min(1, elapsed / duration));
+
+                            // Calculate cutoff point
+                            const cutoff = wordX + (wWidth * progress);
+
+                            // Decoration Logic: Handle decoration manually inside clipping to avoid gradient issues
+                            const decoration = renderConfig?.textDecoration || 'none';
+                            const drawSplitDecoration = (color: string) => {
+                                if (decoration !== 'none') {
+                                    ctx.lineWidth = Math.max(2, 3 * scale);
+                                    ctx.strokeStyle = color;
+                                    ctx.beginPath();
+                                    const dy = wordY + (baseFontSize * 0.45); // Match global offset
+                                    if (decoration.includes('underline')) {
+                                        ctx.moveTo(wordX, dy);
+                                        ctx.lineTo(wordX + wWidth, dy);
+                                    }
+                                    if (decoration.includes('line-through')) {
+                                        ctx.moveTo(wordX, wordY);
+                                        ctx.lineTo(wordX + wWidth, wordY);
+                                    }
+                                    ctx.stroke();
+                                }
+                            };
+
+                            // Highlighted part (Left side)
+                            ctx.save();
+                            ctx.beginPath();
+                            // Clip highlight region
+                            ctx.rect(wordX - 50, wordY - lineHeight, (cutoff - (wordX - 50)), lineHeight * 2);
+                            ctx.clip();
+                            ctx.fillStyle = highlightColor;
+                            drawLineWithEffects(ctx, word.text, wordX, wordY, textEffect);
+                            // Draw Highlight Decoration
+                            drawSplitDecoration(highlightColor);
+                            ctx.restore();
+
+                            // Unhighlighted part (Right side)
+                            ctx.save();
+                            ctx.beginPath();
+                            // Clip unhighlighted region
+                            ctx.rect(cutoff, wordY - lineHeight, (wordX + wWidth + 50) - cutoff, lineHeight * 2);
+                            ctx.clip();
+                            ctx.fillStyle = baseColor;
+                            // Draw as standard base text (no effects)
+                            ctx.fillText(word.text, wordX, wordY);
+                            // Draw Base Decoration
+                            drawSplitDecoration(baseColor);
+                            ctx.restore();
+
+                            // Suppress global decoration block
+                            fill = 'rgba(0,0,0,0)';
+                        } else {
+                            // Passed Word (Fully Highlighted)
+                            ctx.fillStyle = highlightColor;
+                            drawLineWithEffects(ctx, word.text, wordX, wordY, textEffect);
+
+                            // Handle decoration here manually to ensure consistency (or let global block handle it?)
+                            // If we let global block handle it, it uses '0.45' offset which matches. 
+                            // But we need to ensure 'fill' is correct.
+                            // 'fill' is currently set to 'baseColor' at top of loop, but we didn't update it to 'highlightColor' for this block?
+                            // Wait, 'fill' variable is initialized to baseColor.
+                            // In 'karaoke-smooth', fill = highlightColor is set.
+                            // Here, we just set ctx.fillStyle.
+                            // So we MUST update 'fill' variable to highlightColor so global block picks it up.
+                            fill = highlightColor;
+                        }
+                    } else if (effect.includes('gradient') || effect.includes('chrome') || effect.includes('gold')) {
                         const grad = ctx.createLinearGradient(wordX, wordY - lineHeight / 2, wordX, wordY + lineHeight / 2);
                         if (effect.includes('gold')) { grad.addColorStop(0, '#d4af37'); grad.addColorStop(1, '#C5A028'); }
                         else if (effect.includes('chrome')) { grad.addColorStop(0, '#ebebeb'); grad.addColorStop(0.5, '#616161'); grad.addColorStop(0.51, '#ebebeb'); grad.addColorStop(1, '#ebebeb'); }
@@ -613,6 +723,35 @@ export const drawCanvasFrame = (
                         ctx.shadowBlur = 10; ctx.shadowColor = '#fff'; ctx.fillText(word.text, wordX, wordY);
                         ctx.shadowBlur = 20; ctx.shadowColor = '#ff00de'; ctx.fillText(word.text, wordX, wordY);
                         ctx.shadowBlur = 35; ctx.shadowColor = '#00ffff'; ctx.fillText(word.text, wordX, wordY);
+                    } else if (effect.includes('cyberpunk')) {
+                        ctx.save();
+                        ctx.fillStyle = '#05d9e8';
+                        ctx.fillText(word.text, wordX - 1, wordY - 1);
+                        ctx.restore();
+
+                        ctx.save();
+                        ctx.fillStyle = '#000000';
+                        ctx.fillText(word.text, wordX + 2, wordY + 2);
+                        ctx.restore();
+
+                        ctx.fillStyle = '#fcee0a';
+                        ctx.fillText(word.text, wordX, wordY);
+                    } else if (effect.includes('glitch-text')) {
+                        const jitterX = (Math.random() - 0.5) * 5;
+                        const jitterY = (Math.random() - 0.5) * 2;
+
+                        ctx.save();
+                        ctx.fillStyle = 'red';
+                        ctx.fillText(word.text, wordX + jitterX, wordY + jitterY);
+                        ctx.restore();
+
+                        ctx.save();
+                        ctx.fillStyle = 'cyan';
+                        ctx.fillText(word.text, wordX - jitterX, wordY - jitterY);
+                        ctx.restore();
+
+                        ctx.fillStyle = '#ffffff';
+                        ctx.fillText(word.text, wordX, wordY);
                     } else if (effect.includes('retro') || effect.includes('vhs')) {
                         // Dynamic VHS Drift
                         const drift = Math.sin(time * 5) * 2 * scale;
