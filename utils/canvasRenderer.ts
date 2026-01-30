@@ -385,6 +385,9 @@ export const drawCanvasFrame = (
         }
 
         let baseColor = renderConfig.fontColor || '#ffffff';
+        if (renderConfig.highlightEffect === 'karaoke-smooth-white') {
+            baseColor = '#ffffff';
+        }
 
         lines.forEach((l, i) => {
             const lineY = startY + (i * lineHeight);
@@ -432,7 +435,7 @@ export const drawCanvasFrame = (
                 const shouldHighlight = isFillType ? isPassed : isCurrentWord;
 
                 if (shouldHighlight && effect !== 'none') {
-                    if (effect === 'karaoke-smooth') {
+                    if (effect === 'karaoke-smooth' || effect === 'karaoke-smooth-white') {
                         if (isCurrentWord) {
                             // Calculate smooth progress
                             const duration = word.endTime - word.startTime;
@@ -1285,8 +1288,12 @@ export const drawCanvasFrame = (
                 const baseColorHex = renderConfig?.fontColor || '#ffffff';
                 let fillStyle = baseColorHex;
                 if (!isCurrent) {
-                    const rgb = hexToRgb(baseColorHex);
-                    fillStyle = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.5)`;
+                    if (renderConfig?.highlightEffect === 'karaoke-smooth-white') {
+                        fillStyle = '#ffffff';
+                    } else {
+                        const rgb = hexToRgb(baseColorHex);
+                        fillStyle = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.5)`;
+                    }
                 }
 
                 let weight = isCurrent ? (['large', 'large_upper', 'big_center', 'metal', 'tech'].includes(activePreset) ? '900' : 'bold') : '400';
@@ -2005,12 +2012,19 @@ export const drawCanvasFrame = (
                     if (showInfo) {
                         ctx.textAlign = 'center'; ctx.textBaseline = 'top';
                         const titleY = imgY + (showCover ? thumbSize + 25 * scale : 0);
+                        const infoFont = renderConfig?.infoFontFamily || fontFamily;
+                        const infoColor = renderConfig?.infoFontColor || '#ffffff';
+                        const artistColor = renderConfig?.infoFontColor || '#d4d4d8'; // Use custom if set
+
+                        const infoFontWeight = renderConfig?.infoFontWeight || 'bold';
+                        const infoFontStyle = renderConfig?.infoFontStyle || 'normal';
+
                         if (renderConfig?.showTitle ?? true) {
-                            ctx.font = `bold ${(isSq ? 26 : 36) * scale}px ${fontFamily}`; ctx.fillStyle = '#ffffff';
+                            ctx.font = `${infoFontStyle} ${infoFontWeight} ${(isSq ? 26 : 36) * scale}px ${infoFont}`; ctx.fillStyle = infoColor;
                             ctx.fillText(metadata.title, centerX, titleY);
                         }
                         if (renderConfig?.showArtist ?? true) {
-                            ctx.font = `${(isSq ? 18 : 24) * scale}px ${fontFamily}`; ctx.fillStyle = '#d4d4d8';
+                            ctx.font = `${infoFontStyle} ${infoFontWeight} ${(isSq ? 18 : 24) * scale}px ${infoFont}`; ctx.fillStyle = artistColor;
                             ctx.fillText(metadata.artist, centerX, titleY + ((renderConfig?.showTitle ?? true) ? (isSq ? 30 : 40) * scale : 0));
                         }
                     }
@@ -2024,13 +2038,20 @@ export const drawCanvasFrame = (
                     }
                     if (showInfo) {
                         ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+                        const infoFont = renderConfig?.infoFontFamily || fontFamily;
+                        const infoColor = renderConfig?.infoFontColor || '#ffffff';
+                        const artistColor = renderConfig?.infoFontColor || '#d4d4d8';
+
+                        const infoFontWeight = renderConfig?.infoFontWeight || 'bold';
+                        const infoFontStyle = renderConfig?.infoFontStyle || 'normal';
+
                         const titleX = x + (showCover ? thumbSize + 25 * scale : 0), titleSize = 28 * scale, titleY = y + thumbSize / 2 - titleSize;
                         if (renderConfig?.showTitle ?? true) {
-                            ctx.font = `bold ${titleSize}px ${fontFamily}`; ctx.fillStyle = '#ffffff';
+                            ctx.font = `${infoFontStyle} ${infoFontWeight} ${titleSize}px ${infoFont}`; ctx.fillStyle = infoColor;
                             ctx.fillText(metadata.title, titleX, titleY);
                         }
                         if (renderConfig?.showArtist ?? true) {
-                            ctx.font = `${18 * scale}px ${fontFamily}`; ctx.fillStyle = '#d4d4d8';
+                            ctx.font = `${infoFontStyle} ${infoFontWeight} ${18 * scale}px ${infoFont}`; ctx.fillStyle = artistColor;
                             ctx.fillText(metadata.artist, titleX, titleY + ((renderConfig?.showTitle ?? true) ? titleSize + 5 * scale : 0));
                         }
                     }
@@ -2098,7 +2119,9 @@ export const drawCanvasFrame = (
                 const ratio = cTextSvgImg.width / cTextSvgImg.height;
                 textW = textH * ratio;
             } else {
-                ctx.font = `bold ${fontSize}px sans-serif`;
+                const cFontWeight = renderConfig.channelInfoFontWeight || 'bold';
+                const cFontStyle = renderConfig.channelInfoFontStyle || 'normal';
+                ctx.font = `${cFontStyle} ${cFontWeight} ${fontSize}px ${renderConfig.channelInfoFontFamily || 'sans-serif'}`;
                 if (cText && cStyle !== 'logo') {
                     textW = ctx.measureText(cText).width;
                 }
@@ -2175,7 +2198,7 @@ export const drawCanvasFrame = (
                     ctx.drawImage(cTextSvgImg, tx, ty, textW, textH);
                 } else {
                     // Text
-                    ctx.fillStyle = '#ffffff';
+                    ctx.fillStyle = renderConfig.channelInfoFontColor || '#ffffff';
                     ctx.textAlign = 'left';
                     ctx.textBaseline = 'top';
                     ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 4;
@@ -2256,7 +2279,7 @@ export const drawCanvasFrame = (
                                 ctx.drawImage(cTextSvgImg, curX, midY - textH / 2, textW, textH);
                                 ctx.shadowColor = 'transparent';
                             } else {
-                                ctx.fillStyle = '#ffffff'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+                                ctx.fillStyle = renderConfig.channelInfoFontColor || '#ffffff'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
                                 ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 4;
                                 ctx.fillText(cText!, curX, midY + (textH * 0.1));
                                 ctx.shadowColor = 'transparent';

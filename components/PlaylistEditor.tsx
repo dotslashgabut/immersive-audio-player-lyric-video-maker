@@ -728,7 +728,8 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
 
                     // Check if end time is missing or invalid (<= start time)
                     // We assume that if parsed from simple LRC, word.endTime might be 0 or equal to startTime
-                    if (word.endTime === undefined || word.endTime <= word.startTime) {
+                    // For TTML, we force closing gaps for smoother karaoke visual
+                    if (format === 'ttml' || word.endTime === undefined || word.endTime <= word.startTime) {
                         if (nextWord) {
                             word.endTime = nextWord.startTime;
                         } else {
