@@ -1,0 +1,13 @@
+<IfModule mod_headers.c>
+  RewriteEngine On
+  RewriteBase /
+
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+
+  RewriteRule ^ index.html [L]
+
+  Header set Cross-Origin-Opener-Policy "same-origin"
+  Header set Cross-Origin-Embedder-Policy "require-corp"
+</IfModule>
