@@ -33,6 +33,10 @@ const DEFAULT_CONFIG: RenderConfig = {
     infoStyle: 'classic',
     infoMarginScale: 1.0,
     infoSizeScale: 1.0,
+    infoFontFamily: 'ui-sans-serif, system-ui, sans-serif',
+    infoFontWeight: 'bold',
+    infoFontStyle: 'normal',
+    infoFontColor: '#ffffff',
     backgroundBlurStrength: 0,
     introMode: 'auto',
     introText: '',
@@ -46,6 +50,10 @@ const DEFAULT_CONFIG: RenderConfig = {
     channelInfoStyle: 'classic',
     channelInfoSizeScale: 1.0,
     channelInfoMarginScale: 1.0,
+    channelInfoFontFamily: 'ui-sans-serif, system-ui, sans-serif',
+    channelInfoFontWeight: 'bold',
+    channelInfoFontStyle: 'normal',
+    channelInfoFontColor: '#ffffff',
     channelInfoImage: undefined,
     useCustomHighlightColors: false,
     backgroundImage: undefined,
@@ -234,6 +242,7 @@ export const highlightEffectGroups = [
         options: [
             { label: "Default (Line/Fill)", value: "karaoke" },
             { label: "Smooth Transition", value: "karaoke-smooth" },
+            { label: "Smooth Transition White", value: "karaoke-smooth-white" },
             { label: "Smooth Transition Plus", value: "karaoke-smooth-plus" },
             { label: "Fill Background", value: "karaoke-fill" },
             { label: "Outline Only", value: "karaoke-outline" },
@@ -629,6 +638,12 @@ interface RenderSettingsProps {
     setRenderEngine: (engine: RenderEngine) => void;
     ffmpegCodec: FFmpegCodec;
     setFfmpegCodec: (codec: FFmpegCodec) => void;
+    customChannelFontName?: string | null;
+    onChannelFontUpload?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+    onClearChannelCustomFont?: () => void;
+    customInfoFontName?: string | null;
+    onInfoFontUpload?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+    onClearInfoCustomFont?: () => void;
 }
 
 // Generate font options from presets
@@ -677,11 +692,19 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
     renderEngine,
     setRenderEngine,
     ffmpegCodec,
-    setFfmpegCodec
+    setFfmpegCodec,
+    customChannelFontName,
+    onChannelFontUpload,
+    onClearChannelCustomFont,
+    customInfoFontName,
+    onInfoFontUpload,
+    onClearInfoCustomFont
 }) => {
     const { toast, confirm } = useUI();
     const sidebarRef = useRef<HTMLDivElement>(null);
     const fontInputRef = useRef<HTMLInputElement>(null);
+    const channelFontInputRef = useRef<HTMLInputElement>(null);
+    const infoFontInputRef = useRef<HTMLInputElement>(null);
     const channelImageInputRef = useRef<HTMLInputElement>(null);
     const backgroundImageInputRef = useRef<HTMLInputElement>(null);
     const settingsInputRef = useRef<HTMLInputElement>(null);
@@ -804,6 +827,20 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
 
             // Reset Custom Font
             onClearCustomFont();
+            if (onClearChannelCustomFont) onClearChannelCustomFont();
+            if (onClearInfoCustomFont) onClearInfoCustomFont();
+
+            // Reset Font Inputs
+            if (config.channelInfoFontFamily === 'ChannelFont' && channelFontInputRef.current) channelFontInputRef.current.value = '';
+            if (config.infoFontFamily === 'InfoFont' && infoFontInputRef.current) infoFontInputRef.current.value = '';
+
+            // Ensure manual reset of new style props if they aren't covered by spread (though they are in DEFAULT_CONFIG)
+            // But explicit is safe.
+            handleChange('channelInfoFontWeight', 'bold');
+            handleChange('channelInfoFontStyle', 'normal');
+            handleChange('infoFontWeight', 'bold');
+            handleChange('infoFontStyle', 'normal');
+
             // Reset additional properties not in DEFAULT_CONFIG spread if any (explicitly setting undefined/false where needed if DEFAULT_CONFIG isn't enough - but it is)
             handleChange('enableGradientOverlay', false);
             handleChange('useRealColorMedia', false);
@@ -831,7 +868,14 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
             renderQuality,
             renderEngine,
             ffmpegCodec,
-            customFontName // Include custom font name meta-data
+            customFontName, // Include custom font name meta-data
+            customChannelFontName,
+            customInfoFontName,
+            // Explicitly ensure these are exported (though they are in config spread)
+            channelInfoFontWeight: config.channelInfoFontWeight,
+            channelInfoFontStyle: config.channelInfoFontStyle,
+            infoFontWeight: config.infoFontWeight,
+            infoFontStyle: config.infoFontStyle
         } as any;
 
         // Cleanup unused large data to keep file size down
@@ -880,6 +924,12 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                         ffmpegCodec: importedFfmpegCodec,
                         preset: importedPreset,
                         customFontName: importedCustomFontName,
+                        customChannelFontName: importedCustomChannelFontName,
+                        customInfoFontName: importedCustomInfoFontName,
+                        channelInfoFontWeight: importedChannelInfoFontWeight,
+                        channelInfoFontStyle: importedChannelInfoFontStyle,
+                        infoFontWeight: importedInfoFontWeight,
+                        infoFontStyle: importedInfoFontStyle,
                         ...importedConfig
                     } = json;
 
@@ -988,6 +1038,8 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
 
                     if (importedCustomFontName && importedCustomFontName !== customFontName) {
                         toast.success(`Settings loaded. Note: Config used font "${importedCustomFontName}".`);
+                    } else if (importedCustomChannelFontName || importedCustomInfoFontName) {
+                        toast.success(`Settings loaded. Custom fonts referenced: ${[importedCustomChannelFontName, importedCustomInfoFontName].filter(Boolean).join(', ')}`);
                     } else {
                         toast.success('Settings loaded successfully!');
                     }
@@ -1620,6 +1672,81 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                                         />
                                     </div>
                                 </div>
+
+
+                                {/* Custom Font for Channel Info */}
+                                <div className="space-y-1.5">
+                                    <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Font Family</label>
+                                    <FontSelector
+                                        value={config.channelInfoFontFamily || 'sans-serif'}
+                                        onChange={(val) => handleChange('channelInfoFontFamily', val)}
+                                        customFontName={customChannelFontName || null}
+                                        groups={fullFontGroups}
+                                    />
+                                    {/* Upload Button */}
+                                    <input
+                                        ref={channelFontInputRef}
+                                        type="file"
+                                        accept=".ttf,.otf,.woff,.woff2"
+                                        onChange={onChannelFontUpload}
+                                        className="hidden"
+                                    />
+                                    {customChannelFontName ? (
+                                        <div className="flex items-center gap-2 bg-zinc-800/50 border border-purple-500/30 rounded-lg px-2 py-1.5 mt-1">
+                                            <span className="text-[10px] text-purple-300 font-medium truncate flex-1">{customChannelFontName}</span>
+                                            <button
+                                                onClick={() => handleChange('channelInfoFontFamily', 'ChannelFont')}
+                                                className={`text-[10px] px-2 py-0.5 rounded transition-colors ${config.channelInfoFontFamily === 'ChannelFont' ? 'bg-purple-600 text-white' : 'bg-zinc-700 text-zinc-300 hover:bg-zinc-600'}`}
+                                            >
+                                                Use
+                                            </button>
+                                            <button onClick={onClearChannelCustomFont} className="text-zinc-500 hover:text-red-400"><Trash2 size={12} /></button>
+                                        </div>
+                                    ) : (
+                                        <button
+                                            onClick={() => channelFontInputRef.current?.click()}
+                                            className="w-full flex items-center justify-center gap-2 bg-zinc-800/30 border border-dashed border-white/10 hover:border-purple-500/50 rounded-lg px-2 py-1.5 text-zinc-500 hover:text-purple-300 transition-colors mt-1"
+                                        >
+                                            <Upload size={10} />
+                                            <span className="text-[10px]">Upload Font</span>
+                                        </button>
+                                    )}
+                                </div>
+
+                                {/* Channel Info Font Style (Bold/Italic) */}
+                                <div className="space-y-1.5">
+                                    <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Font Style</label>
+                                    <div className="flex bg-zinc-800 rounded-lg p-1 gap-1">
+                                        <button
+                                            onClick={() => handleChange('channelInfoFontWeight', config.channelInfoFontWeight === 'bold' ? 'normal' : 'bold')}
+                                            className={`flex-1 py-1.5 rounded-md flex items-center justify-center transition-all ${config.channelInfoFontWeight === 'bold' ? 'bg-zinc-600 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}
+                                            title="Bold"
+                                        >
+                                            <Bold size={14} />
+                                        </button>
+                                        <button
+                                            onClick={() => handleChange('channelInfoFontStyle', config.channelInfoFontStyle === 'italic' ? 'normal' : 'italic')}
+                                            className={`flex-1 py-1.5 rounded-md flex items-center justify-center transition-all ${config.channelInfoFontStyle === 'italic' ? 'bg-zinc-600 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}
+                                            title="Italic"
+                                        >
+                                            <Italic size={14} />
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* Channel Info Color */}
+                                <div className="space-y-1.5">
+                                    <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Text Color</label>
+                                    <div className="flex items-center gap-3 bg-zinc-800/30 p-2 rounded-lg border border-white/5">
+                                        <input
+                                            type="color"
+                                            value={config.channelInfoFontColor || '#ffffff'}
+                                            onChange={(e) => handleChange('channelInfoFontColor', e.target.value)}
+                                            className="w-6 h-6 rounded cursor-pointer bg-transparent border-none shrink-0"
+                                        />
+                                        <span className="text-[10px] text-zinc-400 font-mono uppercase">{config.channelInfoFontColor || '#ffffff'}</span>
+                                    </div>
+                                </div>
                             </div>
                         )}
                     </div>
@@ -1722,6 +1849,80 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                                     onChange={(e) => handleChange('infoSizeScale', parseFloat(e.target.value))}
                                     className="w-full h-1 bg-zinc-600 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full hover:[&::-webkit-slider-thumb]:bg-purple-400 transition-all"
                                 />
+                            </div>
+                        </div>
+
+
+                        {/* Custom Font for Song Info */}
+                        <div className="space-y-1.5">
+                            <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Font Family</label>
+                            <FontSelector
+                                value={config.infoFontFamily || 'sans-serif'}
+                                onChange={(val) => handleChange('infoFontFamily', val)}
+                                customFontName={customInfoFontName || null}
+                                groups={fullFontGroups}
+                            />
+                            <input
+                                ref={infoFontInputRef}
+                                type="file"
+                                accept=".ttf,.otf,.woff,.woff2"
+                                onChange={onInfoFontUpload}
+                                className="hidden"
+                            />
+                            {customInfoFontName ? (
+                                <div className="flex items-center gap-2 bg-zinc-800/50 border border-purple-500/30 rounded-lg px-2 py-1.5 mt-1">
+                                    <span className="text-[10px] text-purple-300 font-medium truncate flex-1">{customInfoFontName}</span>
+                                    <button
+                                        onClick={() => handleChange('infoFontFamily', 'InfoFont')}
+                                        className={`text-[10px] px-2 py-0.5 rounded transition-colors ${config.infoFontFamily === 'InfoFont' ? 'bg-purple-600 text-white' : 'bg-zinc-700 text-zinc-300 hover:bg-zinc-600'}`}
+                                    >
+                                        Use
+                                    </button>
+                                    <button onClick={onClearInfoCustomFont} className="text-zinc-500 hover:text-red-400"><Trash2 size={12} /></button>
+                                </div>
+                            ) : (
+                                <button
+                                    onClick={() => infoFontInputRef.current?.click()}
+                                    className="w-full flex items-center justify-center gap-2 bg-zinc-800/30 border border-dashed border-white/10 hover:border-purple-500/50 rounded-lg px-2 py-1.5 text-zinc-500 hover:text-purple-300 transition-colors mt-1"
+                                >
+                                    <Upload size={10} />
+                                    <span className="text-[10px]">Upload Font</span>
+                                </button>
+                            )}
+                        </div>
+
+                        {/* Song Info Font Style (Bold/Italic) */}
+                        <div className="space-y-1.5">
+                            <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Font Style</label>
+                            <div className="flex bg-zinc-800 rounded-lg p-1 gap-1">
+                                <button
+                                    onClick={() => handleChange('infoFontWeight', config.infoFontWeight === 'bold' ? 'normal' : 'bold')}
+                                    className={`flex-1 py-1.5 rounded-md flex items-center justify-center transition-all ${config.infoFontWeight === 'bold' ? 'bg-zinc-600 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}
+                                    title="Bold"
+                                >
+                                    <Bold size={14} />
+                                </button>
+                                <button
+                                    onClick={() => handleChange('infoFontStyle', config.infoFontStyle === 'italic' ? 'normal' : 'italic')}
+                                    className={`flex-1 py-1.5 rounded-md flex items-center justify-center transition-all ${config.infoFontStyle === 'italic' ? 'bg-zinc-600 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}
+                                    title="Italic"
+                                >
+                                    <Italic size={14} />
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Song Info Color */}
+                        <div className="space-y-1.5">
+                            <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Text Color</label>
+                            <div className="flex items-center gap-3 bg-zinc-800/30 p-2 rounded-lg border border-white/5">
+                                <input
+                                    type="color"
+                                    value={config.infoFontColor || '#ffffff'}
+                                    onChange={(e) => handleChange('infoFontColor', e.target.value)}
+                                    className="w-6 h-6 rounded cursor-pointer bg-transparent border-none shrink-0"
+                                />
+                                <span className="text-[10px] text-zinc-400 font-mono uppercase">{config.infoFontColor || '#ffffff'}</span>
                             </div>
                         </div>
                     </div>
@@ -2293,10 +2494,10 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                     )
                 }
 
-            </div >
+            </div>
 
             {/* Footer / Info */}
-            < div className="p-4 border-t border-white/10 bg-zinc-900/50 space-y-3" >
+            <div className="p-4 border-t border-white/10 bg-zinc-900/50 space-y-3">
                 <button
                     onClick={onRender}
                     className="w-full py-2.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-bold text-sm shadow-lg shadow-purple-500/20 active:scale-95 transition-all flex items-center justify-center gap-2"
@@ -2306,8 +2507,8 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                 <p className="text-[10px] text-zinc-500 text-center leading-relaxed italic">
                     These settings will be applied to the final video. Ensure all sources are loaded correctly.
                 </p>
-            </div >
-        </div >
+            </div>
+        </div>
     );
 };
 

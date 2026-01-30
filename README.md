@@ -1,7 +1,7 @@
 <div align="center">
   <img src="public/icon.svg" width="100" />
   <h1>Immersive Audio Player & Lyric Video Maker</h1>
-  <p><b>Version 2.3.1</b></p>
+  <p><b>Version 2.3.2</b></p>
 </div>
 
 **Immersive Audio Player & Lyric Video Maker** is a powerful all-in-one web tool designed for music lovers and content creators. It combines a distraction-free audio player with a professional-grade timeline editor, allowing you to create stunning, synchronized lyric videos directly in your browser. Whether you want to enjoy your local music library with beautiful visuals or create viral content for TikTok, Instagram, and YouTube, this app delivers high-quality results without watermarks or server uploads.
@@ -99,8 +99,8 @@
   - **1:2** (Vertical - Split Screen)
 - **Rendering Scope**: Batch export the entire playlist or just the current song.
 - **Settings Management**:
-  - **JSON Import/Export**: Backup, share, or restore your exact render configurations (visuals, fonts, layouts) with a single click.
-  - **Reset to Defaults**: Instantly revert all specific render settings to their factory state with the new Reset button.
+  - **JSON Import/Export**: Backup, share, or restore your exact render configurations (including custom fonts, colors, and layouts) with a single click.
+  - **Reset to Defaults**: Improved reset functionality to verify and clear all custom font selections and return to factory defaults.
 - **Advanced Backgrounds**:
   - **Timeline Media**: Use your custom images and videos from the timeline.
   - **Custom Image**: Direct support for single custom background images.
@@ -126,6 +126,7 @@
   - **Positioning**: 9-point grid automatic positioning (Top-Left to Bottom-Right).
   - **Song Styles**: Classic (Detailed), Modern + Cover, Circle Cover, Boxed Cover, Minimal (Text Only).
   - **Channel Styles**: Classic, Modern, Minimal, Logo Only (**SVG Support**), Boxed.
+  - **Typography Control**: Custom Font Family, Weight (**Bold**), Style (**Italic**), and **Custom Color** for both Channel and Song Info.
   - **Padding**: Fine-tune margin from screen edges for both **Song Info** and **Channel Info** (Visible in Minimal Mode).
 - **Smart Overlays**: Automatically generates metadata overlays for "Now Playing" visuals.
 - **Dynamic Blur**: Apply real-time Gaussian-style blur to background images or videos for better lyric readability.

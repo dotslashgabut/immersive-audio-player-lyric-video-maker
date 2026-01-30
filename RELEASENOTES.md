@@ -1,5 +1,18 @@
 # Release Notes
 
+# 2.3.2
+
+## What's New
+- **Render Settings Enhancements**:
+  - **Export & Import Settings**: You can now export your entire render configuration (including custom fonts, colors, and layout preferences) to a JSON file and import it anytime. Perfect for sharing presets or backing up your workspace.
+  - **Enhanced Reset**: The "Reset to Defaults" button has been improved to correctly clear all custom font selections and restore the default styling.
+- **Advanced typography**:
+  - **Custom Font Styles**: Added granular control for **Channel Info** and **Song Info** overlays. You can now independently toggle **Bold** and **Italic** styles for these elements.
+  - **Custom Colors**: Introduced dedicated color pickers for Channel Info and Song Info text, giving you full creative freedom over your watermark and metadata display.
+- **Minimal Mode**:
+  - **Preview Accuracy**: The Minimal Mode (Shortcut 'O') now perfectly mirrors your custom font choices (Family, Weight, Style, and Color) for Channel and Song Info, ensuring what you see is exactly what you get in the export.
+
+
 # 2.3.1
 
 ## What's New
@@ -9,6 +22,9 @@
 - **Visual Effects**:
   - **Cyberpunk Refinement**: Updated the "Cyberpunk" text effect with a more authentic font and improved glitch aesthetics.
   - **Smooth Transition Plus**: Fixed a bug where the active text color was not correctly applied in the Web View.
+  - **Smooth Transition White**: Added a new karaoke highlight effect that features a smooth gradient wipe but keeps the future text (and the unplayed portion of the active word) permanently **White (Opacity 100%)**, essentially overriding any global font color or opacity settings. This creates a high-contrast look where the text is always fully visible.
+- **Export & Rendering**:
+  - **Gapless TTML**: Fixed word-level timestamp gaps in TTML exports, ensuring contiguous highlighting for smoother karaoke playback.
 - **User Interface**:
   - **New Shortcut**: Added **Y** key to quickly toggle the "Keyboard Shortcuts" info overlay.
   - **Shortcuts Help**: Updated the Keyboard Shortcuts modal (`?` or `Y`) to include a new section for **Mouse & Touch Interactions** (e.g., Click-to-Seek, Double-Tap for Minimal Mode).
@@ -218,6 +234,7 @@
 - **Improved Keyboard Shortcuts**: 
     - **X**: Toggle Highlight Effect On/Off.
     - **Z**: Cycle through all available Highlight Effects.
+    - **F**: Toggle Fullscreen.
     - Added "Visual Effects" section to the Keyboard Shortcuts help modal.
 - **Improved TTML Handling**: Enhanced parsing and export of Word-Level timing data (`<span>` tags) for precise karaoke synchronization.
 - **Smart Presets**: Selecting a named color effect (e.g., "Karaoke Blue") automatically configures the custom color pickers.

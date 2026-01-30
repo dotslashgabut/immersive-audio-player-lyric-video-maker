@@ -69,6 +69,8 @@ function App() {
   const [resolution, setResolution] = useState<'720p' | '1080p'>('1080p');
   const [preset, setPreset] = useState<VideoPreset>('default');
   const [customFontName, setCustomFontName] = useState<string | null>(null);
+  const [customChannelFontName, setCustomChannelFontName] = useState<string | null>(null);
+  const [customInfoFontName, setCustomInfoFontName] = useState<string | null>(null);
   // const [fontSizeScale, setFontSizeScale] = useState(1); // Migrated to renderConfig
   const [renderCodec, setRenderCodec] = useState<string>('auto');
   const [renderFps, setRenderFps] = useState<number>(30);
@@ -114,6 +116,10 @@ function App() {
     highlightEffect: 'karaoke',
     lyricLineHeight: 1.2,
     useRealColorMedia: false,
+    channelInfoFontWeight: 'bold',
+    channelInfoFontStyle: 'normal',
+    infoFontWeight: 'bold',
+    infoFontStyle: 'normal',
   });
 
   // Ref to access latest config in event handlers without triggering re-renders
@@ -390,6 +396,60 @@ function App() {
       }
     }
     // Allow re-upload
+    e.target.value = '';
+  };
+
+  const handleChannelFontUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (!window.FontFace || !document.fonts) {
+        toast.error("Custom fonts are not supported in this browser.");
+        return;
+      }
+      try {
+        const url = URL.createObjectURL(file);
+        const fontLabel = file.name.replace(/\.[^/.]+$/, "");
+        const fontId = 'ChannelFont'; // Unique ID
+
+        const font = new FontFace(fontId, `url(${url})`);
+        await font.load();
+        document.fonts.add(font);
+
+        setCustomChannelFontName(fontLabel);
+        setRenderConfig(prev => ({ ...prev, channelInfoFontFamily: fontId }));
+        toast.success(`Loaded Channel font: ${fontLabel}`);
+      } catch (err) {
+        console.error("Failed to load font:", err);
+        toast.error("Failed to load channel font file.");
+      }
+    }
+    e.target.value = '';
+  };
+
+  const handleInfoFontUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (!window.FontFace || !document.fonts) {
+        toast.error("Custom fonts are not supported in this browser.");
+        return;
+      }
+      try {
+        const url = URL.createObjectURL(file);
+        const fontLabel = file.name.replace(/\.[^/.]+$/, "");
+        const fontId = 'InfoFont'; // Unique ID
+
+        const font = new FontFace(fontId, `url(${url})`);
+        await font.load();
+        document.fonts.add(font);
+
+        setCustomInfoFontName(fontLabel);
+        setRenderConfig(prev => ({ ...prev, infoFontFamily: fontId }));
+        toast.success(`Loaded Info font: ${fontLabel}`);
+      } catch (err) {
+        console.error("Failed to load font:", err);
+        toast.error("Failed to load info font file.");
+      }
+    }
     e.target.value = '';
   };
 
@@ -2151,17 +2211,29 @@ function App() {
                 if (isSvg) {
                   return (
                     <div
-                      className={`text-white font-bold drop-shadow-md text-lg inline-flex items-center gap-1
+                      className={`font-bold drop-shadow-md text-lg inline-flex items-center gap-1
                         ${(renderConfig.channelInfoStyle === 'minimal' || renderConfig.channelInfoStyle === 'box') ? '' : 'px-2 py-1 bg-black/20 rounded-lg backdrop-blur-sm'}
                         [&>svg]:w-auto [&>svg]:h-[1.5em]`}
+                      style={{
+                        fontFamily: renderConfig.channelInfoFontFamily,
+                        color: renderConfig.channelInfoFontColor || 'white',
+                        fontWeight: renderConfig.channelInfoFontWeight || 'bold',
+                        fontStyle: renderConfig.channelInfoFontStyle || 'normal'
+                      }}
                       dangerouslySetInnerHTML={{ __html: text }}
                     />
                   );
                 }
 
                 return (
-                  <p className={`text-white font-bold drop-shadow-md text-lg 
-                    ${(renderConfig.channelInfoStyle === 'minimal' || renderConfig.channelInfoStyle === 'box') ? '' : 'px-2 py-1 bg-black/20 rounded-lg backdrop-blur-sm'}`}>
+                  <p className={`font-bold drop-shadow-md text-lg 
+                    ${(renderConfig.channelInfoStyle === 'minimal' || renderConfig.channelInfoStyle === 'box') ? '' : 'px-2 py-1 bg-black/20 rounded-lg backdrop-blur-sm'}`}
+                    style={{
+                      fontFamily: renderConfig.channelInfoFontFamily,
+                      color: renderConfig.channelInfoFontColor || 'white',
+                      fontWeight: renderConfig.channelInfoFontWeight || 'bold',
+                      fontStyle: renderConfig.channelInfoFontStyle || 'normal'
+                    }}>
                     {renderConfig.channelInfoText}
                   </p>
                 );
@@ -2232,18 +2304,33 @@ function App() {
               {/* Text Info */}
               <div className={`flex flex-col justify-center ${renderConfig.infoPosition?.includes('right') ? 'items-end' : renderConfig.infoPosition?.includes('center') ? 'items-center' : 'items-start'}`}>
                 {/* Title */}
-                <h1 className={`font-bold text-white drop-shadow-md line-clamp-1 transition-opacity duration-300 
+                <h1 className={`font-bold drop-shadow-md line-clamp-1 transition-opacity duration-300 
                   ${!renderConfig.showTitle ? 'opacity-0 h-0 w-0' : 'opacity-100'}
                   ${renderConfig.infoStyle === 'minimal' ? 'text-sm' : renderConfig.infoStyle === 'modern' || renderConfig.infoStyle === 'modern_art' ? 'text-xl' : 'text-lg'}
-                `}>{metadata.title}</h1>
+                `}
+                  style={{
+                    fontFamily: renderConfig.infoFontFamily,
+                    color: renderConfig.infoFontColor || 'white',
+                    fontWeight: renderConfig.infoFontWeight || 'bold',
+                    fontStyle: renderConfig.infoFontStyle || 'normal'
+                  }}
+                >{metadata.title}</h1>
 
                 {/* Artist */}
                 <div className={`flex items-center gap-2 transition-opacity duration-300 
                   ${!renderConfig.showArtist ? 'opacity-0 h-0 w-0' : 'opacity-100'}
                 `}>
                   <p className={`drop-shadow-md
-                    ${renderConfig.infoStyle === 'minimal' ? 'text-zinc-400 text-[10px]' : (renderConfig.infoStyle === 'modern' || renderConfig.infoStyle === 'modern_art') ? 'text-white text-sm font-medium' : 'text-zinc-300 text-xs'}
-                  `}>{metadata.artist}</p>
+                    ${renderConfig.infoStyle === 'minimal' ? 'text-[10px]' : (renderConfig.infoStyle === 'modern' || renderConfig.infoStyle === 'modern_art') ? 'text-sm font-medium' : 'text-xs'}
+                  `}
+                    style={{
+                      fontFamily: renderConfig.infoFontFamily,
+                      color: renderConfig.infoFontColor || (renderConfig.infoStyle === 'minimal' ? '#a1a1aa' : '#d4d4d8'),
+                      fontWeight: renderConfig.infoFontWeight || 'bold',
+                      fontStyle: renderConfig.infoFontStyle || 'normal'
+                    }}
+                  >{metadata.artist}</p>
+
                 </div>
               </div>
             </div>
@@ -2294,6 +2381,15 @@ function App() {
                   <path
                     d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8" />
                 </svg>
+              </a>
+              <a
+                href="https://ai.studio/apps/drive/11YaG-jtLXb8BnXM3aMfj7wmKIw-S3mt3?fullscreenApplet=true"
+                target="_blank"
+                rel="noopener noreferrer"
+                title="LyricalEditorPlus - Universal Lyrics/Subtitle Editor"
+                className="px-3 py-2 rounded-full transition-colors bg-black/30 text-zinc-300 hover:bg-white/10 text-xs font-bold flex items-center"
+              >
+                LyricalEditorPlus
               </a>
               <a
                 href="https://ai.studio/apps/drive/1M1VfxdBlNB_eOPQqQiHspvVwizaEs0aI?fullscreenApplet=true"
@@ -2373,7 +2469,7 @@ function App() {
                   setShowShortcutInfo(!showShortcutInfo);
                 }}
                 className={`p-2 rounded-full transition-colors ${showShortcutInfo ? 'bg-purple-600 text-white' : 'bg-black/30 text-zinc-300 hover:bg-white/10'}`}
-                title="Keyboard Shortcuts"
+                title="Keyboard Shortcuts (Y)"
               >
                 <Keyboard size={20} />
               </button>
@@ -2842,7 +2938,12 @@ function App() {
 
                         // Inactive/Future state defaults
                         if (!isWordActive && !isWordPast) {
-                          wordStyle.opacity = 0.5;
+                          if (hEffect === 'karaoke-smooth-white') {
+                            wordStyle.opacity = 1;
+                            wordStyle.color = '#ffffff';
+                          } else {
+                            wordStyle.opacity = 0.5;
+                          }
                           wordStyle.transform = 'scale(1)';
                           // Inherit color from preset (parent <p>)
                         } else if (isWordPast) {
@@ -2853,7 +2954,7 @@ function App() {
                             wordStyle.padding = '2px 6px';
                             wordStyle.borderRadius = '4px';
                             wordStyle.opacity = 1;
-                          } else if (hEffect === 'karaoke-smooth') {
+                          } else if (hEffect === 'karaoke-smooth' || hEffect === 'karaoke-smooth-white') {
                             wordStyle.color = renderConfig.highlightColor || '#fb923c';
                             wordStyle.opacity = 1;
                           } else {
@@ -2878,12 +2979,13 @@ function App() {
                           const hColor = renderConfig.highlightColor || '#fb923c';
                           const hBg = renderConfig.highlightBackground || '#fb923c';
 
-                          if (hEffect === 'karaoke-smooth') {
+                          if (hEffect === 'karaoke-smooth' || hEffect === 'karaoke-smooth-white') {
                             const duration = w.endTime - w.startTime;
                             const elapsed = currentTime - wStart;
                             const progress = Math.min(100, Math.max(0, (elapsed / duration) * 100));
 
-                            wordStyle.backgroundImage = `linear-gradient(90deg, ${hColor} ${progress}%, ${renderConfig.fontColor || '#ffffff'} ${progress}%)`;
+                            const targetColor = hEffect === 'karaoke-smooth-white' ? '#ffffff' : (renderConfig.fontColor || '#ffffff');
+                            wordStyle.backgroundImage = `linear-gradient(90deg, ${hColor} ${progress}%, ${targetColor} ${progress}%)`;
                             wordStyle.backgroundClip = 'text';
                             wordStyle.WebkitBackgroundClip = 'text';
                             wordStyle.color = 'transparent';
@@ -3172,7 +3274,7 @@ function App() {
         </div>
 
         {/* Bottom Controls (Player) */}
-        <div className={`transition-all duration-500 ease-in-out overflow-hidden ${isFooterVisible ? 'max-h-60 opacity-100 translate-y-0' : 'max-h-0 opacity-0 translate-y-4'}`}>
+        <div className={`no-minimal-mode-toggle transition-all duration-500 ease-in-out overflow-hidden ${isFooterVisible ? 'max-h-60 opacity-100 translate-y-0' : 'max-h-0 opacity-0 translate-y-4'}`}>
           <div className="bg-gradient-to-t from-black/60 via-black/30 to-transparent p-4 pb-6 lg:p-6 lg:pb-8">
             <div className="max-w-7xl mx-auto space-y-4">
               {/* Progress Bar */}
@@ -3688,113 +3790,132 @@ function App() {
         )
       }
 
-      {showRenderSettings && (
-        <RenderSettings
-          config={renderConfig}
-          setConfig={setRenderConfig}
-          preset={preset}
-          setPreset={setPreset}
-          onClose={() => setShowRenderSettings(false)}
-          isPlaylistMode={isPlaylistMode}
-          hasPlaylist={playlist.length > 0}
-          onRender={handleExportVideoDispatch}
-          customFontName={customFontName}
-          onFontUpload={handleFontUpload}
-          onClearCustomFont={() => setCustomFontName(null)}
-          resolution={resolution}
-          setResolution={setResolution}
-          aspectRatio={aspectRatio}
-          setAspectRatio={setAspectRatio}
-          renderCodec={renderCodec}
-          setRenderCodec={setRenderCodec}
-          supportedCodecs={supportedCodecs}
-          renderQuality={renderQuality}
-          setRenderQuality={setRenderQuality}
-          renderFps={renderFps}
-          setRenderFps={setRenderFps}
-          renderEngine={renderEngine}
-          setRenderEngine={setRenderEngine}
-          ffmpegCodec={ffmpegCodec}
-          setFfmpegCodec={setFfmpegCodec}
-        />
-      )}
+      {
+        showRenderSettings && (
+          <RenderSettings
+            config={renderConfig}
+            setConfig={setRenderConfig}
+            preset={preset}
+            setPreset={setPreset}
+            onClose={() => setShowRenderSettings(false)}
+            isPlaylistMode={isPlaylistMode}
+            hasPlaylist={playlist.length > 0}
+            onRender={handleExportVideoDispatch}
+            customFontName={customFontName}
+            onFontUpload={handleFontUpload}
+            onClearCustomFont={() => {
+              setCustomFontName(null);
+              setRenderConfig(prev => ({ ...prev, fontFamily: 'ui-sans-serif, system-ui, sans-serif' }));
+            }}
+            customChannelFontName={customChannelFontName}
+            onChannelFontUpload={handleChannelFontUpload}
+            onClearChannelCustomFont={() => {
+              setCustomChannelFontName(null);
+              setRenderConfig(prev => ({ ...prev, channelInfoFontFamily: undefined }));
+            }}
+            customInfoFontName={customInfoFontName}
+            onInfoFontUpload={handleInfoFontUpload}
+            onClearInfoCustomFont={() => {
+              setCustomInfoFontName(null);
+              setRenderConfig(prev => ({ ...prev, infoFontFamily: undefined }));
+            }}
+            resolution={resolution}
+            setResolution={setResolution}
+            aspectRatio={aspectRatio}
+            setAspectRatio={setAspectRatio}
+            renderCodec={renderCodec}
+            setRenderCodec={setRenderCodec}
+            supportedCodecs={supportedCodecs}
+            renderQuality={renderQuality}
+            setRenderQuality={setRenderQuality}
+            renderFps={renderFps}
+            setRenderFps={setRenderFps}
+            renderEngine={renderEngine}
+            setRenderEngine={setRenderEngine}
+            ffmpegCodec={ffmpegCodec}
+            setFfmpegCodec={setFfmpegCodec}
+          />
+        )
+      }
 
       {/* Shortcut Info Overlay */}
-      {showShortcutInfo && (
-        <div
-          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200"
-          onClick={() => setShowShortcutInfo(false)}
-        >
+      {
+        showShortcutInfo && (
           <div
-            className="no-minimal-mode-toggle bg-zinc-900 border border-white/10 rounded-2xl p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto shadow-2xl relative"
-            onClick={e => e.stopPropagation()}
+            className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200"
+            onClick={() => setShowShortcutInfo(false)}
           >
-            <button
-              onClick={() => setShowShortcutInfo(false)}
-              className="absolute top-4 right-4 p-2 rounded-full hover:bg-white/10 text-zinc-400 hover:text-white transition-colors"
+            <div
+              className="no-minimal-mode-toggle bg-zinc-900 border border-white/10 rounded-2xl p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto shadow-2xl relative"
+              onClick={e => e.stopPropagation()}
             >
-              <X size={20} />
-            </button>
-            <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
-              <Keyboard className="text-purple-500" />
-              Keyboard Shortcuts
-            </h2>
+              <button
+                onClick={() => setShowShortcutInfo(false)}
+                className="absolute top-4 right-4 p-2 rounded-full hover:bg-white/10 text-zinc-400 hover:text-white transition-colors"
+              >
+                <X size={20} />
+              </button>
+              <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
+                <Keyboard className="text-purple-500" />
+                Keyboard Shortcuts
+              </h2>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6">
-              <div className="space-y-4">
-                <h3 className="text-sm font-bold text-zinc-500 uppercase tracking-wider">Playback</h3>
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm"><span className="text-zinc-300">Play / Pause</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">Space</span></div>
-                  <div className="flex justify-between text-sm"><span className="text-zinc-300">Stop</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">S</span></div>
-                  <div className="flex justify-between text-sm"><span className="text-zinc-300">Rewind 5s</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">←</span></div>
-                  <div className="flex justify-between text-sm"><span className="text-zinc-300">Forward 5s</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">→</span></div>
-                  <div className="flex justify-between text-sm"><span className="text-zinc-300">Repeat Mode</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">R</span></div>
-                  <div className="flex justify-between text-sm"><span className="text-zinc-300">Mute</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">M</span></div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6">
+                <div className="space-y-4">
+                  <h3 className="text-sm font-bold text-zinc-500 uppercase tracking-wider">Playback</h3>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm"><span className="text-zinc-300">Play / Pause</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">Space</span></div>
+                    <div className="flex justify-between text-sm"><span className="text-zinc-300">Stop</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">S</span></div>
+                    <div className="flex justify-between text-sm"><span className="text-zinc-300">Rewind 5s</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">←</span></div>
+                    <div className="flex justify-between text-sm"><span className="text-zinc-300">Forward 5s</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">→</span></div>
+                    <div className="flex justify-between text-sm"><span className="text-zinc-300">Repeat Mode</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">R</span></div>
+                    <div className="flex justify-between text-sm"><span className="text-zinc-300">Mute</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">M</span></div>
+                  </div>
+
+                  <h3 className="text-sm font-bold text-zinc-500 uppercase tracking-wider mt-6">Interface</h3>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm"><span className="text-zinc-300">Fullscreen</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">F</span></div>
+                    <div className="flex justify-between text-sm"><span className="text-zinc-300">Minimal Mode</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">O</span></div>
+                    <div className="flex justify-between text-sm"><span className="text-zinc-300">Hold UI (No Auto-Hide)</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">H</span></div>
+                    <div className="flex justify-between text-sm"><span className="text-zinc-300">Toggle Header Info</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">I</span></div>
+                    <div className="flex justify-between text-sm"><span className="text-zinc-300">Toggle Shortcut Info</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">Y</span></div>
+                    <div className="flex justify-between text-sm"><span className="text-zinc-300">Toggle Player</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">P</span></div>
+                  </div>
                 </div>
 
-                <h3 className="text-sm font-bold text-zinc-500 uppercase tracking-wider mt-6">Interface</h3>
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm"><span className="text-zinc-300">Fullscreen</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">F</span></div>
-                  <div className="flex justify-between text-sm"><span className="text-zinc-300">Minimal Mode</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">O</span></div>
-                  <div className="flex justify-between text-sm"><span className="text-zinc-300">Hold UI (No Auto-Hide)</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">H</span></div>
-                  <div className="flex justify-between text-sm"><span className="text-zinc-300">Toggle Header Info</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">I</span></div>
-                  <div className="flex justify-between text-sm"><span className="text-zinc-300">Toggle Shortcut Info</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">Y</span></div>
-                  <div className="flex justify-between text-sm"><span className="text-zinc-300">Toggle Player</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">P</span></div>
+                <div className="space-y-4">
+                  <h3 className="text-sm font-bold text-zinc-500 uppercase tracking-wider">Editor & Styles</h3>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm"><span className="text-zinc-300">Toggle Timeline</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">T</span></div>
+                    <div className="flex justify-between text-sm"><span className="text-zinc-300">Toggle Playlist</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">L</span></div>
+                    <div className="flex justify-between text-sm"><span className="text-zinc-300">Render Settings</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">D</span></div>
+                    <div className="flex justify-between text-sm"><span className="text-zinc-300">Export Video</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">Ctrl+Shift+E</span></div>
+                    <div className="flex justify-between text-sm"><span className="text-zinc-300">Font Size</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">+ / -</span></div>
+                    <div className="flex justify-between text-sm"><span className="text-zinc-300">Cycle Visual Preset</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">J</span></div>
+                    <div className="flex justify-between text-sm"><span className="text-zinc-300">Cycle Highight Effect</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">Z</span></div>
+                    <div className="flex justify-between text-sm"><span className="text-zinc-300">Toggle Highlight</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">X</span></div>
+                    <div className="flex justify-between text-sm"><span className="text-zinc-300">Cycle Text Case</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">C</span></div>
+                    <div className="flex justify-between text-sm"><span className="text-zinc-300">Cycle Lyric Mode</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">G</span></div>
+                  </div>
+
+                  <h3 className="text-sm font-bold text-zinc-500 uppercase tracking-wider mt-6">Mouse & Touch</h3>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm"><span className="text-zinc-300">Toggle Minimal Mode</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">Double Click / Tap</span></div>
+                    <div className="flex justify-between text-sm"><span className="text-zinc-300">Seek to Lyric</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">Click Line</span></div>
+                    <div className="flex justify-between text-sm"><span className="text-zinc-300">Copy Active Lyric</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">Click Active Line</span></div>
+                  </div>
                 </div>
               </div>
 
-              <div className="space-y-4">
-                <h3 className="text-sm font-bold text-zinc-500 uppercase tracking-wider">Editor & Styles</h3>
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm"><span className="text-zinc-300">Toggle Timeline</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">T</span></div>
-                  <div className="flex justify-between text-sm"><span className="text-zinc-300">Toggle Playlist</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">L</span></div>
-                  <div className="flex justify-between text-sm"><span className="text-zinc-300">Render Settings</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">D</span></div>
-                  <div className="flex justify-between text-sm"><span className="text-zinc-300">Export Video</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">Ctrl+Shift+E</span></div>
-                  <div className="flex justify-between text-sm"><span className="text-zinc-300">Font Size</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">+ / -</span></div>
-                  <div className="flex justify-between text-sm"><span className="text-zinc-300">Cycle Visual Preset</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">J</span></div>
-                  <div className="flex justify-between text-sm"><span className="text-zinc-300">Cycle Highight Effect</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">Z</span></div>
-                  <div className="flex justify-between text-sm"><span className="text-zinc-300">Toggle Highlight</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">X</span></div>
-                  <div className="flex justify-between text-sm"><span className="text-zinc-300">Cycle Text Case</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">C</span></div>
-                  <div className="flex justify-between text-sm"><span className="text-zinc-300">Cycle Lyric Mode</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">G</span></div>
-                </div>
-
-                <h3 className="text-sm font-bold text-zinc-500 uppercase tracking-wider mt-6">Mouse & Touch</h3>
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm"><span className="text-zinc-300">Toggle Minimal Mode</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">Double Click / Tap</span></div>
-                  <div className="flex justify-between text-sm"><span className="text-zinc-300">Seek to Lyric</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">Click Line</span></div>
-                  <div className="flex justify-between text-sm"><span className="text-zinc-300">Copy Active Lyric</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">Click Active Line</span></div>
-                </div>
+              <div className="mt-8 pt-6 border-t border-white/5 text-center">
+                <p className="text-zinc-500 text-sm">
+                  Shortcuts are disabled during video rendering.
+                </p>
               </div>
-            </div>
-
-            <div className="mt-8 pt-6 border-t border-white/5 text-center">
-              <p className="text-zinc-500 text-sm">
-                Shortcuts are disabled during video rendering.
-              </p>
             </div>
           </div>
-        </div>
-      )}
+        )
+      }
     </div >
   );
 }
