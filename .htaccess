@@ -6,8 +6,6 @@
   RewriteCond %{REQUEST_FILENAME} -d
   RewriteRule ^ - [L]
 
-  RewriteRule ^ffmpeg/ - [L]
-
   RewriteRule ^ index.html [L]
 
   Header set Cross-Origin-Opener-Policy "same-origin"
