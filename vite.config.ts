@@ -8,6 +8,7 @@ import { VitePWA } from 'vite-plugin-pwa';
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, '.', '');
   return {
+    // base: '/audioplayer/',
     server: {
       // port: 5173,
       strictPort: false,
@@ -31,6 +32,7 @@ export default defineConfig(({ mode }) => {
     plugins: [
       react(),
       VitePWA({
+        // injectRegister: null, // Disable auto-registration to prevent conflict with coi-serviceworker
         registerType: 'autoUpdate',
         workbox: {
           globPatterns: ['**/*.{js,css,html,ico,png,svg}']
