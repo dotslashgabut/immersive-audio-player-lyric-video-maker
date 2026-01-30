@@ -119,7 +119,7 @@ export interface RenderConfig {
     visual: Record<number, boolean>;
     audio: Record<number, boolean>;
   };
-  highlightEffect?: 'none' | 'karaoke' | 'scale' | 'color' | 'glow' | 'background' | 'karaoke-neon' | 'karaoke-scale' | 'karaoke-underline' | 'karaoke-bounce' | 'karaoke-fill' | 'karaoke-outline' | 'karaoke-shadow' | 'karaoke-gradient' | 'karaoke-wave' | 'karaoke-blue' | 'karaoke-purple' | 'karaoke-green' | 'karaoke-pink' | 'karaoke-cyan' | 'karaoke-pill' | 'karaoke-box' | 'karaoke-rounded' | 'karaoke-glow-blue' | 'karaoke-glow-pink' | 'karaoke-glass' | 'karaoke-neon-multi' | 'karaoke-soft-glow' | 'karaoke-3d' | 'karaoke-emboss' | 'karaoke-chrome' | 'karaoke-gold' | 'karaoke-fire' | 'karaoke-frozen' | 'karaoke-rainbow' | 'karaoke-mirror' | 'karaoke-vhs' | 'karaoke-retro' | 'karaoke-cyberpunk' | 'karaoke-hologram' | 'karaoke-comic' | 'karaoke-glitch-text' | 'karaoke-pulse' | 'karaoke-breathe' | 'karaoke-float' | 'karaoke-sway' | 'karaoke-flicker' | 'karaoke-shake' | 'karaoke-wobble' | 'karaoke-jello' | 'karaoke-rubberband' | 'karaoke-heartbeat' | 'karaoke-flash' | 'karaoke-tada' | 'karaoke-swing' | 'karaoke-rotate' | 'karaoke-spin' | 'karaoke-glitch' | 'karaoke-typewriter' | 'karaoke-fade' | 'karaoke-shatter' | 'karaoke-blur' | 'karaoke-slide' | 'karaoke-smooth' | 'karaoke-smooth-plus';
+  highlightEffect?: 'none' | 'karaoke' | 'scale' | 'color' | 'glow' | 'background' | 'karaoke-neon' | 'karaoke-scale' | 'karaoke-underline' | 'karaoke-bounce' | 'karaoke-fill' | 'karaoke-outline' | 'karaoke-shadow' | 'karaoke-gradient' | 'karaoke-wave' | 'karaoke-blue' | 'karaoke-purple' | 'karaoke-green' | 'karaoke-pink' | 'karaoke-cyan' | 'karaoke-pill' | 'karaoke-box' | 'karaoke-rounded' | 'karaoke-glow-blue' | 'karaoke-glow-pink' | 'karaoke-glass' | 'karaoke-neon-multi' | 'karaoke-soft-glow' | 'karaoke-3d' | 'karaoke-emboss' | 'karaoke-chrome' | 'karaoke-gold' | 'karaoke-fire' | 'karaoke-frozen' | 'karaoke-rainbow' | 'karaoke-mirror' | 'karaoke-vhs' | 'karaoke-retro' | 'karaoke-cyberpunk' | 'karaoke-hologram' | 'karaoke-comic' | 'karaoke-glitch-text' | 'karaoke-pulse' | 'karaoke-breathe' | 'karaoke-float' | 'karaoke-sway' | 'karaoke-flicker' | 'karaoke-shake' | 'karaoke-wobble' | 'karaoke-jello' | 'karaoke-rubberband' | 'karaoke-heartbeat' | 'karaoke-flash' | 'karaoke-tada' | 'karaoke-swing' | 'karaoke-rotate' | 'karaoke-spin' | 'karaoke-glitch' | 'karaoke-typewriter' | 'karaoke-fade' | 'karaoke-shatter' | 'karaoke-blur' | 'karaoke-slide' | 'karaoke-smooth' | 'karaoke-smooth-white' | 'karaoke-smooth-plus';
   highlightColor?: string;
   highlightBackground?: string;
   useCustomHighlightColors?: boolean;
@@ -132,6 +132,16 @@ export interface RenderConfig {
   channelInfoStyle?: 'classic' | 'modern' | 'minimal' | 'logo' | 'box' | 'circle';
   channelInfoSizeScale?: number;
   channelInfoMarginScale?: number;
+  channelInfoFontFamily?: string;
+  channelInfoFontColor?: string;
+  channelInfoFontWeight?: 'normal' | 'bold';
+  channelInfoFontStyle?: 'normal' | 'italic';
+
+  // Song Info specific overrides
+  infoFontFamily?: string;
+  infoFontColor?: string;
+  infoFontWeight?: 'normal' | 'bold';
+  infoFontStyle?: 'normal' | 'italic';
 
   lyricLineHeight?: number;
   visualTransitionType?: 'none' | 'crossfade' | 'fade-to-black';
