@@ -296,6 +296,7 @@ function App() {
       setLyricOffset(0);
       setIsPlaying(false);
       setCurrentTime(0);
+      setCurrentTrackIndex(-1);
       if (lyricsContainerRef.current) {
         lyricsContainerRef.current.scrollTop = 0;
       }
@@ -1192,7 +1193,7 @@ function App() {
     const isPlaylistRender = renderConfig.renderMode === 'playlist' && playlist.length > 0;
 
     // Get audio file - need the actual File object for FFmpeg
-    let audioFile: File | null = null;
+    let audioFile: File | Blob | null = null;
     let lyricsToRender = adjustedLyrics;
     let metadataToRender = metadata;
 
@@ -1203,6 +1204,15 @@ function App() {
       metadataToRender = playlist[0].metadata;
     } else if (playlist.length > 0 && currentTrackIndex >= 0) {
       audioFile = playlist[currentTrackIndex].audioFile;
+    } else if (audioSrc) {
+      try {
+        const res = await fetch(audioSrc);
+        audioFile = await res.blob();
+      } catch (e) {
+        console.error("FFmpeg: Failed to fetch audio blob", e);
+        toast.error('Failed to load audio source for rendering.');
+        return;
+      }
     } else {
       toast.error('Please load an audio file first.');
       return;
