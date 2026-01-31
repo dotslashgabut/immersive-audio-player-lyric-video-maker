@@ -2306,31 +2306,40 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                         {/* Render Engine Selection */}
                         <div className="space-y-1.5">
                             <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Render Engine</label>
-                            <div className="flex bg-zinc-800 rounded-lg p-1">
+                            <div className="flex bg-zinc-800 rounded-lg p-1 gap-1">
                                 <button
                                     onClick={() => setRenderEngine('mediarecorder')}
                                     className={`flex-1 py-2 rounded-md text-[10px] font-bold uppercase transition-all ${renderEngine === 'mediarecorder' ? 'bg-purple-600 text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
                                     title="Uses browser's MediaRecorder API. Renders in realtime while playing audio."
                                 >
-                                    MediaRecorder
+                                    Realtime
+                                </button>
+                                <button
+                                    onClick={() => setRenderEngine('webcodecs')}
+                                    className={`flex-1 py-2 rounded-md text-[10px] font-bold uppercase transition-all ${renderEngine === 'webcodecs' ? 'bg-blue-600 text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
+                                    title="Uses WebCodecs API. Hardware accelerated rendering. Fastest option."
+                                >
+                                    WebCodecs 🚀
                                 </button>
                                 <button
                                     onClick={() => setRenderEngine('ffmpeg')}
                                     className={`flex-1 py-2 rounded-md text-[10px] font-bold uppercase transition-all ${renderEngine === 'ffmpeg' ? 'bg-orange-500 text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
-                                    title="Uses FFmpeg WASM. Frame-by-frame rendering with professional codecs. Faster than realtime!"
+                                    title="Uses FFmpeg WASM. Frame-by-frame rendering with professional codecs."
                                 >
                                     FFmpeg ⚡
                                 </button>
                             </div>
                             <p className="text-[9px] text-zinc-600 ml-1 leading-tight">
                                 {renderEngine === 'mediarecorder'
-                                    ? 'Realtime recording while audio plays. Browser-dependent codecs.'
-                                    : 'Frame-by-frame capture. With pro codecs (H.264, H.265).'}
+                                    ? 'Realtime recording. Fast but quality depends on browser.'
+                                    : renderEngine === 'webcodecs'
+                                        ? 'Hardware accelerated (GPU). Very fast export with simple MP4.'
+                                        : 'Software rendering. High compatiblity but slower.'}
                             </p>
                         </div>
 
                         {/* Video Codec - Conditional based on engine */}
-                        {renderEngine === 'mediarecorder' ? (
+                        {renderEngine === 'mediarecorder' && (
                             <div className="space-y-1.5">
                                 <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Video Codec</label>
                                 <GroupedSelection
@@ -2347,7 +2356,9 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                                     ]}
                                 />
                             </div>
-                        ) : (
+                        )}
+
+                        {renderEngine === 'ffmpeg' && (
                             <div className="space-y-1.5">
                                 <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">FFmpeg Codec</label>
                                 <div className="grid grid-cols-2 gap-1">
@@ -2370,6 +2381,15 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                                             <div className="text-[8px] opacity-75">{codec.desc}</div>
                                         </button>
                                     ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {renderEngine === 'webcodecs' && (
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Video Codec</label>
+                                <div className="p-2 bg-zinc-800/50 rounded border border-white/5 text-[10px] text-zinc-400">
+                                    H.264 / AAC (Hardware Accelerated)
                                 </div>
                             </div>
                         )}

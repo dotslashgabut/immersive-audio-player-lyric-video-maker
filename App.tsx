@@ -15,6 +15,7 @@ import { loadGoogleFonts } from './utils/fonts';
 import { PRESET_CYCLE_LIST, PRESET_DEFINITIONS, videoPresetGroups } from './utils/presets';
 import { useUI } from './contexts/UIContext';
 import { renderWithFFmpeg, isFFmpegAvailable, getFFmpegCodecs } from './utils/ffmpegRenderer';
+import { renderWithWebCodecs, isWebCodecsSupported } from './utils/webCodecsRenderer';
 
 
 
@@ -1369,10 +1370,181 @@ function App() {
     }
   };
 
+  // --- WebCodecs Video Export Logic ---
+  const handleExportVideoWebCodecs = async () => {
+    if (!canvasRef.current) return;
+
+    // Determine Render Scope  
+    const isPlaylistRender = renderConfig.renderMode === 'playlist' && playlist.length > 0;
+
+    // Get audio file
+    let audioFile: File | Blob | null = null;
+    let lyricsToRender = adjustedLyrics;
+    let metadataToRender = metadata;
+
+    if (isPlaylistRender && playlist.length > 0) {
+      audioFile = playlist[0].audioFile;
+      lyricsToRender = playlist[0].parsedLyrics || [];
+      metadataToRender = playlist[0].metadata;
+    } else if (playlist.length > 0 && currentTrackIndex >= 0) {
+      audioFile = playlist[currentTrackIndex].audioFile;
+    } else if (audioSrc) {
+      try {
+        const res = await fetch(audioSrc);
+        audioFile = await res.blob();
+      } catch (e) {
+        console.error("WebCodecs: Failed to fetch audio blob", e);
+        toast.error('Failed to load audio source for rendering.');
+        return;
+      }
+    } else {
+      toast.error('Please load an audio file first.');
+      return;
+    }
+
+    if (!audioFile) {
+      toast.error('No audio file available for export.');
+      return;
+    }
+
+    if (!isWebCodecsSupported()) {
+      toast.error('WebCodecs is not supported in this browser.');
+      return;
+    }
+
+    const { w, h } = getCanvasDimensions();
+    const confirmMsg = `Start WebCodecs rendering at ${resolution} @ ${renderFps}fps?\nResolution: ${w}x${h}\n\nThis uses hardware acceleration and is very fast.`;
+    const isConfirmed = await confirm(confirmMsg, "Start WebCodecs Rendering?");
+    if (!isConfirmed) return;
+
+    setShowRenderSettings(false);
+    setIsRendering(true);
+    setRenderProgress(0);
+    setFfmpegRenderStage('Initializing WebCodecs...');
+
+    const currentAbortSignal = { aborted: false };
+    abortRenderRef.current = currentAbortSignal;
+
+    stopPlayback();
+
+    const canvas = canvasRef.current;
+    canvas.width = w;
+    canvas.height = h;
+
+    // Preload resources
+    const imageMap = new Map<string, HTMLImageElement>();
+    const videoMap = new Map<string, HTMLVideoElement>();
+    const loadPromises: Promise<void>[] = [];
+
+    const loadImg = (id: string, url: string) => {
+      return new Promise<void>((resolve) => {
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        img.onload = () => { imageMap.set(id, img); resolve(); };
+        img.onerror = () => resolve();
+        img.src = url;
+      });
+    };
+
+    const loadVid = (id: string, url: string) => {
+      return new Promise<void>((resolve) => {
+        const vid = document.createElement('video');
+        vid.crossOrigin = "anonymous";
+        vid.muted = true;
+        vid.playsInline = true;
+        vid.preload = "auto";
+        let resolved = false;
+        const safeResolve = () => { if (!resolved) { resolved = true; videoMap.set(id, vid); resolve(); } };
+        vid.oncanplay = () => { if (!resolved) { vid.currentTime = 0.001; } };
+        vid.onseeked = () => safeResolve();
+        vid.onerror = () => { console.warn("Failed to load video:", url); safeResolve(); };
+        setTimeout(() => safeResolve(), 5000);
+        vid.src = url;
+        vid.load();
+      });
+    };
+
+    visualSlides.forEach(s => {
+      if (s.type === 'video') loadPromises.push(loadVid(s.id, s.url));
+      else if (s.type !== 'audio') loadPromises.push(loadImg(s.id, s.url));
+    });
+
+    if (metadataToRender.coverUrl) {
+      if (metadataToRender.backgroundType === 'video') {
+        loadPromises.push(loadVid('background', metadataToRender.coverUrl));
+      } else {
+        loadPromises.push(loadImg('cover', metadataToRender.coverUrl));
+      }
+    }
+
+    if (renderConfig.backgroundSource === 'image' && renderConfig.backgroundImage) {
+      loadPromises.push(loadImg('__custom_bg__', renderConfig.backgroundImage));
+    }
+
+    if (renderConfig.showChannelInfo && renderConfig.channelInfoImage) {
+      loadPromises.push(loadImg('__channel_info__', renderConfig.channelInfoImage));
+    }
+
+    await Promise.all(loadPromises);
+
+    if (currentAbortSignal.aborted) {
+      setIsRendering(false);
+      return;
+    }
+
+    try {
+      const result = await renderWithWebCodecs({
+        canvas,
+        audioFile,
+        lyrics: lyricsToRender,
+        metadata: metadataToRender,
+        visualSlides,
+        imageMap,
+        videoMap,
+        preset,
+        customFontName,
+        renderConfig,
+        resolution,
+        aspectRatio,
+        fps: renderFps,
+        quality: renderQuality,
+        onProgress: (progress, stage) => {
+          setRenderProgress(progress);
+          setFfmpegRenderStage(stage);
+        },
+        abortSignal: currentAbortSignal,
+        isFirstSong: true,
+        isLastSong: true
+      });
+
+      const filename = `${metadataToRender.title || 'video'}_${aspectRatio.replace(':', '-')}_webcodecs.${result.format}`;
+      const url = URL.createObjectURL(result.blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      toast.success(`Video exported successfully! (${Math.round(result.duration)}s)`);
+    } catch (error: any) {
+      if (error.message !== 'Render aborted') {
+        console.error('WebCodecs render failed:', error);
+        toast.error(`Render failed: ${error.message}`);
+      }
+    } finally {
+      setIsRendering(false);
+      setFfmpegRenderStage('');
+    }
+  };
+
   // Dispatch to correct export handler based on render engine
   const handleExportVideoDispatch = async () => {
     if (renderEngine === 'ffmpeg') {
       await handleExportVideoFFmpeg();
+    } else if (renderEngine === 'webcodecs') {
+      await handleExportVideoWebCodecs();
     } else {
       await handleExportVideo();
     }

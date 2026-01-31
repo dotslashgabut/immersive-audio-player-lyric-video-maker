@@ -151,7 +151,7 @@ export interface RenderConfig {
 }
 
 // Render Engine: MediaRecorder (realtime) vs FFmpeg (frame-by-frame)
-export type RenderEngine = 'mediarecorder' | 'ffmpeg';
+export type RenderEngine = 'mediarecorder' | 'ffmpeg' | 'webcodecs';
 
 // FFmpeg-specific codec options
 export type FFmpegCodec = 'h264' | 'h265';
