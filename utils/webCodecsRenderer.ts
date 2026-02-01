@@ -86,6 +86,9 @@ async function syncVideoElements(
         // Only seek if targetTime is valid and different enough
         // We use a small epsilon but since we want frame accuracy, we almost always seek
         if (targetTime >= 0) {
+            // Skip if video is not ready or failed to load
+            if (vid.readyState === 0) return;
+
             // Check if we need to seek
             if (Math.abs(vid.currentTime - targetTime) > 0.05) { // 50ms tolerance? No, for frame rendering we want exact.
                 // Actually, vid.currentTime might not be exact.

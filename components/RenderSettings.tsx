@@ -1,9 +1,53 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { X, Video, Settings, ImageIcon, Type, Layout, Palette, Music, FileText, Check, ListMusic, Bold, Italic, Underline, Strikethrough, AlignVerticalJustifyCenter, AlignVerticalJustifyStart, AlignVerticalJustifyEnd, Upload, Trash2, ChevronDown, Maximize, RotateCcw, Download, Keyboard as KeyboardIcon, Sparkles } from './Icons';
 import { RenderConfig, VideoPreset, RenderEngine, FFmpegCodec } from '../types';
-import { fontGroups } from '../utils/fonts';
+import { fontGroups, loadSingleGoogleFont } from '../utils/fonts';
 import { PRESET_DEFINITIONS, videoPresetGroups } from '../utils/presets';
 import { useUI } from '../contexts/UIContext';
+
+const GoogleFontLoader: React.FC<{
+    onApply: (fontName: string) => void;
+    placeholder?: string;
+}> = ({ onApply, placeholder = "Google Font Name" }) => {
+    const { toast } = useUI();
+    const [input, setInput] = useState('');
+
+    const handleLoad = () => {
+        if (!input.trim()) return;
+        // Normalize: trim and replace multiple spaces with single space.
+        // Google Fonts handles spaces as '+' in URL, so we keep single spaces.
+        const fontName = input.trim().replace(/['"]/g, '').replace(/\s+/g, ' ');
+
+        loadSingleGoogleFont(fontName);
+        onApply(fontName);
+        toast.success(`Loaded & Applied: ${fontName}`);
+        setInput('');
+    };
+
+    return (
+        <div className="flex gap-2 mt-2 items-center">
+            <span className="text-[10px] text-zinc-500 font-bold uppercase whitespace-nowrap">Google Font:</span>
+            <input
+                type="text"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder={placeholder}
+                className="flex-1 min-w-0 bg-zinc-900 border border-white/10 rounded-md px-2 py-1 text-[10px] text-zinc-200 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleLoad();
+                }}
+            />
+            <button
+                onClick={handleLoad}
+                disabled={!input.trim()}
+                className="bg-zinc-700 hover:bg-zinc-600 text-white text-[10px] px-2 py-1 rounded-md font-medium disabled:opacity-50 transition-colors"
+                title="Load and apply"
+            >
+                Load
+            </button>
+        </div>
+    );
+};
 
 const DEFAULT_CONFIG: RenderConfig = {
     backgroundSource: 'timeline',
@@ -701,6 +745,31 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
     onClearInfoCustomFont
 }) => {
     const { toast, confirm } = useUI();
+    const [loadedGoogleFonts, setLoadedGoogleFonts] = useState<string[]>([]);
+
+    const handleGoogleFontApply = (fontName: string, targetKey: keyof RenderConfig) => {
+        if (!loadedGoogleFonts.includes(fontName)) {
+            setLoadedGoogleFonts(prev => [fontName, ...prev]);
+        }
+        // Save as quoted string if it contains spaces (CSS requirement safety)
+        const formattedValue = fontName.includes(' ') ? `'${fontName}'` : fontName;
+        handleChange(targetKey, formattedValue);
+    };
+
+    const dynamicFontGroups = React.useMemo(() => {
+        if (loadedGoogleFonts.length === 0) return fullFontGroups;
+
+        const googleGroup = {
+            label: "Loaded Google Fonts",
+            // Display label is raw name, Value is quoted if multi-word
+            options: loadedGoogleFonts.map(f => ({
+                label: f,
+                value: f.includes(' ') ? `'${f}'` : f
+            }))
+        };
+
+        return [googleGroup, ...fullFontGroups];
+    }, [loadedGoogleFonts]);
     const sidebarRef = useRef<HTMLDivElement>(null);
     const fontInputRef = useRef<HTMLInputElement>(null);
     const channelFontInputRef = useRef<HTMLInputElement>(null);
@@ -935,6 +1004,12 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
 
                     // Start with default config, overwrite with imported json
                     const newConfig = { ...DEFAULT_CONFIG, ...importedConfig };
+
+                    // Restore explicitly extracted config fields if they exist
+                    if (importedChannelInfoFontWeight) newConfig.channelInfoFontWeight = importedChannelInfoFontWeight;
+                    if (importedChannelInfoFontStyle) newConfig.channelInfoFontStyle = importedChannelInfoFontStyle;
+                    if (importedInfoFontWeight) newConfig.infoFontWeight = importedInfoFontWeight;
+                    if (importedInfoFontStyle) newConfig.infoFontStyle = importedInfoFontStyle;
 
                     // Ensure numeric values are numbers
                     const numericFields: (keyof RenderConfig)[] = [
@@ -1681,7 +1756,11 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                                         value={config.channelInfoFontFamily || 'sans-serif'}
                                         onChange={(val) => handleChange('channelInfoFontFamily', val)}
                                         customFontName={customChannelFontName || null}
-                                        groups={fullFontGroups}
+                                        groups={dynamicFontGroups}
+                                    />
+                                    <GoogleFontLoader
+                                        onApply={(name) => handleGoogleFontApply(name, 'channelInfoFontFamily')}
+                                        placeholder="Channel Font (e.g. Oswald)"
                                     />
                                     {/* Upload Button */}
                                     <input
@@ -1860,7 +1939,11 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                                 value={config.infoFontFamily || 'sans-serif'}
                                 onChange={(val) => handleChange('infoFontFamily', val)}
                                 customFontName={customInfoFontName || null}
-                                groups={fullFontGroups}
+                                groups={dynamicFontGroups}
+                            />
+                            <GoogleFontLoader
+                                onApply={(name) => handleGoogleFontApply(name, 'infoFontFamily')}
+                                placeholder="Info Font (e.g. Roboto)"
                             />
                             <input
                                 ref={infoFontInputRef}
@@ -1935,6 +2018,8 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                     </h3>
 
                     <div className="space-y-4 pt-1">
+
+
                         <div className="space-y-1.5">
                             <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Alignment</label>
                             <div className="flex bg-zinc-800 rounded-lg p-1">
@@ -2080,7 +2165,11 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                                 value={config.fontFamily}
                                 onChange={(val) => handleChange('fontFamily', val)}
                                 customFontName={customFontName}
-                                groups={fullFontGroups}
+                                groups={dynamicFontGroups}
+                            />
+                            <GoogleFontLoader
+                                onApply={(name) => handleGoogleFontApply(name, 'fontFamily')}
+                                placeholder="Lyrics Font (e.g. Pacifico)"
                             />
                         </div>
 

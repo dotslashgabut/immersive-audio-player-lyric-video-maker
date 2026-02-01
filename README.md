@@ -1,7 +1,7 @@
 <div align="center">
   <img src="public/icon.svg" width="100" />
   <h1>Immersive Audio Player & Lyric Video Maker</h1>
-  <p><b>Version 2.3.2</b></p>
+  <p><b>Version 2.3.3</b></p>
 </div>
 
 **Immersive Audio Player & Lyric Video Maker** is a powerful all-in-one web tool designed for music lovers and content creators. It combines a distraction-free audio player with a professional-grade timeline editor, allowing you to create stunning, synchronized lyric videos directly in your browser. Whether you want to enjoy your local music library with beautiful visuals or create viral content for TikTok, Instagram, and YouTube, this app delivers high-quality results without watermarks or server uploads.
@@ -47,7 +47,7 @@
 - **AI Transcription**: Built-in integration with **Google Gemini** (supports **Gemini 2.5 Flash** and **3.0 Flash Preview**) for automatic high-accuracy audio transcription.
   - **Mixed-Language Support**: Expertly handles code-switching (e.g., K-Pop, J-Pop with English) and preserves native scripts (No forced transliteration).
 - **Export Lyrics**: Save your transcribed or edited lyrics as `.lrc` (Standard or **Enhanced/Karaoke**), `.srt`, `.vtt` (Standard or **Karaoke**), `.json`, or `.txt` files.
-- **Online Lyric Search**: Built-in search engine to find and download synchronized lyrics from **Musixmatch**, **LRCLIB**, and **Netease** with a single click.
+- **Online Lyric Search**: Built-in search engine to find and download synchronized lyrics from **LRCLIB** with a single click. **Netease** and **Musixmatch** (maybe not working).
 - **Manual Management**: Manually load external `.lrc` / `.srt` files or clear existing lyrics for any track.
 
 ### 🎬 Professional Visual Timeline Editor
@@ -78,6 +78,7 @@
 - **Flexible Render Settings**:
   - **Render Engine**: 
     - **Browser Recorder**: Fast, real-time capture.
+    - **WebCodecs (New)**: Hardware-accelerated rendering for maximum speed and performance.
     - **FFmpeg WASM**: Professional frame-by-frame rendering (No dropped frames).
   - **Resolution**: 720p / 1080p.
   - **Frame Rate**: Support for **24, 30, and 60 FPS**.
@@ -115,7 +116,7 @@
   - **Intro Overlay**: 
     - **Modes**: Toggle 'Auto' (MetaData triggers on every song) or 'Manual' (Custom text triggers only on first playlist song).
 - **Typography & Visual Effects**:
-  - **Font Freedom**: Huge library of built-in fonts (Sans, Serif, Display, Handwriting, etc.) plus **Custom Font Upload**.
+  - **Font Freedom**: Huge library of built-in fonts (Sans, Serif, Display, Handwriting, etc.), **Custom Font Upload**, and **Individual Google Font** loading for separate elements.
   - **Text Styling**: Controls for alignment, vertical position, size, and color.
   - **Text Transformations**: **Uppercase**, **Lowercase**, **Title Case**, **Sentence Case**, and **Invert Case** overrides.
   - **Effects Library**: 
@@ -141,6 +142,7 @@
 ### 🛠 Technical Architecture
 - **Dual Rendering Engine**: 
   - **MediaRecorder (Real-time)**: Captures the canvas stream in real-time. Fast for simple exports.
+  - **WebCodecs API**: Uses the modern `VideoEncoder` API to access hardware encoding capabilities directly from the browser, offering a middle-ground between speed and quality.
   - **FFmpeg WASM (Offline/High-Quality)**: Client-side video encoding using FFmpeg compiled to WebAssembly. Supports frame-by-frame rendering for perfect synchronization and higher bitrates, regardless of computer speed.
   - **Smart Fallback**: Automatically switches between Multi-threaded (SharedArrayBuffer) and Single-threaded cores based on browser capabilities and server headers (COOP/COEP).
   - **Offline-First**: Intelligently loads FFmpeg cores from local cache (`/public/ffmpeg`) if available, falling back to CDN only when necessary.
@@ -248,39 +250,53 @@ This application is built with React + Vite and requires **Node.js** to run.
 ## Panduan Pengguna (Bahasa Indonesia)
 
 ### Fitur Utama Baru
+- **Tipografi Super Canggih**: Load **Google Fonts Individu** secara terpisah untuk Lirik, Info Lagu, dan Nama Channel. Termasuk kontrol granular untuk gaya (Bold/Italic) dan warna kustom tiap elemen.
+- **Rendering Kilat (WebCodecs)**: Engine baru memanfaatkan akselerasi hardware (GPU) untuk ekspor video hingga 5x lebih cepat. Tetap tersedia opsi **FFmpeg** untuk kualitas frame-by-frame.
+- **Manajemen Pengaturan Lengkap**: **Ekspor/Impor JSON** untuk menyimpan/membagikan konfigurasi render (termasuk font kustom). Tombol **Reset** yang disempurnakan.
 - **Playlist Pintar**: Masukkan banyak file sekaligus. Aplikasi otomatis memasangkan lagu dengan lirik (`.lrc`/`.srt`) yang bernama sama.
 - **Timeline Lirik Interaktif**: Lihat cuplikan lirik di playlist. Klik baris mana saja untuk langsung memutar lagu itu.
-- **Sorting Fleksibel**: Urutkan playlist berdasarkan Artis, Judul, Album (Bolak-balik Ascending/Descending), atau acak.
-- **Kontrol Akurasi**: Atur offset lirik (maju/mundur 0.1s) jika teks kurang pas dengan suara.
-- **Formato Luas**: Dukungan untuk `.lrc`, `.srt`, **`.vtt` (termasuk Karaoke/Word-Level)**, dan **`.ttml` / `.xml`**.
+- **Format Luas**: Dukungan untuk `.lrc`, `.srt`, **`.vtt` (termasuk Karaoke/Word-Level)**, dan **`.ttml` / `.xml`**.
 - **Support Video**: Load file video (MP4, WebM) sebagai track audio + background otomatis.
 - **Karaoke Kustom**: Pilihan efek highlight baru (**Neon, Glow, Box, Pill**) dengan **Pewarnaan Kustom** (Text & Background Color).
 - **Visual Efek**: Fitur **Background Blur** (dengan **Slider Kekuatan Blur**), **Smart Gradient**, dan **Text Animation** (Bounce, Pulse, Glitch, dll).
-- **Kustomisasi Info Lagu**: Atur posisi, gaya tampilan, jarak tepi (padding) untuk **Info Lagu & Channel**, serta **Intro** teks (Auto/Manual).
-- **Mode Tampilan Lirik**: Pilih mau tampilkan semua baris, atau hanya aktif/berikutnya saja.
+- **Kustomisasi Info Lagu**: Atur posisi, gaya tampilan, jarak tepi (padding), serta **Intro** teks (Auto/Manual).
 - **AI Transkripsi**: Dukungan model **Gemini 2.5 Flash** dan **3.0 Flash Preview** untuk transkripsi audio otomatis yang presisi.
 - **Ekspor Lirik**: Simpan hasil transkripsi dalam format `.lrc`, `.srt`, `.vtt`, `.json`, atau `.txt`.
-- **Manajemen Pengaturan**: Backup & Restore konfigurasi render via JSON, serta tombol **Reset** untuk kembali ke pengaturan awal.
 - **Timeline Canggih**: Dukungan **Multi-Layer** (2 Visual + 2 Audio), **Undo/Redo**, **Cut/Copy/Paste**, **Drag Selection**, dan **Snapping** otomatis.
 - **Shortcut Baru**: Tekan **D** (Render Settings), **O** (Minimal Mode), **Y** (Info Shortcut), **N**/**B** (Next/Prev), **M** (Mute), **R** (Repeat), **L** (Playlist), **+/-** (Font), dan **Ctrl/Cmd+Shift+E** (Export).
 
-### Cara Install & Jalan
-1.  Pastikan sudah install **Node.js**.
-2.  Buka terminal di folder project:
+### Cara Install & Jalankan
+Aplikasi ini berbasis web modern (React + Vite).
+
+1.  **Persiapan**: Pastikan PC kamu sudah terinstall **Node.js** (Versi LTS disarankan).
+2.  **Install Dependensi**:
+    Buka terminal/CMD di folder project, lalu ketik:
     ```bash
     npm install
+    ```
+3.  **Jalankan Aplikasi**:
+    ```bash
     npm run dev
     ```
-3.  Buka browser di alamat yang muncul di terminal (biasanya `http://localhost:5173`).
+4.  **Buka Browser**: Akses alamat lokal yang muncul (biasanya `http://localhost:5173`) menggunakan Chrome atau Edge.
 
-### Alur Kerja
-1.  **Playlist**: Masukkan semua aset lagu dan lirik. Gunakan panah Atas/Bawah untuk ganti lagu.
-2.  **Visual**:
-    - Tekan **T** untuk menu Visual.
-    - Masukkan gambar/video background.
-    - Gunakan **Ctrl+Z** jika salah edit.
-    - Shift+Klik untuk pilih banyak slide.
-3.  **Export**:
-    - Pilih rasio (termasuk 20:9 & 21:9), **FPS**, **Codec**, dan **Kualitas** (**Low, Med, High**) yang diinginkan.
-    - Klik tombol Video 🎥.
-    - Jangan ganti tab browser sampai selesai.
+### Alur Kerja (Workflow)
+1.  **Siapkan Playlist**: 
+    - Klik **"Add Audio & Lyrics"** atau cukup **Drag & Drop** file MP3 dan LRC/SRT kamu ke area playlist.
+    - File akan otomatis berpasangan jika namanya sama.
+2.  **Desain Visual (Editor Timeline)**:
+    - Tekan **T** untuk membuka Timeline Editor.
+    - Drag gambar/video ke track visual.
+    - Gunakan **Ctrl+C / Ctrl+V** untuk duplikasi slide, dan **Drag** ujung klip untuk memanjangkan durasi (Video otomatis looping!).
+3.  **Render Settings**
+    - Tekan **D** untuk membuka Render Settings.
+    - Pilih Preset tampilan yang sesuai.
+    - Atur Desain Visual (Background, Text, dan lainnya).
+    - Atur Layout Logo Channel, Nama Channel, Lirik, dan Info Lagu.
+4.  **Ekspor Video**:
+    - Tekan **Ctrl/Cmd + Shift + E** atau klik ikon Video.
+    - Pilih **Render Engine**:
+      - **WebCodecs**: Paling ngebut (menggunakan GPU). Cocok untuk preview cepat & upload sosmed.
+      - **FFmpeg**: Kualitas maksimal (Frame-by-Frame). Gunakan jika butuh presisi tinggi.
+    - Tentukan Resolusi (720p/1080p) dan **Format Rasio** (misal 9:16 untuk TikTok).
+    - Klik **Start Render** dan tunggu hingga selesai.
