@@ -157,3 +157,14 @@ export const loadGoogleFonts = () => {
     preconnect2.crossOrigin = 'anonymous';
     document.head.appendChild(preconnect2);
 };
+
+export const loadSingleGoogleFont = (fontName: string) => {
+    const id = `google-font-${fontName.replace(/\s+/g, '-').toLowerCase()}`;
+    if (document.getElementById(id)) return;
+
+    const link = document.createElement('link');
+    link.id = id;
+    link.rel = 'stylesheet';
+    link.href = `https://fonts.googleapis.com/css2?family=${fontName.replace(/\s+/g, '+')}:wght@400;700&display=swap`;
+    document.head.appendChild(link);
+};
