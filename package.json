@@ -1,7 +1,7 @@
 {
   "name": "immersive-audio-player",
   "private": true,
-  "version": "2.3.2",
+  "version": "2.3.3",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -15,6 +15,7 @@
     "@stef-0012/synclyrics": "^2.5.10",
     "jsmediatags": "^3.9.7",
     "lucide-react": "^0.561.0",
+    "mp4-muxer": "^5.2.2",
     "react": "^19.2.3",
     "react-dom": "^19.2.3"
   },

@@ -1,5 +1,19 @@
 # Release Notes
 
+# 2.3.3
+
+## What's New
+- **Advanced Typography**:
+  - **Individual Google Fonts**: You can now load and apply different Google Fonts to specific text elements independently.
+  - **Granular Control**: Assign unique font families to **Lyrics**, **Channel Info**, and **Song Info** for a truly custom look.
+- **Export & Rendering**:
+  - **WebCodecs Acceleration**: Introduced a new **WebCodecs** rendering engine. This utilizes your device's hardware acceleration for ultra-fast video encoding (up to 5x faster than software rendering).
+  - **Performance**: Capable of handling higher resolutions and frame rates with significantly reduced render times on supported devices.
+- **Settings Management**:
+  - **Robust Import**: Fixed a bug where importing settings JSON would fail to restore Font Weight and Font Style preferences for Song Info and Channel Info.
+  - **Reliable Reset**: The "Reset to Defaults" action now correctly clears all custom font entries and restores distinct style toggles to their default states.
+
+
 # 2.3.2
 
 ## What's New
