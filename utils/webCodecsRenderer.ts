@@ -250,6 +250,11 @@ export async function renderWithWebCodecs(options: WebCodecsRenderOptions): Prom
 
         audioEncoder.encode(audioData);
         audioData.close();
+
+        // Audio backpressure (though usually fast)
+        while (audioEncoder.encodeQueueSize > 10) {
+            await new Promise(r => setTimeout(r, 10));
+        }
     }
 
     // Flush Audio Encoder
@@ -311,18 +316,36 @@ export async function renderWithWebCodecs(options: WebCodecsRenderOptions): Prom
         videoFrame.close();
 
         // Update Progress
-        const percent = 10 + ((frame / totalFrames) * 90);
+        const percent = 10 + ((frame / totalFrames) * 89); // Leave 1% for finalizing
         onProgress(percent, `Rendering frame ${frame}/${totalFrames}`);
 
-        // Yield to event loop occasionally to keep UI responsive
-        if (frame % 5 === 0) await new Promise(r => setTimeout(r, 0));
+        // THE FIX: Backpressure handling
+        // If the encoder queue gets too large, wait for it to process.
+        // This prevents memory bloat and potential hangs/crashes on long renders.
+        if (videoEncoder.encodeQueueSize > 5) {
+            await new Promise(r => {
+                const check = () => {
+                    if (videoEncoder.encodeQueueSize <= 2) {
+                        r(null);
+                    } else {
+                        setTimeout(check, 10);
+                    }
+                };
+                check();
+            });
+        }
+
+        // Yield to event loop more frequently to keep UI responsive and allow queue processing
+        if (frame % 2 === 0) await new Promise(r => setTimeout(r, 0));
     }
 
     // Flush Video Encoder
-    onProgress(99, 'Finalizing...');
+    onProgress(99, 'Finalizing frames...');
     await videoEncoder.flush();
+    onLog?.('Video encoder flushed.');
 
     // Finalize Muxer
+    onProgress(99.5, 'Muxing and saving...');
     muxer.finalize();
 
     const { buffer } = muxer.target as ArrayBufferTarget;
