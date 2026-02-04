@@ -995,6 +995,8 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
             )}
             <input
                 type="file"
+                name="manual-lyric-upload"
+                id="manual-lyric-upload"
                 ref={lyricFileInputRef}
                 className="hidden"
                 accept=".lrc,.srt,.ttml,.xml,.vtt"
@@ -1011,11 +1013,11 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
                     <div className="flex bg-orange-600 rounded overflow-hidden">
                         <label className="flex items-center gap-2 px-3 py-1 hover:bg-orange-500 cursor-pointer transition-colors text-white text-xs font-medium whitespace-nowrap border-r border-orange-700">
                             <Plus size={14} /> Add Files
-                            <input type="file" className="hidden" accept="audio/*,video/*,.lrc,.srt,.ttml,.xml,.vtt" multiple onChange={handleFileUpload} />
+                            <input type="file" name="add-files" id="add-files" className="hidden" accept="audio/*,video/*,.lrc,.srt,.ttml,.xml,.vtt" multiple onChange={handleFileUpload} />
                         </label>
                         <label className="flex items-center gap-2 px-2 py-1 hover:bg-orange-500 cursor-pointer transition-colors text-white text-xs whitespace-nowrap" title="Add Folder">
                             <Folder size={14} />
-                            <input type="file" className="hidden" multiple {...({ webkitdirectory: "" } as any)} onChange={handleFileUpload} />
+                            <input type="file" name="add-folder" id="add-folder" className="hidden" multiple {...({ webkitdirectory: "" } as any)} onChange={handleFileUpload} />
                         </label>
                     </div>
                     <div className="w-px h-4 bg-zinc-700"></div>
@@ -1071,6 +1073,8 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
                         {showApiKeyInput && (
                             <input
                                 type={apiKey ? "password" : "text"}
+                                name="api-key"
+                                aria-label="Gemini API Key"
                                 value={apiKey}
                                 onChange={(e) => setApiKey(e.target.value)}
                                 placeholder="Paste API Key here"
@@ -1089,6 +1093,9 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
                             onChange={(e) => setSelectedModel(e.target.value)}
                             className="bg-zinc-800 text-[10px] text-zinc-300 border border-zinc-700 rounded px-1 py-1 focus:outline-none focus:border-orange-500 appearance-none cursor-pointer hover:bg-zinc-700"
                             title="Select Gemini Model"
+                            name="gemini-model"
+                            id="gemini-model"
+                            aria-label="Gemini Model"
                         >
                             <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
                             <option value="gemini-3-flash-preview">Gemini 3.0 Flash Preview</option>
@@ -1102,6 +1109,9 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
                             onChange={(e) => setTranscriptionGranularity(e.target.value as 'word' | 'line')}
                             className="bg-zinc-800 text-[10px] text-zinc-300 border border-zinc-700 rounded px-1 py-1 focus:outline-none focus:border-orange-500 appearance-none cursor-pointer hover:bg-zinc-700 w-[60px]"
                             title="Transcription Mode (Line or Word Level)"
+                            name="transcription-mode"
+                            id="transcription-mode"
+                            aria-label="Transcription Mode"
                         >
                             <option value="line">Line</option>
                             <option value="word">Word</option>

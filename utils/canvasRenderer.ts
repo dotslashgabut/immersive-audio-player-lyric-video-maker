@@ -1777,14 +1777,18 @@ export const drawCanvasFrame = (
                 const titleSize = titleBaseSize * infoScale;
                 const artistSize = artistBaseSize * infoScale;
 
-                const titleFont = `bold ${titleSize}px ${fontFamily}`;
-                const artistFont = `${artistSize}px ${fontFamily}`;
+                const infoFont = renderConfig?.infoFontFamily || fontFamily;
+                const infoWeight = renderConfig?.infoFontWeight || 'bold';
+                const infoFontStyle = renderConfig?.infoFontStyle || 'normal';
+
+                const titleFont = `${infoFontStyle} ${infoWeight} ${titleSize}px ${infoFont}`;
+                const artistFont = `${infoFontStyle} ${infoWeight} ${artistSize}px ${infoFont}`;
 
                 const gap = 20 * scale;
                 const padding = isBox ? 24 * scale : 0;
 
-                const mainColor = renderConfig?.fontColor || '#ffffff';
-                const artistColor = (style === 'modern' || style === 'modern_art') ? mainColor : (renderConfig?.fontColor || '#d4d4d8');
+                const mainColor = renderConfig?.infoFontColor || '#ffffff';
+                const artistColor = (style === 'modern' || style === 'modern_art') ? mainColor : (renderConfig?.infoFontColor || '#d4d4d8');
 
                 // Measure Text
                 ctx.font = titleFont;

@@ -3481,6 +3481,9 @@ function App() {
                   ></div>
                   <input
                     type="range"
+                    name="progress"
+                    id="progress-bar"
+                    aria-label="Seek Progress"
                     min="0"
                     max={duration || 0}
                     value={currentTime}
@@ -3515,6 +3518,9 @@ function App() {
                     ></div>
                     <input
                       type="range"
+                      name="volume"
+                      id="volume-control"
+                      aria-label="Volume Control"
                       min="0"
                       max="1"
                       step="0.05"
@@ -3531,12 +3537,12 @@ function App() {
                 <div className="flex gap-1 justify-center lg:justify-start flex-wrap order-2 lg:order-none w-auto lg:w-full">
                   <label className="p-2 rounded-lg hover:bg-white/10 text-zinc-400 hover:text-white cursor-pointer transition-colors" title="Load Audio or video">
                     <Music size={18} />
-                    <input type="file" accept="audio/*,video/*" className="hidden" onChange={handleAudioUpload} disabled={isRendering} />
+                    <input type="file" name="audio-file" id="audio-file" accept="audio/*,video/*" className="hidden" onChange={handleAudioUpload} disabled={isRendering} />
                   </label>
                   <div className="flex items-center gap-1">
                     <label className={`p-2 rounded-lg hover:bg-white/10 cursor-pointer transition-colors ${lyrics.length > 0 ? 'text-purple-400' : 'text-zinc-400 hover:text-white'}`} title="Load Lyrics (.lrc, .srt, .vtt, .ttml)">
                       <FileText size={18} />
-                      <input type="file" accept=".lrc,.srt,.ttml,.xml,.vtt" className="hidden" onChange={handleLyricsUpload} disabled={isRendering} />
+                      <input type="file" name="lyrics-file" id="lyrics-file" accept=".lrc,.srt,.ttml,.xml,.vtt" className="hidden" onChange={handleLyricsUpload} disabled={isRendering} />
                     </label>
                     {lyrics.length > 0 && (
                       <button
@@ -3578,7 +3584,7 @@ function App() {
                   <div className="flex items-center gap-1">
                     <label className={`p-2 rounded-lg hover:bg-white/10 cursor-pointer transition-colors ${customFontName ? 'text-purple-400' : 'text-zinc-400 hover:text-white'}`} title={customFontName ? `Custom Font: ${customFontName}` : "Load Custom Font (.ttf, .otf, .woff)"}>
                       <Type size={18} />
-                      <input type="file" accept=".ttf,.otf,.woff,.woff2" className="hidden" onChange={handleFontUpload} disabled={isRendering} />
+                      <input type="file" name="font-file" id="font-file" accept=".ttf,.otf,.woff,.woff2" className="hidden" onChange={handleFontUpload} disabled={isRendering} />
                     </label>
                     {customFontName && (
                       <button
@@ -3658,6 +3664,9 @@ function App() {
                       className="appearance-none bg-zinc-800/50 border border-white/5 text-zinc-300 text-xs rounded-lg px-3 pr-8 h-9 w-24 focus:outline-none focus:border-purple-500 cursor-pointer"
                       disabled={isRendering}
                       title="Select Visual Preset"
+                      name="preset"
+                      id="preset-select"
+                      aria-label="Visual Preset"
                     >
                       <option value="custom" className="bg-zinc-900 font-bold text-purple-400">Custom ✨</option>
                       <option value="default" className="bg-zinc-900">Default</option>
@@ -3789,6 +3798,9 @@ function App() {
                       className="appearance-none bg-zinc-800/50 border border-white/5 text-zinc-300 text-xs rounded-lg px-3 pr-8 w-28 h-9 focus:outline-none focus:border-purple-500 cursor-pointer"
                       disabled={isRendering}
                       title="Select Video Codec"
+                      name="codec"
+                      id="codec-select"
+                      aria-label="Video Codec"
                     >
                       <option value="auto" className="bg-zinc-900">Codec: Auto</option>
                       {supportedCodecs.map(c => (
@@ -3829,6 +3841,9 @@ function App() {
                       className="appearance-none bg-zinc-800/50 border border-white/5 text-zinc-300 text-xs rounded-lg px-3 pr-8 w-16 h-9 focus:outline-none focus:border-purple-500 cursor-pointer"
                       disabled={isRendering}
                       title="Select Quality (Bitrate)"
+                      name="quality"
+                      id="quality-select"
+                      aria-label="Render Quality"
                     >
                       <option value="low" className="bg-zinc-900">Low</option>
                       <option value="med" className="bg-zinc-900">Med</option>
