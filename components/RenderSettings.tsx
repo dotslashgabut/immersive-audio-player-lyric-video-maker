@@ -29,6 +29,8 @@ const GoogleFontLoader: React.FC<{
             <span className="text-[10px] text-zinc-500 font-bold uppercase whitespace-nowrap">Google Font:</span>
             <input
                 type="text"
+                name="google-font-name"
+                aria-label="Google Font Name"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder={placeholder}
@@ -1160,6 +1162,8 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                     <input
                         ref={settingsInputRef}
                         type="file"
+                        name="import-settings"
+                        id="import-settings"
                         accept=".json,.txt"
                         className="hidden"
                         onChange={handleImportSettings}
@@ -1278,6 +1282,8 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                         <div className="flex items-center gap-3 bg-zinc-800/30 p-2 rounded-lg border border-white/5">
                             <input
                                 type="color"
+                                name="smart-bg-color"
+                                aria-label="Smart Gradient Base Color"
                                 value={config.backgroundColor}
                                 onChange={(e) => handleChange('backgroundColor', e.target.value)}
                                 className="w-10 h-10 rounded cursor-pointer bg-transparent border-none shrink-0"
@@ -1288,6 +1294,8 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                                     <span className="text-[10px] text-zinc-500">Hex:</span>
                                     <input
                                         type="text"
+                                        name="smart-bg-hex"
+                                        aria-label="Smart Gradient Base Color Hex"
                                         value={config.backgroundColor}
                                         onChange={(e) => handleChange('backgroundColor', e.target.value)}
                                         className="bg-transparent border-b border-zinc-700 focus:border-purple-500 text-[10px] text-zinc-300 font-mono focus:outline-none p-0 w-20 uppercase"
@@ -1301,12 +1309,16 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                         <div className="flex items-center gap-3 bg-zinc-800/30 p-2 rounded-lg border border-white/5">
                             <input
                                 type="color"
+                                name="solid-bg-color"
+                                aria-label="Background Color"
                                 value={config.backgroundColor}
                                 onChange={(e) => handleChange('backgroundColor', e.target.value)}
                                 className="w-8 h-8 rounded cursor-pointer bg-transparent border-none shrink-0"
                             />
                             <input
                                 type="text"
+                                name="solid-bg-hex"
+                                aria-label="Background Color Hex"
                                 value={config.backgroundColor}
                                 onChange={(e) => handleChange('backgroundColor', e.target.value)}
                                 className="bg-transparent border-b border-zinc-700 text-xs text-zinc-300 font-mono flex-1 focus:outline-none focus:border-purple-500 uppercase py-1"
@@ -1317,6 +1329,8 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                     {config.backgroundSource === 'gradient' && (
                         <input
                             type="text"
+                            name="custom-gradient"
+                            aria-label="Custom CSS Gradient"
                             value={config.backgroundGradient}
                             onChange={(e) => handleChange('backgroundGradient', e.target.value)}
                             placeholder="linear-gradient(to bottom right, #312e81, #581c87, #000000)"
@@ -1331,6 +1345,8 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                                 <input
                                     ref={backgroundImageInputRef}
                                     type="file"
+                                    name="bg-image-upload"
+                                    id="bg-image-upload"
                                     accept="image/*"
                                     onChange={handleBackgroundImageUpload}
                                     className="hidden"
@@ -1406,6 +1422,8 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                                 <div className="flex items-center gap-2 bg-zinc-800 border border-white/10 rounded-lg px-2 py-1.5">
                                     <input
                                         type="range"
+                                        name="blur-strength"
+                                        aria-label="Blur Intensity"
                                         min="1"
                                         max="64"
                                         step="1"
@@ -1429,6 +1447,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                         <div className="relative inline-flex items-center cursor-pointer">
                             <input
                                 type="checkbox"
+                                name="real-color-media"
                                 checked={config.useRealColorMedia ?? false}
                                 onChange={(e) => handleChange('useRealColorMedia', e.target.checked)}
                                 className="sr-only peer"
@@ -1446,6 +1465,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                         <div className="relative inline-flex items-center cursor-pointer">
                             <input
                                 type="checkbox"
+                                name="gradient-overlay"
                                 checked={config.enableGradientOverlay ?? false}
                                 onChange={(e) => handleChange('enableGradientOverlay', e.target.checked)}
                                 className="sr-only peer"
@@ -1503,12 +1523,16 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                                         <div className="flex items-center gap-2 bg-zinc-800 p-1.5 rounded-lg border border-white/5">
                                             <input
                                                 type="color"
+                                                name="highlight-color"
+                                                aria-label="Highlight Text Color"
                                                 value={config.highlightColor || '#fb923c'}
                                                 onChange={(e) => handleChange('highlightColor', e.target.value)}
                                                 className="w-8 h-6 rounded cursor-pointer bg-transparent border-none shrink-0"
                                             />
                                             <input
                                                 type="text"
+                                                name="highlight-color-hex"
+                                                aria-label="Highlight Text Color Hex"
                                                 value={config.highlightColor || '#fb923c'}
                                                 onChange={(e) => handleChange('highlightColor', e.target.value)}
                                                 className="bg-transparent border-none text-[10px] text-zinc-300 font-mono w-full focus:outline-none uppercase"
@@ -1521,12 +1545,16 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                                         <div className="flex items-center gap-2 bg-zinc-800 p-1.5 rounded-lg border border-white/5">
                                             <input
                                                 type="color"
+                                                name="highlight-bg-color"
+                                                aria-label="Highlight Background Color"
                                                 value={config.highlightBackground || '#fb923c'}
                                                 onChange={(e) => handleChange('highlightBackground', e.target.value)}
                                                 className="w-8 h-6 rounded cursor-pointer bg-transparent border-none shrink-0"
                                             />
                                             <input
                                                 type="text"
+                                                name="highlight-bg-hex"
+                                                aria-label="Highlight Background Color Hex"
                                                 value={config.highlightBackground || '#fb923c'}
                                                 onChange={(e) => handleChange('highlightBackground', e.target.value)}
                                                 className="bg-transparent border-none text-[10px] text-zinc-300 font-mono w-full focus:outline-none uppercase"
@@ -1557,6 +1585,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                                 <div className="relative inline-flex items-center cursor-pointer">
                                     <input
                                         type="checkbox"
+                                        name={item.key}
                                         checked={(config as any)[item.key]}
                                         onChange={(e) => handleChange(item.key as keyof RenderConfig, e.target.checked)}
                                         className="sr-only peer"
@@ -1598,6 +1627,8 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                             <div className="space-y-1 animate-in slide-in-from-top-1 fade-in duration-200">
                                 <label className="text-[10px] text-zinc-500 uppercase font-bold">Custom Intro Content</label>
                                 <textarea
+                                    name="intro-text"
+                                    aria-label="Intro Text"
                                     value={config.introText}
                                     onChange={(e) => handleChange('introText', e.target.value)}
                                     placeholder="Enter intro text..."
@@ -1620,6 +1651,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                             <div className="relative inline-flex items-center cursor-pointer">
                                 <input
                                     type="checkbox"
+                                    name="show-channel-info"
                                     checked={config.showChannelInfo ?? false}
                                     onChange={(e) => handleChange('showChannelInfo', e.target.checked)}
                                     className="sr-only peer"
@@ -1636,6 +1668,8 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                                     <input
                                         ref={channelImageInputRef}
                                         type="file"
+                                        name="channel-image-upload"
+                                        id="channel-image-upload"
                                         accept="image/*"
                                         onChange={handleChannelImageUpload}
                                         className="hidden"
@@ -1676,6 +1710,8 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                                 <div className="space-y-1.5">
                                     <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Channel Name / SVG Code</label>
                                     <textarea
+                                        name="channel-info-text"
+                                        aria-label="Channel Info Text"
                                         value={config.channelInfoText ?? ''}
                                         onChange={(e) => handleChange('channelInfoText', e.target.value)}
                                         placeholder="Display Name or <svg>...</svg>"
@@ -1718,6 +1754,8 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                                         <span className="text-zinc-500"><Maximize size={12} /></span>
                                         <input
                                             type="range"
+                                            name="channel-margin"
+                                            aria-label="Channel Info Margin"
                                             min="0.0"
                                             max="5.0"
                                             step="0.1"
@@ -1738,6 +1776,8 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                                         <span className="text-zinc-500"><Maximize size={12} /></span>
                                         <input
                                             type="range"
+                                            name="channel-size"
+                                            aria-label="Channel Info Size"
                                             min="0.5"
                                             max="3.0"
                                             step="0.1"
@@ -1766,6 +1806,8 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                                     <input
                                         ref={channelFontInputRef}
                                         type="file"
+                                        name="channel-font-upload"
+                                        id="channel-font-upload"
                                         accept=".ttf,.otf,.woff,.woff2"
                                         onChange={onChannelFontUpload}
                                         className="hidden"
@@ -1819,6 +1861,8 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                                     <div className="flex items-center gap-3 bg-zinc-800/30 p-2 rounded-lg border border-white/5">
                                         <input
                                             type="color"
+                                            name="channel-font-color"
+                                            aria-label="Channel Font Color"
                                             value={config.channelInfoFontColor || '#ffffff'}
                                             onChange={(e) => handleChange('channelInfoFontColor', e.target.value)}
                                             className="w-6 h-6 rounded cursor-pointer bg-transparent border-none shrink-0"
@@ -1902,6 +1946,8 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                                 <span className="text-zinc-500"><Maximize size={12} /></span>
                                 <input
                                     type="range"
+                                    name="info-margin"
+                                    aria-label="Song Info Margin"
                                     min="0.0"
                                     max="5.0"
                                     step="0.1"
@@ -1921,6 +1967,8 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                                 <span className="text-zinc-500"><Type size={12} /></span>
                                 <input
                                     type="range"
+                                    name="info-size"
+                                    aria-label="Song Info Size"
                                     min="0.5"
                                     max="3.0"
                                     step="0.1"
@@ -1948,6 +1996,8 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                             <input
                                 ref={infoFontInputRef}
                                 type="file"
+                                name="info-font-upload"
+                                id="info-font-upload"
                                 accept=".ttf,.otf,.woff,.woff2"
                                 onChange={onInfoFontUpload}
                                 className="hidden"
@@ -2001,6 +2051,8 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                             <div className="flex items-center gap-3 bg-zinc-800/30 p-2 rounded-lg border border-white/5">
                                 <input
                                     type="color"
+                                    name="info-font-color"
+                                    aria-label="Song Info Text Color"
                                     value={config.infoFontColor || '#ffffff'}
                                     onChange={(e) => handleChange('infoFontColor', e.target.value)}
                                     className="w-6 h-6 rounded cursor-pointer bg-transparent border-none shrink-0"
@@ -2179,6 +2231,8 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                             <input
                                 ref={fontInputRef}
                                 type="file"
+                                name="main-font-upload"
+                                id="main-font-upload"
                                 accept=".ttf,.otf,.woff,.woff2"
                                 onChange={onFontUpload}
                                 className="hidden"
@@ -2223,6 +2277,8 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                                 <span className="text-zinc-500"><Type size={12} /></span>
                                 <input
                                     type="range"
+                                    name="font-size"
+                                    aria-label="Font Size"
                                     min="0.1"
                                     max="3.0"
                                     step="0.1"
@@ -2243,6 +2299,8 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                                 <span className="text-zinc-500"><AlignVerticalJustifyCenter size={12} /></span>
                                 <input
                                     type="range"
+                                    name="line-height"
+                                    aria-label="Line Height"
                                     min="1.0"
                                     max="3.0"
                                     step="0.1"
@@ -2265,12 +2323,16 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                             <div className="flex items-center gap-3 bg-zinc-800/30 p-2 rounded-lg border border-white/5">
                                 <input
                                     type="color"
+                                    name="main-font-color"
+                                    aria-label="Main Font Color"
                                     value={config.fontColor}
                                     onChange={(e) => handleChange('fontColor', e.target.value)}
                                     className="w-8 h-8 rounded cursor-pointer bg-transparent border-none shrink-0"
                                 />
                                 <input
                                     type="text"
+                                    name="main-font-hex"
+                                    aria-label="Main Font Color Hex"
                                     value={config.fontColor}
                                     onChange={(e) => handleChange('fontColor', e.target.value)}
                                     className="bg-transparent border-b border-zinc-700 text-xs text-zinc-300 font-mono flex-1 focus:outline-none focus:border-purple-500 uppercase py-1"
@@ -2328,6 +2390,8 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                                 <div className="w-1/3 flex items-center bg-zinc-800 border border-white/10 rounded-lg px-2">
                                     <input
                                         type="range"
+                                        name="transition-duration"
+                                        aria-label="Transition Duration"
                                         min="0.1"
                                         max="5.0"
                                         step="0.1"

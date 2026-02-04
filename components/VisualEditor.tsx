@@ -117,6 +117,8 @@ const SpeedInput: React.FC<SpeedInputProps> = ({ value, onChange }) => {
       </button>
       <input
         type="text"
+        name="speed-input"
+        aria-label="Speed Input"
         className="bg-transparent text-[10px] text-zinc-300 focus:outline-none w-10 text-center"
         value={localValue}
         onChange={(e) => {
@@ -153,16 +155,33 @@ const SpeedInput: React.FC<SpeedInputProps> = ({ value, onChange }) => {
 
 
 const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentTime, duration, lyrics, onSeek, onClose, renderConfig, setRenderConfig }) => {
-  const { confirm } = useUI();
+  const { confirm, toast } = useUI();
   const editorRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
   const [pxPerSec, setPxPerSec] = useState(40); // Default zoom level
 
 
-  const [history, setHistory] = useState<VisualSlide[][]>([slides]);
+  // Interaction State - Moved to top to avoid use-before-define
+  const [selectedSlideIds, setSelectedSlideIds] = useState<string[]>([]);
+  const [lastSelectedId, setLastSelectedId] = useState<string | null>(null); // Anchor for shift-select
+  const [clipboard, setClipboard] = useState<VisualSlide[]>([]);
+  const [activeDrag, setActiveDrag] = useState<{
+    id: string;
+    type: 'move' | 'resize-start' | 'resize-end';
+    startX: number;
+    initialStart: number;
+    initialEnd: number;
+    initialMap: Record<string, { start: number, end: number }>;
+  } | null>(null);
+  const [isScrubbing, setIsScrubbing] = useState(false);
+  const [selectionBox, setSelectionBox] = useState<{ x: number, y: number, w: number, h: number } | null>(null);
+
+
+  const [history, setHistory] = useState<{ slides: VisualSlide[], selection: string[] }[]>([{ slides, selection: [] }]);
   const [historyIndex, setHistoryIndex] = useState<number>(0);
   const isUndoRedoAction = useRef<boolean>(false);
+  const [snapLines, setSnapLines] = useState<number[]>([]);
 
 
   useEffect(() => {
@@ -170,12 +189,19 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
       isUndoRedoAction.current = false;
       return;
     }
+
+    // Don't record history during active interactions
+    if (activeDrag || isScrubbing) return;
+
     // Only push if different from current history position
     const currentHistoryState = history[historyIndex];
-    if (JSON.stringify(currentHistoryState) !== JSON.stringify(slides)) {
+    const currentState = { slides, selection: selectedSlideIds };
+
+    // Simple deep comparison
+    if (JSON.stringify(currentHistoryState) !== JSON.stringify(currentState)) {
       // Trim future history if we're not at the end
       const newHistory = history.slice(0, historyIndex + 1);
-      newHistory.push(slides);
+      newHistory.push(currentState);
       // Limit history size
       if (newHistory.length > MAX_HISTORY_SIZE) {
         newHistory.shift();
@@ -186,7 +212,7 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
         setHistoryIndex(historyIndex + 1);
       }
     }
-  }, [slides, history, historyIndex]);
+  }, [slides, selectedSlideIds, history, historyIndex, activeDrag, isScrubbing]);
 
   const canUndo = historyIndex > 0;
   const canRedo = historyIndex < history.length - 1;
@@ -196,18 +222,20 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
       const newIndex = historyIndex - 1;
       setHistoryIndex(newIndex);
       isUndoRedoAction.current = true;
-      setSlides(history[newIndex]);
+      setSlides(history[newIndex].slides);
+      setSelectedSlideIds(history[newIndex].selection);
     }
-  }, [setSlides, history, historyIndex]);
+  }, [setSlides, setSelectedSlideIds, history, historyIndex]);
 
   const handleRedo = useCallback(() => {
     if (historyIndex < history.length - 1) {
       const newIndex = historyIndex + 1;
       setHistoryIndex(newIndex);
       isUndoRedoAction.current = true;
-      setSlides(history[newIndex]);
+      setSlides(history[newIndex].slides);
+      setSelectedSlideIds(history[newIndex].selection);
     }
-  }, [setSlides, history, historyIndex]);
+  }, [setSlides, setSelectedSlideIds, history, historyIndex]);
 
 
   const maxSlideEnd = Math.max(0, ...slides.map(s => s.endTime));
@@ -216,19 +244,14 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
   const timelineDuration = Math.max(duration, 60, maxSlideEnd);
   const totalWidth = timelineDuration * pxPerSec;
 
-  // Interaction State
-  const [selectedSlideIds, setSelectedSlideIds] = useState<string[]>([]);
-  const [lastSelectedId, setLastSelectedId] = useState<string | null>(null); // Anchor for shift-select
-
-
-  const [clipboard, setClipboard] = useState<VisualSlide[]>([]);
 
 
   const handleCopy = useCallback(() => {
     if (selectedSlideIds.length === 0) return;
     const selectedSlides = slides.filter(s => selectedSlideIds.includes(s.id));
     setClipboard(selectedSlides);
-  }, [selectedSlideIds, slides]);
+    toast.success(`Copied ${selectedSlides.length} items`);
+  }, [selectedSlideIds, slides, toast]);
 
   const handleCut = useCallback(() => {
     if (selectedSlideIds.length === 0) return;
@@ -236,7 +259,8 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
     setClipboard(selectedSlides);
     setSlides(prev => prev.filter(s => !selectedSlideIds.includes(s.id)));
     setSelectedSlideIds([]);
-  }, [selectedSlideIds, slides, setSlides]);
+    toast.success(`Cut ${selectedSlides.length} items`);
+  }, [selectedSlideIds, slides, setSlides, toast]);
 
 
   const slidesRef = useRef(slides);
@@ -266,7 +290,8 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
 
     // Select the newly pasted slides
     setSelectedSlideIds(newSlides.map(s => s.id));
-  }, [clipboard, currentTime, setSlides]);
+    toast.success(`Pasted ${newSlides.length} items`);
+  }, [clipboard, currentTime, setSlides, toast]);
 
   const handleSplit = useCallback(() => {
 
@@ -312,19 +337,9 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
     });
 
     setSelectedSlideIds(newSelection);
-  }, [slides, selectedSlideIds, currentTime, setSlides]);
+    toast.success(`Split ${candidates.length} items`);
+  }, [slides, selectedSlideIds, currentTime, setSlides, toast]);
 
-  const [activeDrag, setActiveDrag] = useState<{
-    id: string;
-    type: 'move' | 'resize-start' | 'resize-end';
-    startX: number;
-    initialStart: number;
-    initialEnd: number;
-    initialMap: Record<string, { start: number, end: number }>;
-  } | null>(null);
-
-  const [isScrubbing, setIsScrubbing] = useState(false);
-  const [selectionBox, setSelectionBox] = useState<{ x: number, y: number, w: number, h: number } | null>(null);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -847,6 +862,8 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
       const deltaPx = e.clientX - prev.startX;
       const deltaSec = deltaPx / pxPerSec;
 
+      let newSnapLines: number[] = [];
+
       setSlides(currentSlides => {
         if (prev.type === 'move') {
           // --- Group Move Logic ---
@@ -857,23 +874,15 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
           const groupInitStart = Math.min(...allInits.map(i => i.start));
           const groupInitEnd = Math.max(...allInits.map(i => i.end));
 
-          // Dragged Item (Initial)
+          // Current dragged item (for reference)
           const draggedInit = prev.initialMap[prev.id];
 
-          // Determine Candidates for Snapping:
-          // 1. Dragged Item Start
-          // 2. Dragged Item End
-          // 3. Group Start
-          // 4. Group End
-
-          // NOTE: deltaSec is the raw mouse movement applied to everyone.
-          // We test if (candidate_initial + deltaSec) is close to a snap point.
-
+          // Determine Candidates for Snapping
           const candidates = [
-            { type: 'drag-start', initVal: draggedInit.start },
-            { type: 'drag-end', initVal: draggedInit.end },
-            { type: 'group-start', initVal: groupInitStart },
-            { type: 'group-end', initVal: groupInitEnd }
+            { type: 'drag-start', initVal: draggedInit.start, ref: 'start' },
+            { type: 'drag-end', initVal: draggedInit.end, ref: 'end' },
+            { type: 'group-start', initVal: groupInitStart, ref: 'start' },
+            { type: 'group-end', initVal: groupInitEnd, ref: 'end' }
           ];
 
           const snapThresholdSec = SNAP_THRESHOLD_PX / pxPerSec;
@@ -895,6 +904,7 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
           let bestDelta = deltaSec; // Default to raw movement
           let minSnapDist = snapThresholdSec; // Only snap if within threshold
           let foundSnap = false;
+          let snapTarget = -1;
 
           candidates.forEach(cand => {
             const proposedVal = cand.initVal + deltaSec;
@@ -906,6 +916,7 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
                 minSnapDist = dist;
                 bestDelta = point - cand.initVal;
                 foundSnap = true;
+                snapTarget = point;
               }
             }
 
@@ -916,14 +927,20 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
               minSnapDist = gridDist;
               bestDelta = closestGrid - cand.initVal;
               foundSnap = true;
+              snapTarget = closestGrid;
             }
           });
 
           let effectiveDelta = foundSnap ? bestDelta : deltaSec;
 
+          if (foundSnap) {
+            newSnapLines = [snapTarget];
+          }
+
           // 4. Global Clamp: Ensure NO item in the group is pushed before 0
           if (groupInitStart + effectiveDelta < 0) {
             effectiveDelta = -groupInitStart;
+            newSnapLines = [0]; // Visually snap to 0
           }
 
           // 5. Apply effective delta to all allowed items
@@ -935,34 +952,24 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
               // Handle Layer Switching (Vertical Drag)
               let newLayer = s.layer || 0;
 
-              // Helper to check if mouseY is within a track rect
-              const checkLayer = (y: number, top: number, height: number): boolean => {
-                return y >= top && y <= top + height;
-              };
-
-              // Use trackRef logic similar to mouse move
-              // We need offsetY relative to track.
-              // We can approximate by checking if 'e.clientY' changed significantly?
-              // Better: We need e.clientY relative to track.
-              // Since we don't have track rect easily here without ref query every move (expensive?),
-              // we can rely on storing track offset in 'activeDrag'.
-              // But 'activeDrag' was set on MouseDown.
-              // Let's grab track rect if possible or assume relative position if we had startY?
-              // The 'handleMouseMove' has 'e.clientY'.
-              // We need the track offset.
-
-              // Let's try to get rect safely
+              // Only check layers if dragging visuals or audio items
               const trackRect = trackRef.current?.getBoundingClientRect();
               if (trackRect) {
                 const offsetY = e.clientY - trackRect.top;
 
-                // Logic to switch layer based on type
+                // Helper
+                const checkLayer = (y: number, top: number, height: number): boolean => {
+                  // Add a bit of buffer/hysteresis
+                  return y >= top - 10 && y <= top + height + 10;
+                };
+
                 if (s.type === 'audio') {
                   if (checkLayer(offsetY, TRACK_LAYOUT.AUDIO_L1_TOP, TRACK_LAYOUT.AUDIO_L1_HEIGHT)) newLayer = 0;
-                  if (checkLayer(offsetY, TRACK_LAYOUT.AUDIO_L2_TOP, TRACK_LAYOUT.AUDIO_L2_HEIGHT)) newLayer = 1;
+                  else if (checkLayer(offsetY, TRACK_LAYOUT.AUDIO_L2_TOP, TRACK_LAYOUT.AUDIO_L2_HEIGHT)) newLayer = 1;
                 } else {
+                  // Image/Video
                   if (checkLayer(offsetY, TRACK_LAYOUT.VISUAL_L1_TOP, TRACK_LAYOUT.VISUAL_L1_HEIGHT)) newLayer = 0;
-                  if (checkLayer(offsetY, TRACK_LAYOUT.VISUAL_L2_TOP, TRACK_LAYOUT.VISUAL_L2_HEIGHT)) newLayer = 1;
+                  else if (checkLayer(offsetY, TRACK_LAYOUT.VISUAL_L2_TOP, TRACK_LAYOUT.VISUAL_L2_HEIGHT)) newLayer = 1;
                 }
               }
 
@@ -981,12 +988,24 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
           let newStart = prev.initialStart + deltaSec;
 
           // Snap (ignore itself)
-          newStart = getSnapTime(newStart, [prev.id]);
+          // Use helper similar to above or just `getSnapTime`
+          // We can use getSnapTime and just extract the logic if we want visual guides
+          // Ideally getSnapTime should return the snapped value AND if it snapped
+          // For now, let's just use getSnapTime and infer snap line
+          const snappedStart = getSnapTime(newStart, [prev.id]);
+
+          if (Math.abs(snappedStart - newStart) > 0.0001) {
+            newSnapLines = [snappedStart];
+          }
+
+          newStart = snappedStart;
 
           // Clamp
           const minDuration = 0.5;
           const currentEnd = prev.initialEnd;
           newStart = Math.max(0, Math.min(newStart, currentEnd - minDuration));
+
+          if (newStart === 0) newSnapLines = [0];
 
           return currentSlides.map(s => {
             if (s.id !== prev.id) return s;
@@ -998,7 +1017,13 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
           let newEnd = prev.initialEnd + deltaSec;
 
           // Snap (ignore itself)
-          newEnd = getSnapTime(newEnd, [prev.id]);
+          const snappedEnd = getSnapTime(newEnd, [prev.id]);
+
+          if (Math.abs(snappedEnd - newEnd) > 0.0001) {
+            newSnapLines = [snappedEnd];
+          }
+
+          newEnd = snappedEnd;
 
           // Clamp
           const minDuration = 0.5;
@@ -1011,6 +1036,9 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
           });
         }
       });
+
+      setSnapLines(newSnapLines);
+
       return prev;
     });
   };
@@ -1020,15 +1048,6 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
     if (activeDrag && activeDrag.type === 'move') {
       const dist = Math.abs(e.clientX - activeDrag.startX);
       if (dist < 5) {
-        // Check if this was a non-modifier click (implied by execution flow reaching here for group clicks)
-        // Actually, to be safe, we only force single selection if the intent wasn't a modifier action.
-        // Since modifier actions in mouseDown manipulate selection immediately, verification isn't strictly needed if we assume standard flow.
-        // But we should check if the key is currently held? e.ctrlKey?
-        // If I Ctrl+Click (Toggle), distance is 0.
-        // If I toggle off, activeDrag might not even be set?
-        // If I toggle off, 'selectedSlideIds' changes.
-        // This block handles the case where we *preserved* multiple selection in anticipation of a drag.
-        // That only happened in the `else if (selectedSlideIds.includes(id))` branch of MouseDown, which implies NO modifiers.
         if (!e.ctrlKey && !e.metaKey && !e.shiftKey) {
           setSelectedSlideIds([activeDrag.id]);
         }
@@ -1036,8 +1055,11 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
     }
 
     setActiveDrag(null);
+    setSnapLines([]); // Clear snap lines
     window.removeEventListener('mousemove', handleMouseMove);
     window.removeEventListener('mouseup', handleMouseUp);
+
+    // Sort slides on commit
     setSlides(prev => [...prev].sort((a, b) => a.startTime - b.startTime));
   };
 
@@ -1085,7 +1107,7 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
           <div className="w-px h-4 bg-zinc-700"></div>
           <label className="flex items-center gap-2 px-3 py-1 bg-purple-600 hover:bg-purple-500 rounded text-xs font-medium cursor-pointer transition-colors text-white whitespace-nowrap">
             <Plus size={14} /> Import Media
-            <input type="file" className="hidden" accept="image/*,video/*,audio/*" multiple onChange={handleFileUpload} />
+            <input type="file" name="import-media" id="import-media" className="hidden" accept="image/*,video/*,audio/*" multiple onChange={handleFileUpload} />
           </label>
           <div className="w-px h-4 bg-zinc-700"></div>
           <div className="flex items-center gap-1">
@@ -1184,6 +1206,8 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
                 <input
                   key={selectedSlideIds[0]}
                   type="text"
+                  name="duration-input"
+                  aria-label="Slide Duration"
                   className="w-12 bg-transparent text-[10px] text-white font-mono focus:outline-none py-0.5 text-center"
                   placeholder="MM:SS"
                   defaultValue={(() => {
@@ -1243,6 +1267,8 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
                           min="0"
                           max="1"
                           step="0.05"
+                          name="volume-input"
+                          aria-label="Volume Level"
                           className="w-full h-1 bg-zinc-600 rounded-lg appearance-none cursor-pointer"
                           value={s.volume !== undefined ? s.volume : 1}
                           onChange={(e) => {
@@ -1333,6 +1359,15 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
               }}
             />
           )}
+
+          {/* Snap Guides */}
+          {snapLines.map((lineX, i) => (
+            <div
+              key={`snap-${i}`}
+              className="absolute top-0 bottom-0 border-l border-yellow-400 z-[60] shadow-[0_0_8px_rgba(250,204,21,0.6)]"
+              style={{ left: lineX * pxPerSec }}
+            />
+          ))}
 
           {/* Grid Lines */}
           <div className="absolute top-0 bottom-0 left-[96px] right-0 pointer-events-none z-0">
@@ -1439,6 +1474,11 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
                   <div className="absolute inset-0 p-1 pointer-events-none flex flex-col justify-end">
                     <span className="text-[10px] font-bold drop-shadow-md truncate text-zinc-200 bg-black/30 px-1 rounded w-max max-w-full">{slide.name}</span>
                   </div>
+                  {(activeDrag?.id === slide.id || selectedSlideIds.includes(slide.id)) && (
+                    <div className="absolute top-0 left-0 bg-black/80 text-white text-[9px] px-1.5 py-0.5 rounded-br font-mono z-50 pointer-events-none">
+                      {formatTime(slide.startTime)}
+                    </div>
+                  )}
 
                   {/* Reset Duration Button (Top-Left) - Only if extended beyond original */}
                   {slide.type === 'video' && slide.mediaDuration && (slide.endTime - slide.startTime > slide.mediaDuration + 0.1) && (
@@ -1541,6 +1581,11 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
                   <div className="absolute inset-0 p-1 pointer-events-none flex flex-col justify-end">
                     <span className="text-[10px] font-bold drop-shadow-md truncate text-zinc-200 bg-black/30 px-1 rounded w-max max-w-full">{slide.name}</span>
                   </div>
+                  {(activeDrag?.id === slide.id || selectedSlideIds.includes(slide.id)) && (
+                    <div className="absolute top-0 left-0 bg-black/80 text-white text-[9px] px-1.5 py-0.5 rounded-br font-mono z-50 pointer-events-none">
+                      {formatTime(slide.startTime)}
+                    </div>
+                  )}
                   {/* Reset Duration Button (Top-Left) - Only if extended beyond original */}
                   {slide.type === 'video' && slide.mediaDuration && (slide.endTime - slide.startTime > slide.mediaDuration + 0.1) && (
                     <button
@@ -1656,6 +1701,11 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
                   <div className="absolute inset-0 p-1 pointer-events-none flex flex-col justify-center">
                     <span className="text-[9px] font-bold drop-shadow-md truncate text-emerald-100 px-1">{slide.name}</span>
                   </div>
+                  {(activeDrag?.id === slide.id || selectedSlideIds.includes(slide.id)) && (
+                    <div className="absolute top-0 left-0 bg-black/80 text-white text-[9px] px-1.5 py-0.5 rounded-br font-mono z-50 pointer-events-none">
+                      {formatTime(slide.startTime)}
+                    </div>
+                  )}
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -1724,6 +1774,11 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
                   <div className="absolute inset-0 p-1 pointer-events-none flex flex-col justify-center">
                     <span className="text-[9px] font-bold drop-shadow-md truncate text-emerald-100 px-1">{slide.name}</span>
                   </div>
+                  {(activeDrag?.id === slide.id || selectedSlideIds.includes(slide.id)) && (
+                    <div className="absolute top-0 left-0 bg-black/80 text-white text-[9px] px-1.5 py-0.5 rounded-br font-mono z-50 pointer-events-none">
+                      {formatTime(slide.startTime)}
+                    </div>
+                  )}
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
