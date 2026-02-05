@@ -1,5 +1,12 @@
 # Release Notes
 
+# 2.3.4
+
+## What's New
+
+- **Bug Fixes**
+
+
 # 2.3.3
 
 ## What's New
