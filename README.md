@@ -1,7 +1,7 @@
 <div align="center">
   <img src="public/icon.svg" width="100" />
   <h1>Immersive Audio Player & Lyric Video Maker</h1>
-  <p><b>Version 2.3.4</b></p>
+  <p><b>Version 2.3.5</b></p>
 </div>
 
 **Immersive Audio Player & Lyric Video Maker** is a powerful all-in-one web tool designed for music lovers and content creators. It combines a distraction-free audio player with a professional-grade timeline editor, allowing you to create stunning, synchronized lyric videos directly in your browser. Whether you want to enjoy your local music library with beautiful visuals or create viral content for TikTok, Instagram, and YouTube, this app delivers high-quality results without watermarks or server uploads.
@@ -23,6 +23,7 @@
 - **Minimal Mode Interaction**: Double-click or double-tap anywhere on the screen to quickly exit Minimal Mode.
 - **Smart Play/Pause**: Clicking the active track in the playlist toggles Play/Pause.
 - **Auto-Load**: Automatically cues the first track for playback when adding new audio files.
+- **Export Playlist**: Export your current playlist to `.m3u8` format.
 
 ![Playlist Management](screenshot-playlist.jpg)
 

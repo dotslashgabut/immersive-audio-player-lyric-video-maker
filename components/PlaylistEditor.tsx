@@ -930,6 +930,51 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
         downloadFile(content, filename, 'application/octet-stream');
     };
 
+    const exportPlaylist = async () => {
+        if (playlist.length === 0) return;
+
+        // Show some loading indication if needed, though for small playlists it's fast.
+        // We'll iterate and load duration if missing.
+
+        const getDuration = async (file: File): Promise<number> => {
+            return new Promise((resolve) => {
+                const audio = new Audio(URL.createObjectURL(file));
+                audio.onloadedmetadata = () => {
+                    resolve(audio.duration);
+                    URL.revokeObjectURL(audio.src);
+                };
+                audio.onerror = () => {
+                    resolve(0);
+                    URL.revokeObjectURL(audio.src);
+                };
+            });
+        };
+
+        let content = "#EXTM3U\n";
+
+        for (const item of playlist) {
+            let duration = item.duration || 0;
+            if (duration === 0) {
+                try {
+                    duration = await getDuration(item.audioFile);
+                } catch (e) {
+                    console.error("Failed to get duration for export", e);
+                }
+            }
+
+            const durationSec = Math.round(duration);
+            const artist = (item.metadata.artist || 'Unknown Artist').replace(/[\r\n]/g, '');
+            const title = (item.metadata.title || 'Unknown Title').replace(/[\r\n]/g, '');
+
+            content += `#EXTINF:${durationSec},${artist} - ${title}\n`;
+            // @ts-ignore
+            const path = item.audioFile.webkitRelativePath || item.audioFile.name;
+            content += `${path}\n`;
+        }
+
+        downloadFile(content, "playlist.m3u8", "application/octet-stream");
+    };
+
     const handleClearLyrics = async (item: PlaylistItem) => {
         if (await confirm("Are you sure you want to clear the lyric timeline?", "Clear Lyrics")) {
             setPlaylist(prev => prev.map(p =>
@@ -1118,6 +1163,13 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
                         </select>
                     </div>
 
+                    <button
+                        onClick={exportPlaylist}
+                        className="p-1 hover:bg-zinc-700 text-zinc-500 hover:text-white rounded transition-colors"
+                        title="Export Playlist (.m3u8)"
+                    >
+                        <FileDown size={14} />
+                    </button>
                     <button
                         onClick={async () => {
                             if (playlist.length > 0 && await confirm("Clear entire playlist?", "Clear Playlist")) {
