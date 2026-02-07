@@ -1,5 +1,13 @@
 # Release Notes
 
+# 2.3.5
+
+## What's New
+- **Playlist Management**:
+  - **Export Playlist**: Added a new button in the playlist header to export the current list as a standard **.m3u8** file.
+  - **Smart Duration**: The export process automatically scans files to calculate accurate duration (in seconds) for the `#EXTINF` metadata, ensuring broad compatibility with third-party players even if the tracks haven't been played in the app yet.
+
+
 # 2.3.4
 
 ## What's New
