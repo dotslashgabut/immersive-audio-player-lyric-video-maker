@@ -85,7 +85,7 @@ function App() {
   const [showRenderSettings, setShowRenderSettings] = useState(false);
   const [showShortcutInfo, setShowShortcutInfo] = useState(false);
   const [renderConfig, setRenderConfig] = useState<RenderConfig>({
-    backgroundSource: 'timeline',
+    backgroundSource: 'custom',
     backgroundColor: '#581c87',
     backgroundGradient: 'linear-gradient(to bottom right, #312e81, #581c87, #000000)',
     renderMode: 'current',
