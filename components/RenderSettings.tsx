@@ -52,7 +52,7 @@ const GoogleFontLoader: React.FC<{
 };
 
 const DEFAULT_CONFIG: RenderConfig = {
-    backgroundSource: 'timeline',
+    backgroundSource: 'custom',
     backgroundColor: '#581c87',
     backgroundGradient: 'linear-gradient(to bottom right, #312e81, #581c87, #000000)',
     renderMode: 'current',
@@ -905,16 +905,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
             if (config.channelInfoFontFamily === 'ChannelFont' && channelFontInputRef.current) channelFontInputRef.current.value = '';
             if (config.infoFontFamily === 'InfoFont' && infoFontInputRef.current) infoFontInputRef.current.value = '';
 
-            // Ensure manual reset of new style props if they aren't covered by spread (though they are in DEFAULT_CONFIG)
-            // But explicit is safe.
-            handleChange('channelInfoFontWeight', 'bold');
-            handleChange('channelInfoFontStyle', 'normal');
-            handleChange('infoFontWeight', 'bold');
-            handleChange('infoFontStyle', 'normal');
 
-            // Reset additional properties not in DEFAULT_CONFIG spread if any (explicitly setting undefined/false where needed if DEFAULT_CONFIG isn't enough - but it is)
-            handleChange('enableGradientOverlay', false);
-            handleChange('useRealColorMedia', false);
 
             toast.success("All settings have been reset to default.");
         }

@@ -958,7 +958,7 @@ export const drawCanvasFrame = (
     if (renderConfig && renderConfig.backgroundBlurStrength > 0) ctx.filter = `blur(${renderConfig.backgroundBlurStrength}px)`;
     else if (isBlurEnabled) ctx.filter = 'blur(12px)'; // Fallback for legacy
     if (renderConfig ? (renderConfig.backgroundSource === 'timeline' || renderConfig.backgroundSource === 'custom') : true) {
-        const useTimeline = renderConfig ? renderConfig.backgroundSource === 'timeline' : true;
+        const useTimeline = renderConfig ? renderConfig.backgroundSource === 'timeline' : false;
         let drawnAny = false;
 
         if (useTimeline) {
@@ -1068,7 +1068,7 @@ export const drawCanvasFrame = (
             }
         }
 
-        if (!drawnAny && metadata.coverUrl && visualSlides.length === 0) {
+        if (!drawnAny && metadata.coverUrl && (visualSlides.length === 0 || !useTimeline)) {
             const vid = metadata.backgroundType === 'video' ? videos.get('background') : null;
             const img = images.get('cover');
             if (vid) drawScaled(vid); else if (img) drawScaled(img);
