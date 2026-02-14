@@ -2591,15 +2591,6 @@ function App() {
               >
                 LyricalVision
               </a>
-              <a
-                href="https://ai.studio/apps/drive/1IQUhhLIAJ_dYYbcOLni-x8LLk7Py4SSX?fullscreenApplet=true"
-                target="_blank"
-                rel="noopener noreferrer"
-                title="GeminiTranscription - Transcribe, Translate, and Compare Models"
-                className="px-3 py-2 rounded-full transition-colors bg-black/30 text-zinc-300 hover:bg-white/10 text-xs font-bold flex items-center"
-              >
-                GeminiTranscription
-              </a>
               <button
                 onClick={() => setBypassAutoHide(!bypassAutoHide)}
                 className={`p-2 rounded-full transition-colors ${bypassAutoHide ? 'bg-purple-600/50 text-white' : 'bg-black/30 text-zinc-300 hover:bg-white/10'}`}
@@ -3444,7 +3435,7 @@ function App() {
             </div>
           ) : (
             <div className="text-center text-zinc-400/50 select-none pointer-events-none">
-              {!activeSlide && preset !== 'none' && (
+              {!activeSlide && !audioSrc && playlist.length === 0 && preset !== 'none' && (
                 <div className="flex flex-col items-center gap-4 animate-pulse">
                   <Music size={64} className="opacity-20" />
                   <p>Load audio & lyrics to start</p>
