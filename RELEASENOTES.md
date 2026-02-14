@@ -1,5 +1,11 @@
 # Release Notes
 
+# 2.3.6
+
+## What's New
+- **User Interface** : Replace codec selector with render engine.
+
+
 # 2.3.5
 
 ## What's New
@@ -13,7 +19,6 @@
 # 2.3.4
 
 ## What's New
-
 - **Bug Fixes**
 
 
