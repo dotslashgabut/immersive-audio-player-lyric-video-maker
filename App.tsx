@@ -3790,22 +3790,21 @@ function App() {
                       {aspectRatio}
                     </button>
                   </div>
-                  {/* Codec Selection */}
+                  {/* Render Engine Selection */}
                   <div className="relative group">
                     <select
-                      value={renderCodec}
-                      onChange={(e) => setRenderCodec(e.target.value)}
-                      className="appearance-none bg-zinc-800/50 border border-white/5 text-zinc-300 text-xs rounded-lg px-3 pr-8 w-28 h-9 focus:outline-none focus:border-purple-500 cursor-pointer"
+                      value={renderEngine}
+                      onChange={(e) => setRenderEngine(e.target.value as RenderEngine)}
+                      className="appearance-none bg-zinc-800/50 border border-white/5 text-zinc-300 text-xs rounded-lg px-3 pr-8 w-26 h-9 focus:outline-none focus:border-purple-500 cursor-pointer text-ellipsis overflow-hidden"
                       disabled={isRendering}
-                      title="Select Video Codec"
-                      name="codec"
-                      id="codec-select"
-                      aria-label="Video Codec"
+                      title="Select Render Engine"
+                      name="engine"
+                      id="engine-select"
+                      aria-label="Render Engine"
                     >
-                      <option value="auto" className="bg-zinc-900">Codec: Auto</option>
-                      {supportedCodecs.map(c => (
-                        <option key={c.value} value={c.value} className="bg-zinc-900">{c.label}</option>
-                      ))}
+                      <option value="mediarecorder" className="bg-zinc-900">Realtime</option>
+                      <option value="webcodecs" className="bg-zinc-900">WebCodecs</option>
+                      <option value="ffmpeg" className="bg-zinc-900">FFMPEG</option>
                     </select>
                     <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-1 text-zinc-500">
                       <svg className="fill-current h-3 w-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" /></svg>
@@ -3838,7 +3837,7 @@ function App() {
                     <select
                       value={renderQuality}
                       onChange={(e) => setRenderQuality(e.target.value as any)}
-                      className="appearance-none bg-zinc-800/50 border border-white/5 text-zinc-300 text-xs rounded-lg px-3 pr-8 w-16 h-9 focus:outline-none focus:border-purple-500 cursor-pointer"
+                      className="appearance-none bg-zinc-800/50 border border-white/5 text-zinc-300 text-xs rounded-lg px-3 pr-8 w-18 h-9 focus:outline-none focus:border-purple-500 cursor-pointer"
                       disabled={isRendering}
                       title="Select Quality (Bitrate)"
                       name="quality"
