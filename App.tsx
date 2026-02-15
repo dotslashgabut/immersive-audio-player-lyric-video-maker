@@ -115,7 +115,7 @@ function App() {
     introText: '',
     textCase: 'none',
     highlightEffect: 'karaoke',
-    lyricLineHeight: 1.2,
+    lyricLineHeight: 1.3,
     useRealColorMedia: false,
     channelInfoFontWeight: 'bold',
     channelInfoFontStyle: 'normal',
