@@ -1,5 +1,17 @@
 # Release Notes
 
+# 2.3.7
+
+## What's New
+- **Lyric Edge Margins**:
+  - Added adjustable **Top Margin** and **Bottom Margin** sliders in the Typography & Style section. 
+  - Allows precise control over the vertical spacing of lyrics when aligned to the Top or Bottom edge.
+  - Real-time preview and consistent rendering for both Web View and Video Export.
+- **Settings Management**:
+  - Enhanced JSON **Import/Export** to include lyric margin preferences.
+  - The "Reset to Default" button now correctly reverts margin scales to their factory state (1.0x).
+
+
 # 2.3.6
 
 ## What's New

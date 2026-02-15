@@ -1610,7 +1610,7 @@ function App() {
         }
       }
     }
-  }, [currentLyricIndex, preset, renderConfig.contentPosition]);
+  }, [currentLyricIndex, preset, renderConfig.contentPosition, renderConfig.marginTopScale, renderConfig.marginBottomScale]);
 
   // Trigger scroll on lyric change
   useEffect(() => {
@@ -2658,7 +2658,13 @@ function App() {
         </div>
 
         {/* Center Stage: Lyrics */}
-        <div className={`flex-1 flex justify-center overflow-hidden relative ${renderConfig.contentPosition === 'top' ? 'items-start pt-[10vh]' : renderConfig.contentPosition === 'bottom' ? 'items-end pb-[10vh]' : 'items-center'}`}>
+        <div
+          className={`flex-1 flex justify-center overflow-hidden relative ${renderConfig.contentPosition === 'top' ? 'items-start' : renderConfig.contentPosition === 'bottom' ? 'items-end' : 'items-center'}`}
+          style={{
+            paddingTop: renderConfig.contentPosition === 'top' ? `${(renderConfig.marginTopScale ?? 1.0) * 10}vh` : undefined,
+            paddingBottom: renderConfig.contentPosition === 'bottom' ? `${(renderConfig.marginBottomScale ?? 1.0) * 10}vh` : undefined,
+          }}
+        >
           {lyrics.length > 0 ? (
             <div
               ref={lyricsContainerRef}
