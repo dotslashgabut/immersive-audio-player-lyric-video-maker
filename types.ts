@@ -144,6 +144,8 @@ export interface RenderConfig {
   infoFontStyle?: 'normal' | 'italic';
 
   lyricLineHeight?: number;
+  marginTopScale?: number;
+  marginBottomScale?: number;
   visualTransitionType?: 'none' | 'crossfade' | 'fade-to-black';
   visualTransitionDuration?: number; // Seconds (default 1.0)
   enableGradientOverlay?: boolean;

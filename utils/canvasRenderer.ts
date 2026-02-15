@@ -1140,9 +1140,9 @@ export const drawCanvasFrame = (
         // Vertical Position Logic
         let centerY = height / 2;
         if (renderConfig?.contentPosition === 'top') {
-            centerY = height * 0.15; // Adjusted to be closer to top edge
+            centerY = height * (0.15 * (renderConfig.marginTopScale ?? 1.0)); // Adjusted to be closer to top edge
         } else if (renderConfig?.contentPosition === 'bottom') {
-            centerY = height * 0.9; // Adjusted to be closer to bottom edge (Subtitle standard)
+            centerY = height * (1 - (0.1 * (renderConfig.marginBottomScale ?? 1.0))); // Adjusted to be closer to bottom edge (Subtitle standard)
         }
 
         let activeLineShift = 0;

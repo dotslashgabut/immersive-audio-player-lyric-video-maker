@@ -107,6 +107,8 @@ const DEFAULT_CONFIG: RenderConfig = {
     visualTransitionDuration: 1.0,
     enableGradientOverlay: false,
     useRealColorMedia: false,
+    marginTopScale: 1.0,
+    marginBottomScale: 1.0,
 };
 
 
@@ -921,6 +923,8 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
             infoMarginScale: typeof config.infoMarginScale === 'number' ? Number(config.infoMarginScale.toFixed(6)) : config.infoMarginScale,
             channelInfoSizeScale: typeof config.channelInfoSizeScale === 'number' ? Number(config.channelInfoSizeScale.toFixed(6)) : config.channelInfoSizeScale,
             channelInfoMarginScale: typeof config.channelInfoMarginScale === 'number' ? Number(config.channelInfoMarginScale.toFixed(6)) : config.channelInfoMarginScale,
+            marginTopScale: typeof config.marginTopScale === 'number' ? Number(config.marginTopScale.toFixed(6)) : config.marginTopScale,
+            marginBottomScale: typeof config.marginBottomScale === 'number' ? Number(config.marginBottomScale.toFixed(6)) : config.marginBottomScale,
 
             preset, // Include preset in export
             resolution,
@@ -1011,13 +1015,11 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                         'infoMarginScale',
                         'infoSizeScale',
                         'channelInfoSizeScale',
-                        'infoSizeScale',
-                        'channelInfoSizeScale',
-                        'channelInfoMarginScale',
-                        'channelInfoSizeScale',
                         'channelInfoMarginScale',
                         'visualTransitionDuration',
-                        'lyricLineHeight'
+                        'lyricLineHeight',
+                        'marginTopScale',
+                        'marginBottomScale'
                     ];
 
                     numericFields.forEach(field => {
@@ -1068,6 +1070,10 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                     if (!['current', 'playlist'].includes(newConfig.renderMode)) newConfig.renderMode = 'current';
                     if (!['left', 'center', 'right'].includes(newConfig.textAlign)) newConfig.textAlign = 'center';
                     if (!['top', 'center', 'bottom'].includes(newConfig.contentPosition)) newConfig.contentPosition = 'center';
+                    if (newConfig.marginTopScale === undefined || isNaN(newConfig.marginTopScale)) newConfig.marginTopScale = 1.0;
+                    else newConfig.marginTopScale = Math.max(0, Math.min(5, newConfig.marginTopScale));
+                    if (newConfig.marginBottomScale === undefined || isNaN(newConfig.marginBottomScale)) newConfig.marginBottomScale = 1.0;
+                    else newConfig.marginBottomScale = Math.max(0, Math.min(5, newConfig.marginBottomScale));
                     if (newConfig.lyricDisplayMode && !isValidGroupOption(newConfig.lyricDisplayMode, lyricDisplayGroups)) newConfig.lyricDisplayMode = 'all';
 
                     if (!['normal', 'bold'].includes(newConfig.fontWeight)) newConfig.fontWeight = 'bold';
@@ -2103,6 +2109,48 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                                 >
                                     <AlignVerticalJustifyEnd size={14} />
                                 </button>
+                            </div>
+
+                            {/* Edge Margins */}
+                            <div className="grid grid-cols-2 gap-3 mt-2">
+                                <div className="space-y-1.5">
+                                    <div className="flex justify-between items-center">
+                                        <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Top Margin</label>
+                                        <span className="text-[10px] text-zinc-400 font-mono">{(config.marginTopScale ?? 1.0).toFixed(1)}x</span>
+                                    </div>
+                                    <div className="flex items-center gap-2 bg-zinc-800 border border-white/10 rounded-lg px-2 py-1.5">
+                                        <input
+                                            type="range"
+                                            name="margin-top"
+                                            aria-label="Lyrics Top Margin"
+                                            min="0.0"
+                                            max="5.0"
+                                            step="0.1"
+                                            value={config.marginTopScale ?? 1.0}
+                                            onChange={(e) => handleChange('marginTopScale', parseFloat(e.target.value))}
+                                            className="w-full h-1 bg-zinc-600 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full hover:[&::-webkit-slider-thumb]:bg-purple-400 transition-all"
+                                        />
+                                    </div>
+                                </div>
+                                <div className="space-y-1.5">
+                                    <div className="flex justify-between items-center">
+                                        <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Bottom Margin</label>
+                                        <span className="text-[10px] text-zinc-400 font-mono">{(config.marginBottomScale ?? 1.0).toFixed(1)}x</span>
+                                    </div>
+                                    <div className="flex items-center gap-2 bg-zinc-800 border border-white/10 rounded-lg px-2 py-1.5">
+                                        <input
+                                            type="range"
+                                            name="margin-bottom"
+                                            aria-label="Lyrics Bottom Margin"
+                                            min="0.0"
+                                            max="5.0"
+                                            step="0.1"
+                                            value={config.marginBottomScale ?? 1.0}
+                                            onChange={(e) => handleChange('marginBottomScale', parseFloat(e.target.value))}
+                                            className="w-full h-1 bg-zinc-600 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full hover:[&::-webkit-slider-thumb]:bg-purple-400 transition-all"
+                                        />
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
