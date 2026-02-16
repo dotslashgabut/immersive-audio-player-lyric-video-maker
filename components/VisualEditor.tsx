@@ -90,7 +90,7 @@ const SpeedInput: React.FC<SpeedInputProps> = ({ value, onChange }) => {
 
   const handleBlur = () => {
     const parsed = parseFloat(localValue);
-    if (localValue === '' || isNaN(parsed)) {
+    if (localValue === '' || isNaN(parsed) || parsed <= 0) {
       setLocalValue(value.toString());
     } else {
       onChange(parsed);
@@ -1290,7 +1290,14 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
                         value={s.playbackRate || 1}
                         onChange={(newRate) => {
                           setSlides(prev => prev.map(slide => {
-                            if (slide.id === s.id) return { ...slide, playbackRate: newRate };
+                            if (slide.id === s.id) {
+                              const currentRate = slide.playbackRate || 1;
+                              const currentDuration = slide.endTime - slide.startTime;
+                              // Calculate new duration: Duration * (OldRate / NewRate)
+                              // e.g. 10s * (1 / 2) = 5s
+                              const newDuration = currentDuration * (currentRate / newRate);
+                              return { ...slide, playbackRate: newRate, endTime: slide.startTime + newDuration };
+                            }
                             return slide;
                           }));
                         }}
@@ -1480,24 +1487,27 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
                     </div>
                   )}
 
-                  {/* Reset Duration Button (Top-Left) - Only if extended beyond original */}
-                  {slide.type === 'video' && slide.mediaDuration && (slide.endTime - slide.startTime > slide.mediaDuration + 0.1) && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSlides(prev => prev.map(s => {
-                          if (s.id === slide.id && s.mediaDuration) {
-                            return { ...s, endTime: s.startTime + s.mediaDuration };
-                          }
-                          return s;
-                        }));
-                      }}
-                      className="absolute top-1 left-1 p-0.5 bg-black/60 hover:bg-zinc-600 rounded text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer z-40"
-                      title="Reset to Original Duration"
-                    >
-                      <RotateCcw size={10} />
-                    </button>
-                  )}
+                  {/* Reset Duration/Speed Button (Top-Left Offset) - If modified speed or duration */}
+                  {slide.type === 'video' && slide.mediaDuration && (
+                    Math.abs((slide.endTime - slide.startTime) - slide.mediaDuration) > 0.1 ||
+                    (slide.playbackRate !== undefined && Math.abs(slide.playbackRate - 1) > 0.01)
+                  ) && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSlides(prev => prev.map(s => {
+                            if (s.id === slide.id && s.mediaDuration) {
+                              return { ...s, endTime: s.startTime + s.mediaDuration, playbackRate: 1 };
+                            }
+                            return s;
+                          }));
+                        }}
+                        className="absolute top-1 left-12 p-0.5 bg-black/60 hover:bg-zinc-600 rounded text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer z-40"
+                        title="Reset to Original Duration"
+                      >
+                        <RotateCcw size={10} />
+                      </button>
+                    )}
 
                   {/* Mute/Unmute Button (Videos Only) */}
                   {slide.type === 'video' && (
@@ -1586,24 +1596,27 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
                       {formatTime(slide.startTime)}
                     </div>
                   )}
-                  {/* Reset Duration Button (Top-Left) - Only if extended beyond original */}
-                  {slide.type === 'video' && slide.mediaDuration && (slide.endTime - slide.startTime > slide.mediaDuration + 0.1) && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSlides(prev => prev.map(s => {
-                          if (s.id === slide.id && s.mediaDuration) {
-                            return { ...s, endTime: s.startTime + s.mediaDuration };
-                          }
-                          return s;
-                        }));
-                      }}
-                      className="absolute top-1 left-1 p-0.5 bg-black/60 hover:bg-zinc-600 rounded text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer z-40"
-                      title="Reset to Original Duration"
-                    >
-                      <RotateCcw size={10} />
-                    </button>
-                  )}
+                  {/* Reset Duration/Speed Button (Top-Left Offset) - If modified speed or duration */}
+                  {slide.type === 'video' && slide.mediaDuration && (
+                    Math.abs((slide.endTime - slide.startTime) - slide.mediaDuration) > 0.1 ||
+                    (slide.playbackRate !== undefined && Math.abs(slide.playbackRate - 1) > 0.01)
+                  ) && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSlides(prev => prev.map(s => {
+                            if (s.id === slide.id && s.mediaDuration) {
+                              return { ...s, endTime: s.startTime + s.mediaDuration, playbackRate: 1 };
+                            }
+                            return s;
+                          }));
+                        }}
+                        className="absolute top-1 left-12 p-0.5 bg-black/60 hover:bg-zinc-600 rounded text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer z-40"
+                        title="Reset to Original Duration"
+                      >
+                        <RotateCcw size={10} />
+                      </button>
+                    )}
                   {slide.type === 'video' && (
                     <button
                       onClick={(e) => {

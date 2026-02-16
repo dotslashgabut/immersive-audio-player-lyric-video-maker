@@ -659,6 +659,13 @@ function App() {
 
     // Determine Render Scope
     const isPlaylistRender = renderConfig.renderMode === 'playlist' && playlist.length > 0;
+    console.log(`[Render] Starting Export. Mode: ${renderConfig.renderMode}, Playlist Items: ${playlist.length}, IsPlaylistRender: ${isPlaylistRender}`);
+
+    if (isPlaylistRender) {
+      toast.success(`Starting Playlist Render (${playlist.length} songs)...`);
+    } else {
+      toast.success(`Starting Single Track Render...`);
+    }
     const queue: {
       audioSrc: string;
       lyrics: LyricLine[];
@@ -1192,6 +1199,15 @@ function App() {
 
 
     // Start Processing Queue
+    console.log(`[Render] Queue prepared with ${queue.length} items.`);
+    if (queue.length === 0) {
+      toast.error("Render queue is empty!");
+      setIsRendering(false);
+      return;
+    }
+
+    // Explicitly start from index 0
+    queueIndex = 0;
     await processNextTrack();
 
   };
@@ -1202,6 +1218,7 @@ function App() {
 
     // Determine Render Scope  
     const isPlaylistRender = renderConfig.renderMode === 'playlist' && playlist.length > 0;
+    console.log(`[FFmpeg Render] Mode: ${renderConfig.renderMode}, Playlist: ${playlist.length}, IsPlaylist: ${isPlaylistRender}`);
 
     // Get audio file - need the actual File object for FFmpeg
     let audioFile: File | Blob | null = null;
@@ -2346,7 +2363,7 @@ function App() {
             }}
           />
         )}
-        {(renderConfig.backgroundSource === 'timeline' || renderConfig.backgroundSource === 'custom') && metadata.coverUrl && visualSlides.length === 0 && (
+        {((renderConfig.backgroundSource === 'timeline' && visualSlides.length === 0) || renderConfig.backgroundSource === 'custom') && metadata.coverUrl && (
           metadata.backgroundType === 'video' ? (
             <video
               ref={bgVideoRef}
@@ -2391,7 +2408,7 @@ function App() {
         )}
 
         {/* Default Gradient if nothing */}
-        {!metadata.coverUrl && activeVisualSlides.length === 0 && (renderConfig.backgroundSource === 'timeline' || renderConfig.backgroundSource === 'custom') && visualSlides.length === 0 && (
+        {!metadata.coverUrl && ((renderConfig.backgroundSource === 'timeline' && visualSlides.length === 0) || renderConfig.backgroundSource === 'custom') && (
           <div className="absolute inset-0 bg-gradient-to-br from-indigo-900 via-purple-900 to-black opacity-80"></div>
         )}
 
