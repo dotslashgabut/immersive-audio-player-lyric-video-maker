@@ -8,6 +8,7 @@ import { VitePWA } from 'vite-plugin-pwa';
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, '.', '');
   return {
+    // base: '/audioplayer/',
     server: {
       // port: 5173,
       strictPort: false,
@@ -31,10 +32,39 @@ export default defineConfig(({ mode }) => {
     plugins: [
       react(),
       VitePWA({
-        injectRegister: null, // Disable auto-registration to prevent conflict with coi-serviceworker
         registerType: 'autoUpdate',
         workbox: {
-          globPatterns: ['**/*.{js,css,html,ico,png,svg}']
+          // Include WASM and Worker files in PWA caching
+          globPatterns: ['**/*.{js,css,html,ico,png,svg,wasm,worker.js}'],
+          // Increase limit to handle the 30MB+ FFmpeg WASM file
+          maximumFileSizeToCacheInBytes: 50 * 1024 * 1024,
+          runtimeCaching: [
+            {
+              urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
+              handler: 'StaleWhileRevalidate',
+              options: {
+                cacheName: 'google-fonts-stylesheets',
+                expiration: {
+                  maxEntries: 10,
+                  maxAgeSeconds: 60 * 60 * 24 * 365, // 1 year
+                },
+              },
+            },
+            {
+              urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*/i,
+              handler: 'CacheFirst',
+              options: {
+                cacheName: 'google-fonts-webfonts',
+                expiration: {
+                  maxEntries: 100,
+                  maxAgeSeconds: 60 * 60 * 24 * 365, // 1 year
+                },
+                cacheableResponse: {
+                  statuses: [0, 200],
+                },
+              },
+            },
+          ],
         },
         manifest: {
           name: 'Immersive Audio Player',
@@ -54,6 +84,7 @@ export default defineConfig(({ mode }) => {
         }
       })
     ],
+    assetsInclude: ['**/*.wasm', '**/*.worker.js'],
     define: {
       'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
       'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY)

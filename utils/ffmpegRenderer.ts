@@ -85,41 +85,90 @@ export async function getFFmpeg(onLog?: (message: string) => void): Promise<FFmp
       onLog?.('[FFmpeg] Cross-Origin Isolated: YES. Using Multi-Threaded Core 🚀');
 
       // Load FFmpeg with multi-threaded core
-      const localBaseURL = './ffmpeg';
       const remoteBaseURL = 'https://unpkg.com/@ffmpeg/core-mt@0.12.6/dist/esm';
       let coreURL: string, wasmURL: string, workerURL: string;
 
-      try {
-        // Try to load local files first
-        onLog?.('[FFmpeg] Attempting to load local core files...');
+      /**
+       * Ultra-robust local loader with binary signature verification
+       */
+      const loadLocalAsset = async (basePath: string, fileName: string, mimeType: string) => {
+        const baseUrl = basePath.endsWith('/') ? basePath : `${basePath}/`;
+        const url = `${baseUrl}${fileName}`;
 
-        // Helper to safely load local files and detect 404s (SPA fallback to index.html)
-        const loadLocal = async (url: string, type: string) => {
-          const res = await fetch(url);
+        try {
+          // Use fetch with 'same-origin' and no-cache to get fresh proof of existence
+          const res = await fetch(url, { cache: 'no-cache', mode: 'same-origin' });
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-          // Check if we got HTML back (indicates SPA fallback / 404)
-          const contentType = res.headers.get('Content-Type');
-          if (contentType && contentType.includes('text/html')) {
-            throw new Error('Received HTML instead of binary');
+          const contentType = res.headers.get('Content-Type') || '';
+          const buffer = await res.arrayBuffer();
+          const bytes = new Uint8Array(buffer);
+
+          // CRITICAL: Check if we actually got HTML (common SPA redirect issue)
+          if (bytes[0] === 0x3C || contentType.includes('text/html')) {
+            const preview = new TextDecoder().decode(bytes.slice(0, 100));
+            onLog?.(`[FFmpeg] Error: Path ${url} returned HTML instead of binary. Check if file exists in public/ffmpeg.`);
+            console.debug(`[FFmpeg] Received HTML: ${preview}...`);
+            throw new Error(`Server returned HTML (SPA Redirect) at ${url}`);
           }
 
-          const blob = await res.blob();
-          return URL.createObjectURL(new Blob([blob], { type }));
-        };
+          // If loading WASM, verify the magic number: \0asm (0x00 0x61 0x73 0x6D)
+          if (fileName.endsWith('.wasm')) {
+            if (bytes[0] !== 0x00 || bytes[1] !== 0x61 || bytes[2] !== 0x73 || bytes[3] !== 0x6D) {
+              throw new Error('File version mismatch or invalid WASM binary (Check for partial downloads)');
+            }
+          }
 
-        [coreURL, wasmURL, workerURL] = await Promise.all([
-          loadLocal(`${localBaseURL}/ffmpeg-core.js`, 'text/javascript'),
-          loadLocal(`${localBaseURL}/ffmpeg-core.wasm`, 'application/wasm'),
-          loadLocal(`${localBaseURL}/ffmpeg-core.worker.js`, 'text/javascript'),
-        ]);
+          return URL.createObjectURL(new Blob([buffer], { type: mimeType }));
+        } catch (err) {
+          throw new Error(`[${fileName}] ${(err as Error).message}`);
+        }
+      };
 
-        onLog?.('[FFmpeg] Using local core files (Offline Mode)');
+      const origin = window.location.origin;
+      const viteBase = (import.meta as any).env?.BASE_URL || '/';
+
+      try {
+        onLog?.(`[FFmpeg] Initializing (Offline Support: ${!navigator.onLine ? 'ACTIVE' : 'OFF'})...`);
+
+        // Comprehensive list of potential subdirectory paths
+        const paths = [
+          viteBase.endsWith('/') ? `${viteBase}ffmpeg` : `${viteBase}/ffmpeg`,
+          '/ffmpeg',
+          './ffmpeg',
+          'ffmpeg',
+          origin + '/ffmpeg'
+        ].filter((v, i, a) => a.indexOf(v) === i);
+
+        let success = false;
+        for (const base of paths) {
+          try {
+            onLog?.(`[FFmpeg] Probing ${base}...`);
+
+            // Probing just the JS first to save bandwidth/time
+            const c = await loadLocalAsset(base, 'ffmpeg-core.js', 'text/javascript');
+
+            // If JS passed validation, load the heavy assets
+            const [w, wk] = await Promise.all([
+              loadLocalAsset(base, 'ffmpeg-core.wasm', 'application/wasm'),
+              loadLocalAsset(base, 'ffmpeg-core.worker.js', 'text/javascript'),
+            ]);
+
+            coreURL = c;
+            wasmURL = w;
+            workerURL = wk;
+
+            onLog?.(`[FFmpeg] Success! Core verified at ${base} 🚀`);
+            success = true;
+            break;
+          } catch (e) {
+            console.debug(`[FFmpeg] Path ${base} skipped:`, (e as Error).message);
+          }
+        }
+        if (!success) throw new Error('Could not find valid local binaries');
       } catch (e) {
-        onLog?.('[FFmpeg] Local core files not found or failed to load. Falling back to online CDN.');
-        console.warn('Local FFmpeg files not found:', e);
-
-        // Fallback to remote files
+        onLog?.(`[FFmpeg] Local load failed: ${(e as Error).message}. Falling back to CDN.`);
+        console.warn('[FFmpeg] Falling back to remote CDN:', e);
         [coreURL, wasmURL, workerURL] = await Promise.all([
           toBlobURL(`${remoteBaseURL}/ffmpeg-core.js`, 'text/javascript'),
           toBlobURL(`${remoteBaseURL}/ffmpeg-core.wasm`, 'application/wasm'),
@@ -127,22 +176,55 @@ export async function getFFmpeg(onLog?: (message: string) => void): Promise<FFmp
         ]);
       }
 
-      await ffmpeg.load({
-        coreURL,
-        wasmURL,
-        workerURL,
-      });
+      await ffmpeg.load({ coreURL, wasmURL, workerURL });
     } else {
-      onLog?.('[FFmpeg] Cross-Origin Isolated: NO. Falling back to Single-Threaded Core 🐢');
-      onLog?.('[FFmpeg] Note: Rendering will be slower. Add COOP/COEP headers to server for multithreading.');
+      onLog?.('[FFmpeg] Cross-Origin Isolated: NO. Using Single-Threaded Core 🐢');
 
-      // Load Single-Threaded core (Remote only for now to save space, or we can add local later)
-      const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm';
+      const remoteBaseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm';
+      let coreURL: string, wasmURL: string;
 
-      await ffmpeg.load({
-        coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
-        wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
-      });
+      const loadLocalAssetST = async (base: string, name: string, type: string) => {
+        const baseUrl = base.endsWith('/') ? base : `${base}/`;
+        const url = `${baseUrl}${name}?v=${Date.now()}`;
+
+        try {
+          const res = await fetch(url);
+          if (!res.ok || res.headers.get('Content-Type')?.includes('text/html')) {
+            throw new Error('404');
+          }
+          const blob = await res.blob();
+          const textPreview = await blob.slice(0, 10).text();
+          if (textPreview.trim().startsWith('<')) throw new Error('HTML Content');
+
+          return URL.createObjectURL(new Blob([blob], { type }));
+        } catch (e) {
+          throw e;
+        }
+      };
+
+      try {
+        onLog?.('[FFmpeg] Searching for local ST core files...');
+        let success = false;
+        const pathname = window.location.pathname.replace(/\/[^\/]*$/, '');
+        const paths = ['/ffmpeg', './ffmpeg', 'ffmpeg', pathname + '/ffmpeg'];
+
+        for (const base of paths) {
+          try {
+            coreURL = await loadLocalAssetST(base, 'ffmpeg-core.js', 'text/javascript');
+            wasmURL = await loadLocalAssetST(base, 'ffmpeg-core.wasm', 'application/wasm');
+            onLog?.(`[FFmpeg] Success! ST core verified at local ${base} 🐢`);
+            success = true;
+            break;
+          } catch (e) { }
+        }
+        if (!success) throw new Error('NotFound');
+      } catch (e) {
+        onLog?.('[FFmpeg] Local ST core failure. Using CDN.');
+        coreURL = await toBlobURL(`${remoteBaseURL}/ffmpeg-core.js`, 'text/javascript');
+        wasmURL = await toBlobURL(`${remoteBaseURL}/ffmpeg-core.wasm`, 'application/wasm');
+      }
+
+      await ffmpeg.load({ coreURL, wasmURL });
     }
 
     ffmpegInstance = ffmpeg;
