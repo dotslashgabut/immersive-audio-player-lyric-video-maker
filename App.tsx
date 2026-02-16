@@ -14,8 +14,8 @@ import { drawCanvasFrame } from './utils/canvasRenderer';
 import { loadGoogleFonts } from './utils/fonts';
 import { PRESET_CYCLE_LIST, PRESET_DEFINITIONS, videoPresetGroups } from './utils/presets';
 import { useUI } from './contexts/UIContext';
-import { renderWithFFmpeg, isFFmpegAvailable, getFFmpegCodecs } from './utils/ffmpegRenderer';
-import { renderWithWebCodecs, isWebCodecsSupported } from './utils/webCodecsRenderer';
+import { renderWithFFmpeg, renderPlaylistWithFFmpeg, isFFmpegAvailable, getFFmpegCodecs } from './utils/ffmpegRenderer';
+import { renderWithWebCodecs, renderPlaylistWithWebCodecs, isWebCodecsSupported } from './utils/webCodecsRenderer';
 
 
 
@@ -1002,10 +1002,15 @@ function App() {
 
       const t = audioEl.currentTime;
 
-      // Current Song Progress for UI (Partial)
-      // We could also show Total Progress queueIndex / queue.length
+      // Current Song Progress for UI (Overall for Playlist)
       if (currentRenderDuration > 0) {
-        setRenderProgress(((t / currentRenderDuration) * 100));
+        const songProgress = t / currentRenderDuration;
+        if (isPlaylistRender) {
+          const overallProgress = ((queueIndex + songProgress) / queue.length) * 100;
+          setRenderProgress(overallProgress);
+        } else {
+          setRenderProgress(songProgress * 100);
+        }
       }
 
       // Sync Backgrounds/Videos
@@ -1121,6 +1126,11 @@ function App() {
       currentRenderMetadata = track.metadata; // Update local ref
       currentRenderDuration = 0;
 
+      // Update global index for UI consistency if needed
+      if (isPlaylistRender) {
+        setCurrentTrackIndex(queueIndex);
+      }
+
       // Update Metadata in Background if possible to show progress in UI?
       // Setting state might be risky if unmounted, but we are in App.
       // setMetadata(track.metadata); 
@@ -1177,7 +1187,7 @@ function App() {
 
       // 5. Next
       queueIndex++;
-      processNextTrack();
+      await processNextTrack();
     };
 
 
@@ -1321,44 +1331,113 @@ function App() {
     }
 
     try {
-      const result = await renderWithFFmpeg({
-        canvas,
-        audioFile,
-        lyrics: lyricsToRender,
-        metadata: metadataToRender,
-        visualSlides,
-        imageMap,
-        videoMap,
-        preset,
-        customFontName,
-        renderConfig,
-        resolution,
-        aspectRatio,
-        fps: renderFps,
-        quality: renderQuality,
-        codec: ffmpegCodec,
-        onProgress: (progress, stage) => {
-          setRenderProgress(progress);
-          setFfmpegRenderStage(stage);
-        },
-        onLog: (msg) => console.log(msg),
-        abortSignal: currentAbortSignal,
-        isFirstSong: true,
-        isLastSong: true
-      });
+      if (isPlaylistRender) {
+        // Build tracks for playlist renderer
+        const tracks = [];
+        for (const item of playlist) {
+          let trackLyrics: LyricLine[] = [];
+          if (item.parsedLyrics && item.parsedLyrics.length > 0) {
+            trackLyrics = item.parsedLyrics;
+          } else if (item.lyricFile) {
+            try {
+              const text = await item.lyricFile.text();
+              const ext = item.lyricFile.name.split('.').pop()?.toLowerCase();
+              if (ext === 'lrc') trackLyrics = parseLRC(text);
+              else if (ext === 'srt') trackLyrics = parseSRT(text);
+              else if (ext === 'ttml' || ext === 'xml') trackLyrics = parseTTML(text);
+              else if (ext === 'vtt') trackLyrics = parseVTT(text);
+            } catch (e) {
+              console.error("FFmpeg: Failed to parse lyrics for playlist item", e);
+            }
+          }
+          tracks.push({
+            audioFile: item.audioFile,
+            lyrics: trackLyrics,
+            metadata: item.metadata
+          });
+        }
 
-      // Download the result
-      const filename = `${metadataToRender.title || 'video'}_${aspectRatio.replace(':', '-')}_ffmpeg.${result.format}`;
-      const url = URL.createObjectURL(result.blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+        const result = await renderPlaylistWithFFmpeg(
+          tracks,
+          {
+            canvas,
+            visualSlides,
+            imageMap,
+            videoMap,
+            preset,
+            customFontName,
+            renderConfig,
+            resolution,
+            aspectRatio,
+            fps: renderFps,
+            quality: renderQuality,
+            codec: ffmpegCodec,
+            onProgress: (progress, stage) => {
+              // This is handled by renderPlaylistWithFFmpeg's onTrackProgress callback
+            },
+            onLog: (msg) => console.log(msg),
+            abortSignal: currentAbortSignal,
+          },
+          (trackIndex, totalTracks, progress, stage) => {
+            const overallProgress = ((trackIndex + (progress / 100)) / totalTracks) * 100;
+            setRenderProgress(overallProgress);
+            setFfmpegRenderStage(`Song ${trackIndex + 1}/${totalTracks}: ${stage}`);
+          }
+        );
 
-      toast.success(`Video exported successfully! (${result.format.toUpperCase()}, ${Math.round(result.duration)}s)`);
+        // Download the result
+        const filename = `Playlist_${tracks.length}_Songs_${aspectRatio.replace(':', '-')}_ffmpeg.${result.format}`;
+        const url = URL.createObjectURL(result.blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        toast.success(`Playlist exported successfully! (${result.format.toUpperCase()}, ${Math.round(result.duration)}s)`);
+
+      } else {
+        const result = await renderWithFFmpeg({
+          canvas,
+          audioFile,
+          lyrics: lyricsToRender,
+          metadata: metadataToRender,
+          visualSlides,
+          imageMap,
+          videoMap,
+          preset,
+          customFontName,
+          renderConfig,
+          resolution,
+          aspectRatio,
+          fps: renderFps,
+          quality: renderQuality,
+          codec: ffmpegCodec,
+          onProgress: (progress, stage) => {
+            setRenderProgress(progress);
+            setFfmpegRenderStage(stage);
+          },
+          onLog: (msg) => console.log(msg),
+          abortSignal: currentAbortSignal,
+          isFirstSong: true,
+          isLastSong: true
+        });
+
+        // Download the result
+        const filename = `${metadataToRender.title || 'video'}_${aspectRatio.replace(':', '-')}_ffmpeg.${result.format}`;
+        const url = URL.createObjectURL(result.blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        toast.success(`Video exported successfully! (${result.format.toUpperCase()}, ${Math.round(result.duration)}s)`);
+      }
     } catch (error: any) {
       if (error.message !== 'Render aborted') {
         console.error('FFmpeg render failed:', error);
@@ -1493,41 +1572,104 @@ function App() {
     }
 
     try {
-      const result = await renderWithWebCodecs({
-        canvas,
-        audioFile,
-        lyrics: lyricsToRender,
-        metadata: metadataToRender,
-        visualSlides,
-        imageMap,
-        videoMap,
-        preset,
-        customFontName,
-        renderConfig,
-        resolution,
-        aspectRatio,
-        fps: renderFps,
-        quality: renderQuality,
-        onProgress: (progress, stage) => {
-          setRenderProgress(progress);
-          setFfmpegRenderStage(stage);
-        },
-        abortSignal: currentAbortSignal,
-        isFirstSong: true,
-        isLastSong: true
-      });
+      if (isPlaylistRender) {
+        // Build tracks for processing
+        const tracks = [];
+        for (const item of playlist) {
+          let trackLyrics: LyricLine[] = [];
+          if (item.parsedLyrics && item.parsedLyrics.length > 0) {
+            trackLyrics = item.parsedLyrics;
+          } else if (item.lyricFile) {
+            try {
+              const text = await item.lyricFile.text();
+              const ext = item.lyricFile.name.split('.').pop()?.toLowerCase();
+              if (ext === 'lrc') trackLyrics = parseLRC(text);
+              else if (ext === 'srt') trackLyrics = parseSRT(text);
+              else if (ext === 'ttml' || ext === 'xml') trackLyrics = parseTTML(text);
+              else if (ext === 'vtt') trackLyrics = parseVTT(text);
+            } catch (e) {
+              console.error("WebCodecs: Failed to parse lyrics for playlist item", e);
+            }
+          }
+          tracks.push({
+            audioFile: item.audioFile,
+            lyrics: trackLyrics,
+            metadata: item.metadata
+          });
+        }
 
-      const filename = `${metadataToRender.title || 'video'}_${aspectRatio.replace(':', '-')}_webcodecs.${result.format}`;
-      const url = URL.createObjectURL(result.blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+        const result = await renderPlaylistWithWebCodecs(
+          tracks,
+          {
+            canvas,
+            visualSlides,
+            imageMap,
+            videoMap,
+            preset,
+            customFontName,
+            renderConfig,
+            resolution,
+            aspectRatio,
+            fps: renderFps,
+            quality: renderQuality,
+            onProgress: (progress, stage) => {
+              setRenderProgress(progress);
+              setFfmpegRenderStage(stage);
+            },
+            onLog: (msg) => console.log(msg),
+            abortSignal: currentAbortSignal,
+          }
+        );
 
-      toast.success(`Video exported successfully! (${Math.round(result.duration)}s)`);
+        const filename = `Playlist_${tracks.length}_Songs_${aspectRatio.replace(':', '-')}_webcodecs.${result.format}`;
+        const url = URL.createObjectURL(result.blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        toast.success(`Playlist exported successfully! (${result.format.toUpperCase()}, ${Math.round(result.duration)}s)`);
+
+      } else {
+        const result = await renderWithWebCodecs({
+          canvas,
+          audioFile,
+          lyrics: lyricsToRender,
+          metadata: metadataToRender,
+          visualSlides,
+          imageMap,
+          videoMap,
+          preset,
+          customFontName,
+          renderConfig,
+          resolution,
+          aspectRatio,
+          fps: renderFps,
+          quality: renderQuality,
+          onProgress: (progress, stage) => {
+            setRenderProgress(progress);
+            setFfmpegRenderStage(stage);
+          },
+          abortSignal: currentAbortSignal,
+          isFirstSong: true,
+          isLastSong: true
+        });
+
+        const filename = `${metadataToRender.title || 'video'}_${aspectRatio.replace(':', '-')}_webcodecs.${result.format}`;
+        const url = URL.createObjectURL(result.blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        toast.success(`Video exported successfully! (${Math.round(result.duration)}s)`);
+      }
     } catch (error: any) {
       if (error.message !== 'Render aborted') {
         console.error('WebCodecs render failed:', error);
