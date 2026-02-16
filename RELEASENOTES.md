@@ -1,5 +1,20 @@
 # Release Notes
 
+# 2.3.8
+
+## What's New
+- **Rendering Engine Fixes**:
+  - **WebCodecs Reliability**: Resolved the "closed codec" error by implementing dynamic audio sample rate and channel detection. The engine now automatically adapts to the hardware's native sample rate for stable playlist exports.
+  - **FFmpeg Playlist Sync**: Forced a consistent 44.1kHz audio output for all segments, ensuring seamless concatenation and preventing audio corruption in playlist exports.
+- **Dynamic Playlist Visuals**:
+  - Implemented **Dynamic Background Loading** for both WebCodecs and FFmpeg engines. Each song in a playlist export now correctly displays its own specific album art or video background based on its library metadata.
+- **Frame-Perfect Accuracy**:
+  - Enhanced visual synchronization for high-resolution renders with asynchronous seeking. Background videos and overlays are now guaranteed to be perfectly synced to the exact frame before capture.
+- **Stability Improvements**:
+  - Added explicit encoder state monitoring to prevent crashes during hardware-accelerated exports.
+  - Improved overall metadata synchronization and progress tracking during batch playlist rendering.
+
+
 # 2.3.7
 
 ## What's New

@@ -253,6 +253,17 @@ export async function renderWithFFmpeg(options: FFmpegRenderOptions): Promise<FF
     throw new Error('Render aborted');
   }
 
+  // 0. Update track-specific backgrounds (Cover Art / Video Background)
+  if (metadata.coverUrl) {
+    if (metadata.backgroundType === 'video') {
+      onLog?.(`[FFmpeg] Loading video background...`);
+      await loadVidIntoMap('background', metadata.coverUrl, videoMap);
+    } else {
+      onLog?.(`[FFmpeg] Loading cover art...`);
+      await loadImgIntoMap('cover', metadata.coverUrl, imageMap);
+    }
+  }
+
   onProgress(5, 'Preparing audio...');
 
   // Get audio duration
@@ -271,7 +282,8 @@ export async function renderWithFFmpeg(options: FFmpegRenderOptions): Promise<FF
 
   // Write audio to FFmpeg filesystem
   const audioData = await audioFile.arrayBuffer();
-  await ffmpeg.writeFile('audio.mp3', new Uint8Array(audioData));
+  // Standardize audio filename to avoid extension issues
+  await ffmpeg.writeFile('audio_src', new Uint8Array(audioData));
 
   // Render frames
   const frameDigits = Math.max(6, totalFrames.toString().length);
@@ -285,8 +297,8 @@ export async function renderWithFFmpeg(options: FFmpegRenderOptions): Promise<FF
 
     const time = frame / fps;
 
-    // Sync video elements to current time
-    syncVideoElements(videoMap, visualSlides, time);
+    // Sync video elements to current time (Async wait for seek)
+    await syncVideoElements(videoMap, visualSlides, time);
 
     // Draw frame
     drawCanvasFrame(
@@ -342,11 +354,13 @@ export async function renderWithFFmpeg(options: FFmpegRenderOptions): Promise<FF
   const ffmpegArgs = [
     '-framerate', fps.toString(),
     '-i', `frame_%0${frameDigits}d.jpg`,
-    '-i', 'audio.mp3',
+    '-i', 'audio_src',
     '-c:v', codecSettings.vcodec,
     ...codecSettings.args,
     '-c:a', 'aac',
     '-b:a', '192k',
+    '-ar', '44100', // Force consistent sample rate for playlist concatenation compatibility
+    '-ac', '2',     // Force stereo
     '-pix_fmt', 'yuv420p',
     '-movflags', '+faststart',
     '-shortest',
@@ -380,7 +394,7 @@ export async function renderWithFFmpeg(options: FFmpegRenderOptions): Promise<FF
   // Cleanup
   await cleanupFFmpegFiles(ffmpeg, totalFrames, frameDigits);
   try {
-    await ffmpeg.deleteFile('audio.mp3');
+    await ffmpeg.deleteFile('audio_src');
     await ffmpeg.deleteFile(outputFile);
   } catch (e) {
     // Ignore cleanup errors
@@ -539,37 +553,105 @@ async function getAudioDuration(url: string): Promise<number> {
 }
 
 /**
- * Sync video elements to a specific time
- */
-function syncVideoElements(
+* Sync video elements to a specific time (Async with seek wait)
+*/
+async function syncVideoElements(
   videoMap: Map<string, HTMLVideoElement>,
   visualSlides: VisualSlide[],
   time: number
-) {
+): Promise<void> {
+  const promises: Promise<void>[] = [];
+
   videoMap.forEach((vid, id) => {
+    let targetTime = -1;
+
     if (id === 'background') {
       const duration = vid.duration || 1;
       if (duration > 0) {
-        vid.currentTime = time % duration;
+        targetTime = time % duration;
       }
-      return;
-    }
+    } else {
+      const slide = visualSlides.find(s => s.id === id);
+      if (slide && slide.type === 'video') {
+        if (time >= slide.startTime && time < slide.endTime) {
+          const speed = slide.playbackRate || 1;
+          let rel = ((time - slide.startTime) * speed) + (slide.mediaStartOffset || 0);
 
-    const slide = visualSlides.find(s => s.id === id);
-    if (slide && slide.type === 'video') {
-      if (time >= slide.startTime && time < slide.endTime) {
-        const speed = slide.playbackRate || 1;
-        let rel = ((time - slide.startTime) * speed) + (slide.mediaStartOffset || 0);
-
-        // Handle looping
-        const sourceDuration = slide.mediaDuration || vid.duration;
-        if (sourceDuration && sourceDuration > 0 && rel >= sourceDuration) {
-          rel = rel % sourceDuration;
+          // Handle looping
+          const sourceDuration = slide.mediaDuration || vid.duration;
+          if (sourceDuration && sourceDuration > 0 && rel >= sourceDuration) {
+            rel = rel % sourceDuration;
+          }
+          targetTime = rel;
         }
-
-        vid.currentTime = rel;
       }
     }
+
+    if (targetTime >= 0) {
+      if (vid.readyState === 0) return;
+      if (Math.abs(vid.currentTime - targetTime) > 0.05) {
+        promises.push(new Promise<void>((resolve) => {
+          let resolved = false;
+          const onSeeked = () => {
+            if (resolved) return;
+            resolved = true;
+            vid.removeEventListener('seeked', onSeeked);
+            resolve();
+          };
+          vid.addEventListener('seeked', onSeeked);
+          vid.currentTime = targetTime;
+          setTimeout(() => { if (!resolved) { resolved = true; vid.removeEventListener('seeked', onSeeked); resolve(); } }, 500);
+        }));
+      }
+    }
+  });
+
+  if (promises.length > 0) {
+    await Promise.all(promises);
+  }
+}
+
+/**
+ * Helper to load an image into a map and wait for it
+ */
+async function loadImgIntoMap(id: string, url: string, imageMap: Map<string, HTMLImageElement>): Promise<void> {
+  if (imageMap.has(id)) {
+    const existing = imageMap.get(id);
+    if (existing?.src === url) return;
+  }
+
+  return new Promise<void>((resolve) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => { imageMap.set(id, img); resolve(); };
+    img.onerror = () => { console.warn("Failed to load background image:", url); resolve(); };
+    img.src = url;
+  });
+}
+
+/**
+* Helper to load a video into a map and wait for it
+*/
+async function loadVidIntoMap(id: string, url: string, videoMap: Map<string, HTMLVideoElement>): Promise<void> {
+  if (videoMap.has(id)) {
+    const existing = videoMap.get(id);
+    if (existing?.src === url) return;
+  }
+
+  return new Promise<void>((resolve) => {
+    const vid = document.createElement('video');
+    vid.crossOrigin = "anonymous";
+    vid.muted = true;
+    vid.playsInline = true;
+    vid.preload = "auto";
+    let resolved = false;
+    const safeResolve = () => { if (!resolved) { resolved = true; videoMap.set(id, vid); resolve(); } };
+    vid.oncanplay = () => { if (!resolved) { vid.currentTime = 0.001; } };
+    vid.onseeked = () => safeResolve();
+    vid.onerror = () => { console.warn("Failed to load background video:", url); safeResolve(); };
+    setTimeout(() => safeResolve(), 10000);
+    vid.src = url;
+    vid.load();
   });
 }
 
