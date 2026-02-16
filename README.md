@@ -145,8 +145,12 @@
   - **MediaRecorder (Real-time)**: Captures the canvas stream in real-time. Fast for simple exports.
   - **WebCodecs API**: Uses the modern `VideoEncoder` API to access hardware encoding capabilities directly from the browser, offering a middle-ground between speed and quality.
   - **FFmpeg WASM (Offline/High-Quality)**: Client-side video encoding using FFmpeg compiled to WebAssembly. Supports frame-by-frame rendering for perfect synchronization and higher bitrates, regardless of computer speed.
+  - **Robust Path Discovery**: Automatically probes multiple local paths (Absolute, Relative, BaseURL, Origin) to find core binaries in any hosting environment.
+  - **Binary Integrity**: Uses binary signature verification (`\0asm` check) to prevent application-level redirects from being mistaken for valid assets.
+  - **Offline Persistence**: Leverages PWA Service Workers with an expanded 50MB cache limit to ensure professional rendering is available anywhere.
   - **Smart Fallback**: Automatically switches between Multi-threaded (SharedArrayBuffer) and Single-threaded cores based on browser capabilities and server headers (COOP/COEP).
-  - **Offline-First**: Intelligently loads FFmpeg cores from local cache (`/public/ffmpeg`) if available, falling back to CDN only when necessary.
+- **Typography Engine**:
+  - **Google Fonts Offline**: Integrated Workbox runtime caching to ensure all typography presets and custom Google Fonts are preserved for offline content creation.
 - **Rendering Pipeline**: Highly optimized **Canvas 2D** pipeline. Text rendering is handled natively by the browser, ensuring perfect clarity. Advanced effects (Fire, VHS, etc.) are simulated in Canvas to match CSS visuals during export.
 - **OffscreenCanvas Ready**: The application structure decouples rendering logic from the UI thread (`utils/canvasRenderer.ts`). This architecture supports `OffscreenCanvas` and Web Workers.
 - **WebGPU Note**: While not currently used, the modular design allows for a hybrid approach in the future (e.g., using WebGPU for background visualizers while keeping Canvas 2D for crisp text overlays).

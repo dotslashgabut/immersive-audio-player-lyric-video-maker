@@ -6,13 +6,12 @@
 - **Rendering Engine Fixes**:
   - **WebCodecs Reliability**: Resolved the "closed codec" error by implementing dynamic audio sample rate and channel detection. The engine now automatically adapts to the hardware's native sample rate for stable playlist exports.
   - **FFmpeg Playlist Sync**: Forced a consistent 44.1kHz audio output for all segments, ensuring seamless concatenation and preventing audio corruption in playlist exports.
-- **Dynamic Playlist Visuals**:
-  - Implemented **Dynamic Background Loading** for both WebCodecs and FFmpeg engines. Each song in a playlist export now correctly displays its own specific album art or video background based on its library metadata.
-- **Frame-Perfect Accuracy**:
-  - Enhanced visual synchronization for high-resolution renders with asynchronous seeking. Background videos and overlays are now guaranteed to be perfectly synced to the exact frame before capture.
-- **Stability Improvements**:
-  - Added explicit encoder state monitoring to prevent crashes during hardware-accelerated exports.
-  - Improved overall metadata synchronization and progress tracking during batch playlist rendering.
+  - **FFmpeg Offline Resilience**: Fixed "False Positive" local loading where servers/Vite would return HTML (SPA redirects) instead of binaries. Implemented **Binary Signature Verification** (\0asm magic number check) for WASM files.
+- **PWA & Performance**:
+  - **Extended Offline Support**: Increased Service Worker cache limit to **50MB** to ensure the large FFmpeg core WASM file is successfully cached for fully offline professional rendering.
+  - **Google Fonts Persistence**: Implemented Workbox runtime caching for Google Fonts (CSS & Woff2), allowing your typography designs to remain consistent even without an active internet connection.
+- **Improved Diagnostics**:
+  - Added ultra-detailed UI logging for FFmpeg initialization, including path probing and content-type validation to help users troubleshoot hosting issues.
 
 
 # 2.3.7
