@@ -32,6 +32,7 @@ export default defineConfig(({ mode }) => {
     plugins: [
       react(),
       VitePWA({
+        // injectRegister: null, // Disable auto-registration to prevent conflict with coi-serviceworker
         registerType: 'autoUpdate',
         workbox: {
           // Include WASM and Worker files in PWA caching
