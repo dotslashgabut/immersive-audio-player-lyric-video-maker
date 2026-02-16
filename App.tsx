@@ -659,6 +659,13 @@ function App() {
 
     // Determine Render Scope
     const isPlaylistRender = renderConfig.renderMode === 'playlist' && playlist.length > 0;
+    console.log(`[Render] Starting Export. Mode: ${renderConfig.renderMode}, Playlist Items: ${playlist.length}, IsPlaylistRender: ${isPlaylistRender}`);
+
+    if (isPlaylistRender) {
+      toast.success(`Starting Playlist Render (${playlist.length} songs)...`);
+    } else {
+      toast.success(`Starting Single Track Render...`);
+    }
     const queue: {
       audioSrc: string;
       lyrics: LyricLine[];
@@ -1192,6 +1199,15 @@ function App() {
 
 
     // Start Processing Queue
+    console.log(`[Render] Queue prepared with ${queue.length} items.`);
+    if (queue.length === 0) {
+      toast.error("Render queue is empty!");
+      setIsRendering(false);
+      return;
+    }
+
+    // Explicitly start from index 0
+    queueIndex = 0;
     await processNextTrack();
 
   };
@@ -1202,6 +1218,7 @@ function App() {
 
     // Determine Render Scope  
     const isPlaylistRender = renderConfig.renderMode === 'playlist' && playlist.length > 0;
+    console.log(`[FFmpeg Render] Mode: ${renderConfig.renderMode}, Playlist: ${playlist.length}, IsPlaylist: ${isPlaylistRender}`);
 
     // Get audio file - need the actual File object for FFmpeg
     let audioFile: File | Blob | null = null;

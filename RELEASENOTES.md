@@ -1,5 +1,17 @@
 # Release Notes
 
+# 2.3.9
+
+## What's New
+- **Playlist Improvements**:
+  - **Drag-and-Drop Reordering**: Added a dedicated **Grip Handle** to every playlist item, allowing you to easily drag and reorder tracks to your preferred sequence.
+- **Render Settings**:
+  - **Matched Fonts**: Added a **"Same as Lyrics"** option for both **Channel Info** and **Song Info** fonts. This ensures your watermark and metadata overlays automatically match the main lyric font family for a cohesive design.
+- **Bug Fixes**:
+  - **Playlist Rendering**: Fixed a logic issue where the "Render All Playlist" mode would incorrectly start from the currently playing track instead of the beginning of the playlist. It now reliably processes the entire queue from the first song.
+  - **UI Feedback**: Added clear toast notifications to confirm whether a "Single Track" or "Playlist" render has started.
+
+
 # 2.3.8
 
 ## What's New
@@ -11,7 +23,7 @@
   - **Extended Offline Support**: Increased Service Worker cache limit to **50MB** to ensure the large FFmpeg core WASM file is successfully cached for fully offline professional rendering.
   - **Google Fonts Persistence**: Implemented Workbox runtime caching for Google Fonts (CSS & Woff2), allowing your typography designs to remain consistent even without an active internet connection.
 - **Improved Diagnostics**:
-  - Added ultra-detailed UI logging for FFmpeg initialization, including path probing and content-type validation to help users troubleshoot hosting issues.
+  - **Detailed Logging**: Added ultra-detailed UI logging for FFmpeg initialization, including path probing and content-type validation to help users troubleshoot hosting issues.
 
 
 # 2.3.7

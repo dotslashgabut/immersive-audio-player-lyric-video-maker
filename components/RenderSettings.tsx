@@ -761,19 +761,31 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
     };
 
     const dynamicFontGroups = React.useMemo(() => {
-        if (loadedGoogleFonts.length === 0) return fullFontGroups;
+        const groups = [];
 
-        const googleGroup = {
-            label: "Loaded Google Fonts",
-            // Display label is raw name, Value is quoted if multi-word
-            options: loadedGoogleFonts.map(f => ({
-                label: f,
-                value: f.includes(' ') ? `'${f}'` : f
-            }))
-        };
+        // 1. Add "Same as Lyrics" option if valid
+        const lyricFontName = config.fontFamily ? config.fontFamily.split(',')[0].replace(/['"]/g, '') : '';
+        if (lyricFontName) {
+            groups.push({
+                label: "Matched",
+                options: [{ label: `Use Lyric Font (${lyricFontName})`, value: config.fontFamily! }]
+            });
+        }
 
-        return [googleGroup, ...fullFontGroups];
-    }, [loadedGoogleFonts]);
+        // 2. Add Loaded Google Fonts
+        if (loadedGoogleFonts.length > 0) {
+            groups.push({
+                label: "Loaded Google Fonts",
+                options: loadedGoogleFonts.map(f => ({
+                    label: f,
+                    value: f.includes(' ') ? `'${f}'` : f
+                }))
+            });
+        }
+
+        // 3. Add Standard & Preset Groups
+        return [...groups, ...fullFontGroups];
+    }, [loadedGoogleFonts, config.fontFamily]);
     const sidebarRef = useRef<HTMLDivElement>(null);
     const fontInputRef = useRef<HTMLInputElement>(null);
     const channelFontInputRef = useRef<HTMLInputElement>(null);

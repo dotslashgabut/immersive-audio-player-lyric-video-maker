@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import { PlaylistItem, LyricLine } from '../types';
-import { Plus, Trash2, Play, Pause, Volume2, FileText, ListMusic, Shuffle, User, Disc, Music, X, Sparkles, Loader2, FileJson, FileType, FileDown, Key, Upload, Square, Search, Folder } from './Icons';
+import { Plus, Trash2, Play, Pause, Volume2, FileText, ListMusic, Shuffle, User, Disc, Music, X, Sparkles, Loader2, FileJson, FileType, FileDown, Key, Upload, Square, Search, Folder, GripVertical } from './Icons';
 import { formatTime, parseLRC, parseSRT, parseTTML, parseTimestamp, parseJSON, parseVTT } from '../utils/parsers';
 import { useUI } from '../contexts/UIContext';
 import { transcribeAudio } from '../services/geminiService';
@@ -305,6 +305,57 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
 
 
     const [isDragging, setIsDragging] = useState(false);
+    const [draggedItemIndex, setDraggedItemIndex] = useState<number | null>(null);
+
+    const handleItemDragStart = (e: React.DragEvent, index: number) => {
+        setDraggedItemIndex(index);
+        e.dataTransfer.effectAllowed = "move";
+        // Set transparent drag image or similar if needed, usually browser default is fine
+    };
+
+    const handleItemDragOver = (e: React.DragEvent, index: number) => {
+        e.preventDefault(); // Necessary to allow dropping
+        e.stopPropagation();
+
+        if (draggedItemIndex === null || draggedItemIndex === index) return;
+
+        // Optional: Reorder on hover (smoother) or just on drop. 
+        // For simplicity and stability, let's reorder on Drop or use a placeholder approach. 
+        // But reordering on hover is better UX.
+        // Let's implement swap-on-hover (mutation) carefully.
+
+        // Actually, creating a new array on every hover event can be janky. 
+        // Let's stick to Drop for solid swap, OR local state reorder.
+        // Better: simple swap on drop.
+    };
+
+    const handleItemDrop = (e: React.DragEvent, dropIndex: number) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        if (draggedItemIndex === null) return;
+        if (draggedItemIndex === dropIndex) {
+            setDraggedItemIndex(null);
+            return;
+        }
+
+        const newPlaylist = [...playlist];
+        const [movedItem] = newPlaylist.splice(draggedItemIndex, 1);
+        newPlaylist.splice(dropIndex, 0, movedItem);
+
+        setPlaylist(newPlaylist);
+
+        // Update current track index if needed
+        if (currentTrackIndex === draggedItemIndex) {
+            setCurrentTrackIndex(dropIndex);
+        } else if (currentTrackIndex > draggedItemIndex && currentTrackIndex <= dropIndex) {
+            setCurrentTrackIndex(currentTrackIndex - 1);
+        } else if (currentTrackIndex < draggedItemIndex && currentTrackIndex >= dropIndex) {
+            setCurrentTrackIndex(currentTrackIndex + 1);
+        }
+
+        setDraggedItemIndex(null);
+    };
 
     const handleDragOver = (e: React.DragEvent) => {
         e.preventDefault();
@@ -1220,12 +1271,20 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
                         return (
                             <div
                                 key={item.id}
+                                draggable
+                                onDragStart={(e) => handleItemDragStart(e, idx)}
+                                onDragOver={(e) => handleItemDragOver(e, idx)}
+                                onDrop={(e) => handleItemDrop(e, idx)}
                                 onClick={() => setSelectedIndex(idx)}
                                 className={`group relative flex gap-2 p-1.5 rounded-md border transition-all cursor-pointer
                             ${isCurrent ? 'bg-zinc-800 border-orange-500/50 shadow-lg' : 'bg-zinc-900/50 border-zinc-800 hover:bg-zinc-800 hover:border-zinc-700'}
                             ${isSelected ? 'ring-2 ring-blue-500/70 ring-offset-1 ring-offset-zinc-950' : ''}
+                            ${draggedItemIndex === idx ? 'opacity-50 border-dashed border-zinc-500' : ''}
                         `}
                             >
+                                <div className="flex items-center justify-center px-1 cursor-grab active:cursor-grabbing text-zinc-600 hover:text-zinc-400 self-stretch" onMouseDown={(e) => e.stopPropagation()}>
+                                    <GripVertical size={12} />
+                                </div>
                                 {/* Left Column: Play Button + Info */}
                                 <div className="flex flex-col gap-1 shrink-0 w-48">
                                     {/* Audio Row */}
