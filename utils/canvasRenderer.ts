@@ -1068,7 +1068,12 @@ export const drawCanvasFrame = (
             }
         }
 
-        if (!drawnAny && metadata.coverUrl && (visualSlides.length === 0 || !useTimeline)) {
+        // Logic Update: Always show cover if source is 'custom', or if 'timeline' is empty.
+        // This fixes the issue where having items in timeline prevented 'custom' mode from showing cover.
+        const bgSource = renderConfig?.backgroundSource || 'custom';
+        const shouldShowCover = bgSource === 'custom' || (bgSource === 'timeline' && visualSlides.length === 0);
+
+        if (!drawnAny && metadata.coverUrl && shouldShowCover) {
             const vid = metadata.backgroundType === 'video' ? videos.get('background') : null;
             const img = images.get('cover');
             if (vid) drawScaled(vid); else if (img) drawScaled(img);

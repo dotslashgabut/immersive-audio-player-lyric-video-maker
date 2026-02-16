@@ -10,6 +10,8 @@
 - **Bug Fixes**:
   - **Playlist Rendering**: Fixed a logic issue where the "Render All Playlist" mode would incorrectly start from the currently playing track instead of the beginning of the playlist. It now reliably processes the entire queue from the first song.
   - **UI Feedback**: Added clear toast notifications to confirm whether a "Single Track" or "Playlist" render has started.
+  - **Visual Editor**: Fixed an issue where changing the playback speed of a clip did not update its duration on the timeline. Also improved the "Reset" button to correctly reset both speed and duration.
+  - **Background Source**: Resolved an issue where the "Metadata / Default" background option would not display the cover art if the timeline contained items. It now correctly prioritizes your background source selection.
 
 
 # 2.3.8

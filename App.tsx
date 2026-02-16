@@ -2363,7 +2363,7 @@ function App() {
             }}
           />
         )}
-        {(renderConfig.backgroundSource === 'timeline' || renderConfig.backgroundSource === 'custom') && metadata.coverUrl && visualSlides.length === 0 && (
+        {((renderConfig.backgroundSource === 'timeline' && visualSlides.length === 0) || renderConfig.backgroundSource === 'custom') && metadata.coverUrl && (
           metadata.backgroundType === 'video' ? (
             <video
               ref={bgVideoRef}
@@ -2408,7 +2408,7 @@ function App() {
         )}
 
         {/* Default Gradient if nothing */}
-        {!metadata.coverUrl && activeVisualSlides.length === 0 && (renderConfig.backgroundSource === 'timeline' || renderConfig.backgroundSource === 'custom') && visualSlides.length === 0 && (
+        {!metadata.coverUrl && ((renderConfig.backgroundSource === 'timeline' && visualSlides.length === 0) || renderConfig.backgroundSource === 'custom') && (
           <div className="absolute inset-0 bg-gradient-to-br from-indigo-900 via-purple-900 to-black opacity-80"></div>
         )}
 
