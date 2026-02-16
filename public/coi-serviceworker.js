@@ -1,5 +1,6 @@
 /*! coi-serviceworker v0.1.7 - Guido Zuidhof, licensed under MIT */
-let coepCredentialless = false;
+const isChromium = typeof navigator !== 'undefined' && /Chrome/.test(navigator.userAgent);
+let coepCredentialless = isChromium;
 if (typeof window === 'undefined') {
     self.addEventListener("install", () => self.skipWaiting());
     self.addEventListener("activate", (event) => event.waitUntil(self.clients.claim()));
