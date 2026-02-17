@@ -46,7 +46,7 @@ export default defineConfig(({ mode }) => {
               options: {
                 cacheName: 'google-fonts-stylesheets',
                 expiration: {
-                  maxEntries: 10,
+                  maxEntries: 30,
                   maxAgeSeconds: 60 * 60 * 24 * 365, // 1 year
                 },
               },

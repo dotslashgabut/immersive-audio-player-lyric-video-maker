@@ -109,10 +109,24 @@ export const singleWeightFonts = ['Metal Mania', 'Bebas Neue', 'Anton', 'Staatli
     'Rubik Moonrocks', 'Nabla'];
 
 export const loadGoogleFonts = () => {
-    // Collect all font families
-    const families = new Set<string>();
+    // Preconnects
+    if (!document.getElementById('google-fonts-preconnect')) {
+        const preconnect1 = document.createElement('link');
+        preconnect1.id = 'google-fonts-preconnect';
+        preconnect1.rel = 'preconnect';
+        preconnect1.href = 'https://fonts.googleapis.com';
+        document.head.appendChild(preconnect1);
 
-    fontGroups.forEach(group => {
+        const preconnect2 = document.createElement('link');
+        preconnect2.rel = 'preconnect';
+        preconnect2.href = 'https://fonts.gstatic.com';
+        preconnect2.crossOrigin = 'anonymous';
+        document.head.appendChild(preconnect2);
+    }
+
+    fontGroups.forEach((group, index) => {
+        const families = new Set<string>();
+
         group.options.forEach(opt => {
             const val = opt.value.split(',')[0].trim().replace(/['"]/g, '');
             // Filter system fonts
@@ -120,44 +134,29 @@ export const loadGoogleFonts = () => {
                 families.add(val);
             }
         });
+
+        if (families.size === 0) return;
+
+        const params = Array.from(families).map(f => {
+            const cleanName = f.replace(/['"]/g, '');
+            if (singleWeightFonts.includes(cleanName)) {
+                return `family=${f.replace(/ /g, '+')}`;
+            }
+            return `family=${f.replace(/ /g, '+')}:wght@400;700`;
+        });
+
+        const query = params.join('&');
+        const url = `https://fonts.googleapis.com/css2?${query}&display=swap`;
+
+        const linkId = `google-fonts-group-${index}`;
+        if (document.getElementById(linkId)) return;
+
+        const link = document.createElement('link');
+        link.id = linkId;
+        link.rel = 'stylesheet';
+        link.href = url;
+        document.head.appendChild(link);
     });
-
-    if (families.size === 0) return;
-
-    // Separate fonts into those that need specific weights and those that should just use default (or single weight)
-    // (List is defined at module level now)
-
-    const params = Array.from(families).map(f => {
-        const cleanName = f.replace(/['"]/g, '');
-        if (singleWeightFonts.includes(cleanName)) {
-            return `family=${f.replace(/ /g, '+')}`;
-        }
-        return `family=${f.replace(/ /g, '+')}:wght@400;700`;
-    });
-
-    const query = params.join('&');
-    const url = `https://fonts.googleapis.com/css2?${query}&display=swap`;
-
-    // Check if already loaded
-    if (document.getElementById('google-fonts-loader')) return;
-
-    const link = document.createElement('link');
-    link.id = 'google-fonts-loader';
-    link.rel = 'stylesheet';
-    link.href = url;
-    document.head.appendChild(link);
-
-    // Preconnects
-    const preconnect1 = document.createElement('link');
-    preconnect1.rel = 'preconnect';
-    preconnect1.href = 'https://fonts.googleapis.com';
-    document.head.appendChild(preconnect1);
-
-    const preconnect2 = document.createElement('link');
-    preconnect2.rel = 'preconnect';
-    preconnect2.href = 'https://fonts.gstatic.com';
-    preconnect2.crossOrigin = 'anonymous';
-    document.head.appendChild(preconnect2);
 };
 
 export const loadSingleGoogleFont = (fontName: string) => {
