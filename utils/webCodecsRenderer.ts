@@ -1,6 +1,7 @@
 import { Muxer, ArrayBufferTarget } from 'mp4-muxer';
 import { LyricLine, VisualSlide, AudioMetadata, RenderConfig, VideoPreset } from '../types';
 import { drawCanvasFrame } from './canvasRenderer';
+import { computeFrequencyDataAtTime } from './visualizationRenderer';
 
 export interface WebCodecsRenderOptions {
     canvas: HTMLCanvasElement;
@@ -22,6 +23,7 @@ export interface WebCodecsRenderOptions {
     abortSignal?: { aborted?: boolean; current?: boolean };
     isFirstSong?: boolean;
     isLastSong?: boolean;
+    startTimeOffset?: number;
 }
 
 export interface WebCodecsRenderResult {
@@ -54,14 +56,21 @@ async function decodeAudio(file: File | Blob): Promise<AudioBuffer> {
 async function syncVideoElements(
     videoMap: Map<string, HTMLVideoElement>,
     visualSlides: VisualSlide[],
-    time: number
+    time: number,
+    globalTime?: number
 ): Promise<void> {
     const promises: Promise<void>[] = [];
 
     videoMap.forEach((vid, id) => {
         let targetTime = -1;
 
-        if (id === 'background') {
+        if (id === '__custom_bg_video__') {
+            const duration = vid.duration || 1;
+            if (duration > 0) {
+                // Use globalTime if available for continuous playlist looping, else fall back to track time
+                targetTime = (globalTime !== undefined ? globalTime : time) % duration;
+            }
+        } else if (id === 'background') {
             const duration = vid.duration || 1;
             if (duration > 0) {
                 targetTime = time % duration;
@@ -185,6 +194,7 @@ export async function renderWithWebCodecs(options: WebCodecsRenderOptions): Prom
         abortSignal,
         isFirstSong = true,
         isLastSong = true,
+        startTimeOffset = 0,
     } = options;
 
     if (!isWebCodecsSupported()) {
@@ -301,11 +311,25 @@ export async function renderWithWebCodecs(options: WebCodecsRenderOptions): Prom
 
     const frameDurationMicro = (1 / fps) * 1_000_000;
 
+    // Extract PCM data for visualization if enabled
+    const pcmData = renderConfig.showVisualization ? audioBuffer.getChannelData(0) : null;
+    const pcmSampleRate = audioBuffer.sampleRate;
+
     for (let frame = 0; frame < totalFrames; frame++) {
         if (checkAborted()) throw new Error('Render aborted');
 
         const time = frame / fps;
-        await syncVideoElements(videoMap, visualSlides, time);
+        const globalTime = time + startTimeOffset;
+        await syncVideoElements(videoMap, visualSlides, time, globalTime);
+
+        // Compute visualization data if enabled
+        let vizFreqData: Uint8Array | null = null;
+        let vizWaveData: Uint8Array | null = null;
+        if (pcmData && renderConfig.showVisualization) {
+            const result = computeFrequencyDataAtTime(pcmData, pcmSampleRate, time, 512);
+            vizFreqData = result.frequencyData;
+            vizWaveData = result.waveformData;
+        }
 
         drawCanvasFrame(
             ctx,
@@ -324,7 +348,9 @@ export async function renderWithWebCodecs(options: WebCodecsRenderOptions): Prom
             duration,
             renderConfig,
             isLastSong,
-            isFirstSong
+            isFirstSong,
+            vizFreqData,
+            vizWaveData
         );
 
         const timestamp = Math.round(frame * frameDurationMicro);
@@ -541,7 +567,18 @@ export async function renderPlaylistWithWebCodecs(
             }
 
             const time = frame / fps;
-            await syncVideoElements(videoMap, visualSlides, time);
+            const globalTime = (totalPlaylistDuration - duration) + time; // Previous duration + current frame time
+            await syncVideoElements(videoMap, visualSlides, time, globalTime);
+
+            // Compute visualization data if enabled
+            let vizFreqData: Uint8Array | null = null;
+            let vizWaveData: Uint8Array | null = null;
+            if (renderConfig.showVisualization) {
+                const trackPcm = audioBuffer.getChannelData(0);
+                const result = computeFrequencyDataAtTime(trackPcm, currentSampleRate, time, 512);
+                vizFreqData = result.frequencyData;
+                vizWaveData = result.waveformData;
+            }
 
             drawCanvasFrame(
                 ctx,
@@ -560,7 +597,9 @@ export async function renderPlaylistWithWebCodecs(
                 duration,
                 renderConfig,
                 isLast,
-                isFirst
+                isFirst,
+                vizFreqData,
+                vizWaveData
             );
 
             const timestamp = currentTimeMicro + Math.round(frame * frameDurationMicro);
