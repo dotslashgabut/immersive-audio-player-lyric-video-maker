@@ -439,7 +439,8 @@ const backgroundSourceGroups = [
             { label: "Smart Gradient", value: "smart-gradient" },
             { label: "Gradient (Manual)", value: "gradient" },
             { label: "Solid Color", value: "color" },
-            { label: "Custom Image", value: "image" }
+            { label: "Custom Image", value: "image" },
+            { label: "Custom Video (Loops)", value: "video" }
         ]
     }
 ];
@@ -792,6 +793,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
     const infoFontInputRef = useRef<HTMLInputElement>(null);
     const channelImageInputRef = useRef<HTMLInputElement>(null);
     const backgroundImageInputRef = useRef<HTMLInputElement>(null);
+    const backgroundVideoInputRef = useRef<HTMLInputElement>(null);
     const settingsInputRef = useRef<HTMLInputElement>(null);
     const [showShortcuts, setShowShortcuts] = useState(false);
 
@@ -894,6 +896,32 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
         e.target.value = '';
     };
 
+    const handleBackgroundVideoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            // Check if file is video
+            if (!file.type.startsWith('video/')) {
+                toast.error('Please upload a valid video file.');
+                return;
+            }
+
+            // For videos, we use object URLs to avoid massive base64 strings
+            // However, this means they won't persist across reloads unless handled specifically
+            // For now, we'll try data URL for small videos, but warn for large ones?
+            // Actually, for render settings persistence, data URL is safer but slower. 
+            // Given "Loops", they should be short.
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                if (event.target?.result) {
+                    handleChange('backgroundVideo', event.target.result as string);
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+        e.target.value = '';
+    };
+
     const handleReset = async () => {
         if (await confirm('Reset all render settings, including styles and watermark, to default values?', "Reset All Settings")) {
             setConfig(DEFAULT_CONFIG);
@@ -909,6 +937,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
             // Reset File Inputs
             if (channelImageInputRef.current) channelImageInputRef.current.value = '';
             if (backgroundImageInputRef.current) backgroundImageInputRef.current.value = '';
+            if (backgroundVideoInputRef.current) backgroundVideoInputRef.current.value = '';
 
             // Reset Custom Font
             onClearCustomFont();
@@ -959,6 +988,9 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
         // Cleanup unused large data to keep file size down
         if (exportData.backgroundSource !== 'image') {
             exportData.backgroundImage = undefined;
+        }
+        if (exportData.backgroundSource !== 'video') {
+            exportData.backgroundVideo = undefined;
         }
         if (!exportData.showChannelInfo) {
             exportData.channelInfoImage = undefined;
@@ -1388,6 +1420,53 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                                     >
                                         <Upload size={14} />
                                         <span className="text-xs">Upload Background</span>
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    {config.backgroundSource === 'video' && (
+                        <div className="space-y-3 animate-in slide-in-from-top-1 fade-in duration-200">
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Custom Background Video</label>
+                                <input
+                                    ref={backgroundVideoInputRef}
+                                    type="file"
+                                    name="bg-video-upload"
+                                    id="bg-video-upload"
+                                    accept="video/*"
+                                    onChange={handleBackgroundVideoUpload}
+                                    className="hidden"
+                                />
+                                {config.backgroundVideo ? (
+                                    <div className="flex items-center gap-3 bg-zinc-800 p-2 rounded-lg border border-white/10">
+                                        <div className="w-10 h-10 rounded bg-zinc-700/50 flex items-center justify-center overflow-hidden border border-white/5">
+                                            <video src={config.backgroundVideo} className="w-full h-full object-cover" muted autoPlay loop />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-xs text-zinc-300 truncate">Video Loaded</p>
+                                            <button
+                                                onClick={() => handleChange('backgroundVideo', undefined)}
+                                                className="text-[10px] text-red-400 hover:text-red-300"
+                                            >
+                                                Remove
+                                            </button>
+                                        </div>
+                                        <button
+                                            onClick={() => backgroundVideoInputRef.current?.click()}
+                                            className="p-1.5 hover:bg-white/10 rounded-md text-zinc-400 hover:text-white"
+                                        >
+                                            <Settings size={14} />
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <button
+                                        onClick={() => backgroundVideoInputRef.current?.click()}
+                                        className="w-full flex items-center justify-center gap-2 bg-zinc-800/50 border border-dashed border-white/10 hover:border-purple-500/50 rounded-lg px-3 py-3 text-zinc-400 hover:text-purple-300 transition-colors"
+                                    >
+                                        <Upload size={14} />
+                                        <span className="text-xs">Upload Video Loop</span>
                                     </button>
                                 )}
                             </div>

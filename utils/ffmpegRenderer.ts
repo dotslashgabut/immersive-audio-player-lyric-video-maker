@@ -32,6 +32,7 @@ export interface FFmpegRenderOptions {
   abortSignal?: { aborted?: boolean; current?: boolean };
   isFirstSong?: boolean;
   isLastSong?: boolean;
+  startTimeOffset?: number;
 }
 
 export interface FFmpegRenderResult {
@@ -318,6 +319,7 @@ export async function renderWithFFmpeg(options: FFmpegRenderOptions): Promise<FF
     abortSignal,
     isFirstSong = true,
     isLastSong = true,
+    startTimeOffset = 0,
   } = options;
 
   onProgress(0, 'Loading FFmpeg...');
@@ -338,12 +340,24 @@ export async function renderWithFFmpeg(options: FFmpegRenderOptions): Promise<FF
   // 0. Update track-specific backgrounds (Cover Art / Video Background)
   if (metadata.coverUrl) {
     if (metadata.backgroundType === 'video') {
-      onLog?.(`[FFmpeg] Loading video background...`);
+      onLog?.(`[FFmpeg] Loading video background from metadata...`);
       await loadVidIntoMap('background', metadata.coverUrl, videoMap);
     } else {
-      onLog?.(`[FFmpeg] Loading cover art...`);
+      onLog?.(`[FFmpeg] Loading cover art from metadata...`);
       await loadImgIntoMap('cover', metadata.coverUrl, imageMap);
     }
+  }
+
+  // DEBUG: Check video map
+  onLog?.(`[FFmpeg] VideoMap keys: ${Array.from(videoMap.keys()).join(', ')}`);
+  onLog?.(`[FFmpeg] RenderConfig Source: ${renderConfig.backgroundSource}`);
+  if (videoMap.has('__custom_bg_video__')) {
+    const v = videoMap.get('__custom_bg_video__');
+    onLog?.(`[FFmpeg] Custom Video: ReadyState=${v?.readyState}, Size=${v?.videoWidth}x${v?.videoHeight}, Duration=${v?.duration}`);
+    // Ensure muted
+    if (v) v.muted = true;
+  } else if (renderConfig.backgroundSource === 'video') {
+    onLog?.(`[FFmpeg] WARNING: backgroundSource is 'video' but '__custom_bg_video__' is missing from map!`);
   }
 
   onProgress(5, 'Preparing audio...');
@@ -378,9 +392,10 @@ export async function renderWithFFmpeg(options: FFmpegRenderOptions): Promise<FF
     }
 
     const time = frame / fps;
+    const globalTime = time + startTimeOffset;
 
     // Sync video elements to current time (Async wait for seek)
-    await syncVideoElements(videoMap, visualSlides, time);
+    await syncVideoElements(videoMap, visualSlides, time, globalTime);
 
     // Draw frame
     drawCanvasFrame(
@@ -537,7 +552,8 @@ export async function renderPlaylistWithFFmpeg(
       isLastSong: isLast,
       onProgress: (progress, stage) => {
         onTrackProgress(i, tracks.length, progress, stage);
-      }
+      },
+      startTimeOffset: totalDuration
     });
 
     // Save segment
@@ -640,14 +656,20 @@ async function getAudioDuration(url: string): Promise<number> {
 async function syncVideoElements(
   videoMap: Map<string, HTMLVideoElement>,
   visualSlides: VisualSlide[],
-  time: number
+  time: number,
+  globalTime: number
 ): Promise<void> {
   const promises: Promise<void>[] = [];
 
   videoMap.forEach((vid, id) => {
     let targetTime = -1;
 
-    if (id === 'background') {
+    if (id === '__custom_bg_video__') {
+      const duration = vid.duration || 1;
+      if (duration > 0) {
+        targetTime = globalTime % duration;
+      }
+    } else if (id === 'background') {
       const duration = vid.duration || 1;
       if (duration > 0) {
         targetTime = time % duration;

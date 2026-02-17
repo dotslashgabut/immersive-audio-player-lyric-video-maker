@@ -583,6 +583,7 @@ function App() {
   };
 
   const handleDisplayDoubleClick = (e?: React.MouseEvent | React.TouchEvent | Event) => {
+    if (isRendering) return;
     if (e && (e.target as HTMLElement).closest('.no-minimal-mode-toggle')) {
       return;
     }
@@ -871,6 +872,10 @@ function App() {
     if (renderConfig.backgroundSource === 'image' && renderConfig.backgroundImage) {
       loadPromises.push(loadImg('__custom_bg__', renderConfig.backgroundImage));
     }
+    // Load Custom Background Video
+    if (renderConfig.backgroundSource === 'video' && renderConfig.backgroundVideo) {
+      loadPromises.push(loadVid('__custom_bg_video__', renderConfig.backgroundVideo));
+    }
 
     await Promise.all(loadPromises);
 
@@ -1022,7 +1027,7 @@ function App() {
 
       // Sync Backgrounds/Videos
       videoMap.forEach((v, id) => {
-        if (id === 'background') {
+        if (id === 'background' || id === '__custom_bg_video__') {
           const vidDuration = v.duration || 1;
           const targetTime = t % vidDuration;
           // Handle Loop Wrap-around and Drift
@@ -1334,6 +1339,26 @@ function App() {
     if (renderConfig.backgroundSource === 'image' && renderConfig.backgroundImage) {
       loadPromises.push(loadImg('__custom_bg__', renderConfig.backgroundImage));
     }
+    if (renderConfig.backgroundSource === 'video' && renderConfig.backgroundVideo) {
+      // Optimization: use existing video ref if available and matching
+      if (bgVideoRef.current && bgVideoRef.current.currentSrc && !bgVideoRef.current.error) {
+        // Use the existing element directly
+        videoMap.set('__custom_bg_video__', bgVideoRef.current);
+        console.log("WebCodecs: Re-using existing background video element");
+      } else {
+        loadPromises.push(loadVid('__custom_bg_video__', renderConfig.backgroundVideo));
+      }
+    }
+    if (renderConfig.backgroundSource === 'video' && renderConfig.backgroundVideo) {
+      // Optimization: use existing video ref if available and matching
+      if (bgVideoRef.current && bgVideoRef.current.currentSrc && !bgVideoRef.current.error) {
+        // Use the existing element directly
+        videoMap.set('__custom_bg_video__', bgVideoRef.current);
+        console.log("FFmpeg: Re-using existing background video element");
+      } else {
+        loadPromises.push(loadVid('__custom_bg_video__', renderConfig.backgroundVideo));
+      }
+    }
 
     // Load channel info
     if (renderConfig.showChannelInfo && renderConfig.channelInfoImage) {
@@ -1575,6 +1600,17 @@ function App() {
 
     if (renderConfig.backgroundSource === 'image' && renderConfig.backgroundImage) {
       loadPromises.push(loadImg('__custom_bg__', renderConfig.backgroundImage));
+    }
+
+    if (renderConfig.backgroundSource === 'video' && renderConfig.backgroundVideo) {
+      // Optimization: use existing video ref if available and matching
+      if (bgVideoRef.current && bgVideoRef.current.currentSrc && !bgVideoRef.current.error) {
+        // Use the existing element directly
+        videoMap.set('__custom_bg_video__', bgVideoRef.current);
+        console.log("WebCodecs: Re-using existing background video element");
+      } else {
+        loadPromises.push(loadVid('__custom_bg_video__', renderConfig.backgroundVideo));
+      }
     }
 
     if (renderConfig.showChannelInfo && renderConfig.channelInfoImage) {
@@ -2211,11 +2247,11 @@ function App() {
       }
     });
 
-    // 2. Background Video (Metadata)
+    // 2. Background Video (Metadata OR Custom)
     // Only play if no active slide covers it, OR if we want it to run behind.
     // Let's run it always but maybe pause if not visible?
     // For now, simple sync:
-    if (metadata.backgroundType === 'video' && bgVideoRef.current) {
+    if ((metadata.backgroundType === 'video' || renderConfig.backgroundSource === 'video') && bgVideoRef.current) {
       const vid = bgVideoRef.current;
 
       if (isRendering) {
@@ -2347,6 +2383,16 @@ function App() {
         )}
         {renderConfig.backgroundSource === 'image' && renderConfig.backgroundImage && (
           <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${renderConfig.backgroundImage})` }} />
+        )}
+        {renderConfig.backgroundSource === 'video' && renderConfig.backgroundVideo && (
+          <video
+            ref={bgVideoRef} // Re-use ref for sync logic
+            src={renderConfig.backgroundVideo}
+            className="absolute inset-0 w-full h-full object-cover"
+            muted
+            loop
+            playsInline
+          />
         )}
         {renderConfig.backgroundSource === 'smart-gradient' && (
           <div className="absolute inset-0"

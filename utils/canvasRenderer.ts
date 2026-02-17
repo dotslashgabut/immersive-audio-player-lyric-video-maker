@@ -951,6 +951,12 @@ export const drawCanvasFrame = (
         if (img) {
             drawScaled(img);
         }
+    } else if (renderConfig?.backgroundSource === 'video' && renderConfig.backgroundVideo) {
+        // Draw custom background video
+        const vid = videos.get('__custom_bg_video__');
+        if (vid) {
+            drawScaled(vid);
+        }
     }
 
 

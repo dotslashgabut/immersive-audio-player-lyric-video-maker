@@ -1,5 +1,15 @@
 # Release Notes
 
+# 2.3.10
+
+## What's New
+- **Rendering Stability**:
+  - **Custom Video Backgrounds**: Fixed an issue where custom video backgrounds would fail to loop or sync correctly during **WebCodecs** playlist rendering. The background now seamlessly maintains continuity and timing across all tracks.
+  - **Looping Logic**: Enhanced the `syncVideoElements` logic to ensure custom background videos loop precisely as intended in the exported video, matching the timeline preview.
+- **User Interaction**:
+  - **Minimal Mode Safety**: Disabled the "Double-Click/Double-Tap" shortcut (which toggles Minimal Mode) while a render is in progress. This prevents accidental UI changes that could disrupt the detailed render progress view.
+
+
 # 2.3.9
 
 ## What's New

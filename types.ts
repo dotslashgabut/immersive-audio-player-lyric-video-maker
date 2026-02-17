@@ -84,10 +84,11 @@ export interface PlaylistItem {
 }
 
 export interface RenderConfig {
-  backgroundSource: 'timeline' | 'custom' | 'color' | 'gradient' | 'smart-gradient' | 'image';
+  backgroundSource: 'timeline' | 'custom' | 'color' | 'gradient' | 'smart-gradient' | 'image' | 'video';
   backgroundColor: string;
   backgroundGradient: string;
   backgroundImage?: string;
+  backgroundVideo?: string; // Data URL or Blob URL for video background
   renderMode: 'current' | 'playlist';
   textAlign: 'left' | 'center' | 'right';
   contentPosition: 'top' | 'center' | 'bottom';

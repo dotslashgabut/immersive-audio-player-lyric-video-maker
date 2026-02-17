@@ -22,6 +22,7 @@ export interface WebCodecsRenderOptions {
     abortSignal?: { aborted?: boolean; current?: boolean };
     isFirstSong?: boolean;
     isLastSong?: boolean;
+    startTimeOffset?: number;
 }
 
 export interface WebCodecsRenderResult {
@@ -54,14 +55,21 @@ async function decodeAudio(file: File | Blob): Promise<AudioBuffer> {
 async function syncVideoElements(
     videoMap: Map<string, HTMLVideoElement>,
     visualSlides: VisualSlide[],
-    time: number
+    time: number,
+    globalTime?: number
 ): Promise<void> {
     const promises: Promise<void>[] = [];
 
     videoMap.forEach((vid, id) => {
         let targetTime = -1;
 
-        if (id === 'background') {
+        if (id === '__custom_bg_video__') {
+            const duration = vid.duration || 1;
+            if (duration > 0) {
+                // Use globalTime if available for continuous playlist looping, else fall back to track time
+                targetTime = (globalTime !== undefined ? globalTime : time) % duration;
+            }
+        } else if (id === 'background') {
             const duration = vid.duration || 1;
             if (duration > 0) {
                 targetTime = time % duration;
@@ -185,6 +193,7 @@ export async function renderWithWebCodecs(options: WebCodecsRenderOptions): Prom
         abortSignal,
         isFirstSong = true,
         isLastSong = true,
+        startTimeOffset = 0,
     } = options;
 
     if (!isWebCodecsSupported()) {
@@ -305,7 +314,8 @@ export async function renderWithWebCodecs(options: WebCodecsRenderOptions): Prom
         if (checkAborted()) throw new Error('Render aborted');
 
         const time = frame / fps;
-        await syncVideoElements(videoMap, visualSlides, time);
+        const globalTime = time + startTimeOffset;
+        await syncVideoElements(videoMap, visualSlides, time, globalTime);
 
         drawCanvasFrame(
             ctx,
@@ -541,7 +551,8 @@ export async function renderPlaylistWithWebCodecs(
             }
 
             const time = frame / fps;
-            await syncVideoElements(videoMap, visualSlides, time);
+            const globalTime = (totalPlaylistDuration - duration) + time; // Previous duration + current frame time
+            await syncVideoElements(videoMap, visualSlides, time, globalTime);
 
             drawCanvasFrame(
                 ctx,
