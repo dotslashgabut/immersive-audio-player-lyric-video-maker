@@ -65,7 +65,8 @@ import {
   FileDown,
   Split,
   Search,
-  Folder
+  Folder,
+  Activity
 } from 'lucide-react';
 
 export {
@@ -136,5 +137,6 @@ export {
   FileDown,
   Split,
   Search,
-  Folder
+  Folder,
+  Activity
 };
