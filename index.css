@@ -20,14 +20,6 @@
 }
 
 @font-face {
-  font-family: 'Metal Mania';
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-  src: url('/fonts/MetalMania.ttf') format('truetype');
-}
-
-@font-face {
   font-family: 'Orbitron';
   font-style: normal;
   font-weight: 400;
