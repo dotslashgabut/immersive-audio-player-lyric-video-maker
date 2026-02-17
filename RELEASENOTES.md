@@ -1,5 +1,14 @@
 # Release Notes
 
+# 2.3.11
+
+## What's New
+- **Accessibility Improvements**:
+  - **Form Labeling**: Resolved "No label associated with a form field" errors by ensuring all form inputs (checkboxes, sliders, color pickers, file inputs) have proper `aria-label` attributes or associated `<label>` elements.
+  - **Semantic HTML**: Replaced misused `<label>` tags (used as section headers) with `<span>` or `<div>` tags to improve screen reader navigation and compliance.
+  - **Interactive Toggles**: Enhanced toggle switches (Real Color Media, Show Visualization, etc.) by making the text labels clickable using `htmlFor` and `id` attributes, improving both accessibility and user experience. 
+
+
 # 2.3.10
 
 ## What's New

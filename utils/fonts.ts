@@ -101,6 +101,13 @@ export const fontGroups = [
     }
 ];
 
+export const singleWeightFonts = ['Metal Mania', 'Bebas Neue', 'Anton', 'Staatliches', 'Righteous', 'Bungee',
+    'Dancing Script', 'Pacifico', 'Great Vibes', 'Satisfy', 'Shadows Into Light', 'Caveat', 'Indie Flower',
+    'Kalam', 'Sacramento', 'Fredoka One', 'Bangers', 'Luckiest Guy', 'Chewy', 'Bubblegum Sans',
+    'Cherry Cream Soda', 'Patrick Hand', 'Orbitron', 'Audiowide', 'Share Tech Mono', 'VT323',
+    'Press Start 2P', 'Fira Code', 'JetBrains Mono', 'UnifrakturMaguntia', 'Creepster', 'Pirata One',
+    'Rubik Moonrocks', 'Nabla'];
+
 export const loadGoogleFonts = () => {
     // Collect all font families
     const families = new Set<string>();
@@ -117,23 +124,18 @@ export const loadGoogleFonts = () => {
 
     if (families.size === 0) return;
 
-    // Construct URL
-    // Format: family=Font1:wght@400;700&family=Font2...
-    // We'll load regular and bold (400, 700) where possible, or just default.
-    // For simplicity, let's request 400 and 700.
+    // Separate fonts into those that need specific weights and those that should just use default (or single weight)
+    // (List is defined at module level now)
 
-    // Note: Some fonts might not have 700. Google Fonts is smart enough to handle or serve nearest? 
-    // Actually if we request specific weights that don't exist, it might fail for that font.
-    // Safest is to just request `display=swap`. 
-    // Ideally we'd look up which weights exist, but that's hard.
-    // Let's try appending `:wght@400;700` to all. Most display fonts have at least one.
-    // However, some fonts only have 400. Requesting 700 might cause issues or fallback.
-    // A safer bet for a bulk loader: Just load the family name without weights (defaults to 400), 
-    // OR try to be smarter.
-    // Let's just use the family name. Browsers can fake bold if needed, or if the font only has one weight it loads that.
+    const params = Array.from(families).map(f => {
+        const cleanName = f.replace(/['"]/g, '');
+        if (singleWeightFonts.includes(cleanName)) {
+            return `family=${f.replace(/ /g, '+')}`;
+        }
+        return `family=${f.replace(/ /g, '+')}:wght@400;700`;
+    });
 
-    const encodedFamilies = Array.from(families).map(f => `family=${f.replace(/ /g, '+')}:wght@400;700`);
-    const query = encodedFamilies.join('&');
+    const query = params.join('&');
     const url = `https://fonts.googleapis.com/css2?${query}&display=swap`;
 
     // Check if already loaded
@@ -162,9 +164,15 @@ export const loadSingleGoogleFont = (fontName: string) => {
     const id = `google-font-${fontName.replace(/\s+/g, '-').toLowerCase()}`;
     if (document.getElementById(id)) return;
 
+    const cleanName = fontName.replace(/['"]/g, '');
+    let param = `family=${fontName.replace(/\s+/g, '+')}:wght@400;700`;
+    if (singleWeightFonts.includes(cleanName)) {
+        param = `family=${fontName.replace(/\s+/g, '+')}`;
+    }
+
     const link = document.createElement('link');
     link.id = id;
     link.rel = 'stylesheet';
-    link.href = `https://fonts.googleapis.com/css2?family=${fontName.replace(/\s+/g, '+')}:wght@400;700&display=swap`;
+    link.href = `https://fonts.googleapis.com/css2?${param}&display=swap`;
     document.head.appendChild(link);
 };

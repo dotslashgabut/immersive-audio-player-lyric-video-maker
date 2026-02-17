@@ -1232,6 +1232,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                         type="file"
                         name="import-settings"
                         id="import-settings"
+                        aria-label="Import Settings"
                         accept=".json,.txt"
                         className="hidden"
                         onChange={handleImportSettings}
@@ -1409,7 +1410,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                     {config.backgroundSource === 'image' && (
                         <div className="space-y-3 animate-in slide-in-from-top-1 fade-in duration-200">
                             <div className="space-y-1.5">
-                                <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Custom Background Image</label>
+                                <label htmlFor="bg-image-upload" className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Custom Background Image</label>
                                 <input
                                     ref={backgroundImageInputRef}
                                     type="file"
@@ -1456,7 +1457,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                     {config.backgroundSource === 'video' && (
                         <div className="space-y-3 animate-in slide-in-from-top-1 fade-in duration-200">
                             <div className="space-y-1.5">
-                                <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Custom Background Video</label>
+                                <label htmlFor="bg-video-upload" className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Custom Background Video</label>
                                 <input
                                     ref={backgroundVideoInputRef}
                                     type="file"
@@ -1531,7 +1532,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                         {config.backgroundBlurStrength > 0 && (
                             <div className="space-y-1.5 animate-in slide-in-from-top-2 fade-in duration-200">
                                 <div className="flex justify-between items-center">
-                                    <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Blur Intensity</label>
+                                    <span className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Blur Intensity</span>
                                     <span className="text-[10px] text-zinc-400 font-mono">{config.backgroundBlurStrength}px</span>
                                 </div>
                                 <div className="flex items-center gap-2 bg-zinc-800 border border-white/10 rounded-lg px-2 py-1.5">
@@ -1551,43 +1552,45 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                         )}
                     </div>
 
-
-
                     {/* Real Color Media Source Toggle */}
-                    <label className="bg-zinc-800/30 border border-white/5 rounded-lg p-2.5 flex items-center justify-between cursor-pointer hover:bg-zinc-800/50 transition-colors">
+                    <div className="bg-zinc-800/30 border border-white/5 rounded-lg p-2.5 flex items-center justify-between cursor-pointer hover:bg-zinc-800/50 transition-colors">
                         <div className="flex flex-col">
-                            <span className="text-xs text-zinc-300 font-medium">Real Color Media Source</span>
+                            <label htmlFor="real-color-media" className="text-xs text-zinc-300 font-medium cursor-pointer">Real Color Media Source</label>
                             <span className="text-[10px] text-zinc-500">Disable dark dimming effect on background</span>
                         </div>
                         <div className="relative inline-flex items-center cursor-pointer">
                             <input
                                 type="checkbox"
+                                id="real-color-media"
                                 name="real-color-media"
+                                aria-label="Real Color Media"
                                 checked={config.useRealColorMedia ?? false}
                                 onChange={(e) => handleChange('useRealColorMedia', e.target.checked)}
                                 className="sr-only peer"
                             />
-                            <div className="w-8 h-4 bg-zinc-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-purple-600"></div>
+                            <label htmlFor="real-color-media" className="w-8 h-4 bg-zinc-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-purple-600 block cursor-pointer"></label>
                         </div>
-                    </label>
+                    </div>
 
                     {/* Gradient Overlay Toggle */}
-                    <label className="bg-zinc-800/30 border border-white/5 rounded-lg p-2.5 flex items-center justify-between cursor-pointer hover:bg-zinc-800/50 transition-colors">
+                    <div className="bg-zinc-800/30 border border-white/5 rounded-lg p-2.5 flex items-center justify-between cursor-pointer hover:bg-zinc-800/50 transition-colors">
                         <div className="flex flex-col">
-                            <span className="text-xs text-zinc-300 font-medium">Black Gradient Overlay</span>
+                            <label htmlFor="gradient-overlay" className="text-xs text-zinc-300 font-medium cursor-pointer">Black Gradient Overlay</label>
                             <span className="text-[10px] text-zinc-500">Fade bottom to top (readability)</span>
                         </div>
                         <div className="relative inline-flex items-center cursor-pointer">
                             <input
                                 type="checkbox"
+                                id="gradient-overlay"
                                 name="gradient-overlay"
+                                aria-label="Gradient Overlay"
                                 checked={config.enableGradientOverlay ?? false}
                                 onChange={(e) => handleChange('enableGradientOverlay', e.target.checked)}
                                 className="sr-only peer"
                             />
-                            <div className="w-8 h-4 bg-zinc-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-purple-600"></div>
+                            <label htmlFor="gradient-overlay" className="w-8 h-4 bg-zinc-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-purple-600 block cursor-pointer"></label>
                         </div>
-                    </label>
+                    </div>
                 </section>
 
                 {/* Audio Visualization (Web View Only) */}
@@ -1600,29 +1603,31 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                     </div>
 
                     {/* Enable Toggle */}
-                    <label className="bg-zinc-800/30 border border-white/5 rounded-lg p-2.5 flex items-center justify-between cursor-pointer hover:bg-zinc-800/50 transition-colors">
+                    <div className="bg-zinc-800/30 border border-white/5 rounded-lg p-2.5 flex items-center justify-between cursor-pointer hover:bg-zinc-800/50 transition-colors">
                         <div className="flex flex-col">
-                            <span className="text-xs text-zinc-300 font-medium">Show Visualization</span>
+                            <label htmlFor="show-visualization" className="text-xs text-zinc-300 font-medium cursor-pointer">Show Visualization</label>
                             <span className="text-[10px] text-zinc-500">Real-time audio reactive visuals</span>
                         </div>
                         <div className="relative inline-flex items-center cursor-pointer">
                             <input
                                 type="checkbox"
+                                id="show-visualization"
                                 name="show-visualization"
+                                aria-label="Show Visualization"
                                 checked={config.showVisualization ?? false}
                                 onChange={(e) => handleChange('showVisualization', e.target.checked)}
                                 className="sr-only peer"
                             />
-                            <div className="w-8 h-4 bg-zinc-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-purple-600"></div>
+                            <label htmlFor="show-visualization" className="w-8 h-4 bg-zinc-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-purple-600 block cursor-pointer"></label>
                         </div>
-                    </label>
+                    </div>
 
                     {config.showVisualization && (
                         <div className="space-y-3 animate-in slide-in-from-top-2 fade-in duration-200">
 
                             {/* Visualization Type */}
                             <div className="space-y-1.5">
-                                <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Visualization Type</label>
+                                <span className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Visualization Type</span>
                                 <GroupedSelection
                                     value={config.visualizationType || 'bars'}
                                     onChange={(val) => handleChange('visualizationType', val)}
@@ -1645,7 +1650,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
 
                             {/* Color Mode */}
                             <div className="space-y-1.5">
-                                <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Color Mode</label>
+                                <span className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Color Mode</span>
                                 <div className="grid grid-cols-4 gap-1">
                                     {(['accent', 'gradient', 'rainbow', 'custom'] as const).map(mode => (
                                         <button
@@ -1692,7 +1697,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
 
                             {/* Position */}
                             <div className="space-y-1.5">
-                                <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Position</label>
+                                <span className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Position</span>
                                 <div className="grid grid-cols-4 gap-1">
                                     {([{ label: 'Bottom', value: 'bottom' }, { label: 'Top', value: 'top' }, { label: 'Center', value: 'center' }, { label: 'Full', value: 'full' }] as const).map(pos => (
                                         <button
@@ -1712,7 +1717,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                             {/* Opacity Slider */}
                             <div className="space-y-1.5">
                                 <div className="flex justify-between items-center">
-                                    <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Opacity</label>
+                                    <span className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Opacity</span>
                                     <span className="text-[10px] text-zinc-400 font-mono">{((config.visualizationOpacity ?? 0.6) * 100).toFixed(0)}%</span>
                                 </div>
                                 <div className="flex items-center gap-2 bg-zinc-800 border border-white/10 rounded-lg px-2 py-1.5">
@@ -1733,7 +1738,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                             {/* Sensitivity Slider */}
                             <div className="space-y-1.5">
                                 <div className="flex justify-between items-center">
-                                    <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Sensitivity</label>
+                                    <span className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Sensitivity</span>
                                     <span className="text-[10px] text-zinc-400 font-mono">{(config.visualizationSensitivity ?? 1.5).toFixed(1)}x</span>
                                 </div>
                                 <div className="flex items-center gap-2 bg-zinc-800 border border-white/10 rounded-lg px-2 py-1.5">
@@ -1755,9 +1760,9 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                             {(['bars', 'circular', 'pulse-ring'].includes(config.visualizationType || 'bars')) && (
                                 <div className="space-y-1.5">
                                     <div className="flex justify-between items-center">
-                                        <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">
+                                        <span className="text-[10px] text-zinc-500 font-bold uppercase ml-1">
                                             {(['circular', 'pulse-ring'].includes(config.visualizationType || 'bars')) ? 'Segments' : 'Bar Count'}
-                                        </label>
+                                        </span>
                                         <span className="text-[10px] text-zinc-400 font-mono">{config.visualizationBarCount ?? 48}</span>
                                     </div>
                                     <div className="flex items-center gap-2 bg-zinc-800 border border-white/10 rounded-lg px-2 py-1.5">
@@ -1825,7 +1830,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                             {config.useCustomHighlightColors && (
                                 <div className="grid grid-cols-2 gap-3 animate-in fade-in duration-200">
                                     <div className="space-y-1">
-                                        <label className="text-[10px] text-zinc-400 font-bold uppercase">Text/Glow Color</label>
+                                        <span className="text-[10px] text-zinc-400 font-bold uppercase">Text/Glow Color</span>
                                         <div className="flex items-center gap-2 bg-zinc-800 p-1.5 rounded-lg border border-white/5">
                                             <input
                                                 type="color"
@@ -1847,7 +1852,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                                     </div>
 
                                     <div className="space-y-1">
-                                        <label className="text-[10px] text-zinc-400 font-bold uppercase">Back/Shape Color</label>
+                                        <span className="text-[10px] text-zinc-400 font-bold uppercase">Back/Shape Color</span>
                                         <div className="flex items-center gap-2 bg-zinc-800 p-1.5 rounded-lg border border-white/5">
                                             <input
                                                 type="color"
@@ -1886,19 +1891,21 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                             { label: 'Cover Art', key: 'showCover' },
                             { label: 'Intro Info', key: 'showIntro' },
                         ].map((item) => (
-                            <label key={item.key} className="flex items-center justify-between p-2 rounded-lg bg-zinc-800/30 border border-white/5 hover:bg-zinc-800/50 cursor-pointer transition-colors">
-                                <span className="text-xs text-zinc-300">{item.label}</span>
+                            <div key={item.key} className="flex items-center justify-between p-2 rounded-lg bg-zinc-800/30 border border-white/5 hover:bg-zinc-800/50 cursor-pointer transition-colors">
+                                <label htmlFor={item.key} className="text-xs text-zinc-300 cursor-pointer w-full">{item.label}</label>
                                 <div className="relative inline-flex items-center cursor-pointer">
                                     <input
                                         type="checkbox"
+                                        id={item.key}
                                         name={item.key}
+                                        aria-label={item.label}
                                         checked={(config as any)[item.key]}
                                         onChange={(e) => handleChange(item.key as keyof RenderConfig, e.target.checked)}
                                         className="sr-only peer"
                                     />
-                                    <div className="w-8 h-4 bg-zinc-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-purple-600"></div>
+                                    <label htmlFor={item.key} className="w-8 h-4 bg-zinc-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-purple-600 block cursor-pointer"></label>
                                 </div>
-                            </label>
+                            </div>
                         ))}
                     </div>
                 </section>
@@ -1931,8 +1938,9 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
 
                         {config.introMode === 'manual' && (
                             <div className="space-y-1 animate-in slide-in-from-top-1 fade-in duration-200">
-                                <label className="text-[10px] text-zinc-500 uppercase font-bold">Custom Intro Content</label>
+                                <label htmlFor="intro-text" className="text-[10px] text-zinc-500 uppercase font-bold">Custom Intro Content</label>
                                 <textarea
+                                    id="intro-text"
                                     name="intro-text"
                                     aria-label="Intro Text"
                                     value={config.introText}
@@ -1952,25 +1960,27 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                         <ImageIcon size={14} /> Channel Info / Watermark
                     </h3>
                     <div className="bg-zinc-800/30 border border-white/5 rounded-lg p-3 space-y-3">
-                        <label className="flex items-center justify-between cursor-pointer">
-                            <span className="text-xs text-zinc-300 font-medium">Show Channel Info</span>
+                        <div className="flex items-center justify-between cursor-pointer">
+                            <label htmlFor="show-channel-info" className="text-xs text-zinc-300 font-medium cursor-pointer">Show Channel Info</label>
                             <div className="relative inline-flex items-center cursor-pointer">
                                 <input
                                     type="checkbox"
+                                    id="show-channel-info"
                                     name="show-channel-info"
+                                    aria-label="Show Channel Info"
                                     checked={config.showChannelInfo ?? false}
                                     onChange={(e) => handleChange('showChannelInfo', e.target.checked)}
                                     className="sr-only peer"
                                 />
-                                <div className="w-8 h-4 bg-zinc-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-purple-600"></div>
+                                <label htmlFor="show-channel-info" className="w-8 h-4 bg-zinc-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-purple-600 block cursor-pointer"></label>
                             </div>
-                        </label>
+                        </div>
 
                         {config.showChannelInfo && (
                             <div className="space-y-3 animate-in slide-in-from-top-1 fade-in duration-200 pt-2 border-t border-white/5">
                                 {/* Image Upload */}
                                 <div className="space-y-1.5">
-                                    <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Channel Logo / Image</label>
+                                    <label htmlFor="channel-image-upload" className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Channel Logo / Image</label>
                                     <input
                                         ref={channelImageInputRef}
                                         type="file"
@@ -2014,8 +2024,9 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
 
                                 {/* Text Input */}
                                 <div className="space-y-1.5">
-                                    <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Channel Name / SVG Code</label>
+                                    <label htmlFor="channel-info-text" className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Channel Name / SVG Code</label>
                                     <textarea
+                                        id="channel-info-text"
                                         name="channel-info-text"
                                         aria-label="Channel Info Text"
                                         value={config.channelInfoText ?? ''}
@@ -2028,7 +2039,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
 
                                 {/* Position */}
                                 <div className="space-y-1.5">
-                                    <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Position</label>
+                                    <span className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Position</span>
                                     <div className="grid grid-cols-3 gap-2">
                                         <button onClick={() => handleChange('channelInfoPosition', 'top-left')} className={`h-8 rounded-md border flex items-start justify-start p-1 transition-all ${config.channelInfoPosition === 'top-left' ? 'bg-purple-600 border-purple-500 text-white' : 'bg-zinc-800 border-white/5 text-zinc-500 hover:border-white/20'}`} title="Top Left"><div className="w-2 h-2 bg-current rounded-sm" /></button>
                                         <button onClick={() => handleChange('channelInfoPosition', 'top-center')} className={`h-8 rounded-md border flex items-start justify-center p-1 transition-all ${config.channelInfoPosition === 'top-center' ? 'bg-purple-600 border-purple-500 text-white' : 'bg-zinc-800 border-white/5 text-zinc-500 hover:border-white/20'}`} title="Top Center"><div className="w-2 h-2 bg-current rounded-sm" /></button>
@@ -2042,7 +2053,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
 
                                 {/* Style */}
                                 <div className="space-y-1.5">
-                                    <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Style</label>
+                                    <span className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Style</span>
                                     <GroupedSelection
                                         value={config.channelInfoStyle || 'classic'}
                                         onChange={(val) => handleChange('channelInfoStyle', val)}
@@ -2053,7 +2064,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                                 {/* Margin Scale */}
                                 <div className="space-y-1.5">
                                     <div className="flex justify-between items-center">
-                                        <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Edge Margin</label>
+                                        <span className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Edge Margin</span>
                                         <span className="text-[10px] text-zinc-400 font-mono">{(config.channelInfoMarginScale ?? 1.0).toFixed(1)}x</span>
                                     </div>
                                     <div className="flex items-center gap-2 bg-zinc-800 border border-white/10 rounded-lg px-2 py-1.5">
@@ -2075,7 +2086,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                                 {/* Size Scale */}
                                 <div className="space-y-1.5">
                                     <div className="flex justify-between items-center">
-                                        <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Size</label>
+                                        <span className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Size</span>
                                         <span className="text-[10px] text-zinc-400 font-mono">{(config.channelInfoSizeScale ?? 1.0).toFixed(1)}x</span>
                                     </div>
                                     <div className="flex items-center gap-2 bg-zinc-800 border border-white/10 rounded-lg px-2 py-1.5">
@@ -2097,7 +2108,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
 
                                 {/* Custom Font for Channel Info */}
                                 <div className="space-y-1.5">
-                                    <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Font Family</label>
+                                    <span className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Font Family</span>
                                     <FontSelector
                                         value={config.channelInfoFontFamily || 'sans-serif'}
                                         onChange={(val) => handleChange('channelInfoFontFamily', val)}
@@ -2110,6 +2121,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                                     />
                                     {/* Upload Button */}
                                     <input
+                                        aria-label="Upload Channel Font"
                                         ref={channelFontInputRef}
                                         type="file"
                                         name="channel-font-upload"
@@ -2142,7 +2154,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
 
                                 {/* Channel Info Font Style (Bold/Italic) */}
                                 <div className="space-y-1.5">
-                                    <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Font Style</label>
+                                    <span className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Font Style</span>
                                     <div className="flex bg-zinc-800 rounded-lg p-1 gap-1">
                                         <button
                                             onClick={() => handleChange('channelInfoFontWeight', config.channelInfoFontWeight === 'bold' ? 'normal' : 'bold')}
@@ -2163,7 +2175,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
 
                                 {/* Channel Info Color */}
                                 <div className="space-y-1.5">
-                                    <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Text Color</label>
+                                    <span className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Text Color</span>
                                     <div className="flex items-center gap-3 bg-zinc-800/30 p-2 rounded-lg border border-white/5">
                                         <input
                                             type="color"
@@ -2190,7 +2202,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
 
                     <div className="space-y-3">
                         <div className="space-y-1.5">
-                            <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Position</label>
+                            <span className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Position</span>
                             <div className="grid grid-cols-3 gap-2">
                                 {/* Top Row */}
                                 <button
@@ -2235,7 +2247,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                         </div>
 
                         <div className="space-y-1.5">
-                            <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Style</label>
+                            <span className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Style</span>
                             <GroupedSelection
                                 value={config.infoStyle || 'classic'}
                                 onChange={(val) => handleChange('infoStyle', val)}
@@ -2245,7 +2257,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
 
                         <div className="space-y-1.5">
                             <div className="flex justify-between items-center">
-                                <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Edge Margin</label>
+                                <span className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Edge Margin</span>
                                 <span className="text-[10px] text-zinc-400 font-mono">{(config.infoMarginScale ?? 1).toFixed(1)}x</span>
                             </div>
                             <div className="flex items-center gap-2 bg-zinc-800 border border-white/10 rounded-lg px-2 py-1.5">
@@ -2266,7 +2278,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
 
                         <div className="space-y-1.5">
                             <div className="flex justify-between items-center">
-                                <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Info Size</label>
+                                <span className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Info Size</span>
                                 <span className="text-[10px] text-zinc-400 font-mono">{(config.infoSizeScale ?? 1).toFixed(1)}x</span>
                             </div>
                             <div className="flex items-center gap-2 bg-zinc-800 border border-white/10 rounded-lg px-2 py-1.5">
@@ -2288,7 +2300,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
 
                         {/* Custom Font for Song Info */}
                         <div className="space-y-1.5">
-                            <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Font Family</label>
+                            <span className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Font Family</span>
                             <FontSelector
                                 value={config.infoFontFamily || 'sans-serif'}
                                 onChange={(val) => handleChange('infoFontFamily', val)}
@@ -2300,6 +2312,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                                 placeholder="Info Font (e.g. Roboto)"
                             />
                             <input
+                                aria-label="Upload Info Font"
                                 ref={infoFontInputRef}
                                 type="file"
                                 name="info-font-upload"
@@ -2332,7 +2345,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
 
                         {/* Song Info Font Style (Bold/Italic) */}
                         <div className="space-y-1.5">
-                            <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Font Style</label>
+                            <span className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Font Style</span>
                             <div className="flex bg-zinc-800 rounded-lg p-1 gap-1">
                                 <button
                                     onClick={() => handleChange('infoFontWeight', config.infoFontWeight === 'bold' ? 'normal' : 'bold')}
@@ -2353,7 +2366,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
 
                         {/* Song Info Color */}
                         <div className="space-y-1.5">
-                            <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Text Color</label>
+                            <span className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Text Color</span>
                             <div className="flex items-center gap-3 bg-zinc-800/30 p-2 rounded-lg border border-white/5">
                                 <input
                                     type="color"
@@ -2379,7 +2392,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
 
 
                         <div className="space-y-1.5">
-                            <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Alignment</label>
+                            <span className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Alignment</span>
                             <div className="flex bg-zinc-800 rounded-lg p-1">
                                 {['left', 'center', 'right'].map((align) => (
                                     <button
@@ -2395,7 +2408,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                         </div>
 
                         <div className="space-y-1.5">
-                            <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Vertical Position</label>
+                            <span className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Vertical Position</span>
                             <div className="flex bg-zinc-800 rounded-lg p-1 gap-1">
                                 <button
                                     onClick={() => handleChange('contentPosition', 'top')}
@@ -2424,7 +2437,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                             <div className="grid grid-cols-2 gap-3 mt-2">
                                 <div className="space-y-1.5">
                                     <div className="flex justify-between items-center">
-                                        <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Top Margin</label>
+                                        <span className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Top Margin</span>
                                         <span className="text-[10px] text-zinc-400 font-mono">{(config.marginTopScale ?? 1.0).toFixed(1)}x</span>
                                     </div>
                                     <div className="flex items-center gap-2 bg-zinc-800 border border-white/10 rounded-lg px-2 py-1.5">
@@ -2443,7 +2456,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                                 </div>
                                 <div className="space-y-1.5">
                                     <div className="flex justify-between items-center">
-                                        <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Bottom Margin</label>
+                                        <span className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Bottom Margin</span>
                                         <span className="text-[10px] text-zinc-400 font-mono">{(config.marginBottomScale ?? 1.0).toFixed(1)}x</span>
                                     </div>
                                     <div className="flex items-center gap-2 bg-zinc-800 border border-white/10 rounded-lg px-2 py-1.5">
@@ -2464,7 +2477,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                         </div>
 
                         <div className="space-y-1.5">
-                            <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Style</label>
+                            <span className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Style</span>
                             <div className="flex bg-zinc-800 rounded-lg p-1 gap-1">
                                 <button
                                     onClick={() => handleChange('fontWeight', config.fontWeight === 'bold' ? 'normal' : 'bold')}
@@ -2498,7 +2511,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                         </div>
 
                         <div className="space-y-1.5">
-                            <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Apply Style To</label>
+                            <span className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Apply Style To</span>
                             <div className="flex bg-zinc-800 rounded-lg p-1 gap-1">
                                 <button
                                     onClick={() => handleChange('lyricStyleTarget', 'active-only')}
@@ -2518,7 +2531,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                         </div>
 
                         <div className="space-y-1.5">
-                            <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Text Case</label>
+                            <span className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Text Case</span>
                             <div className="grid grid-cols-3 gap-1 bg-zinc-800 rounded-lg p-1">
                                 <button
                                     onClick={() => handleChange('textCase', 'none')}
@@ -2560,7 +2573,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                         </div>
 
                         <div className="space-y-1.5">
-                            <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Font Family</label>
+                            <span className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Font Family</span>
                             <FontSelector
                                 value={config.fontFamily}
                                 onChange={(val) => handleChange('fontFamily', val)}
@@ -2575,7 +2588,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
 
                         {/* Custom Font Upload */}
                         <div className="space-y-1.5">
-                            <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Custom Font File</label>
+                            <label htmlFor="main-font-upload" className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Custom Font File</label>
                             <input
                                 ref={fontInputRef}
                                 type="file"
@@ -2618,7 +2631,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
 
                         <div className="space-y-1.5">
                             <div className="flex justify-between items-center">
-                                <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Font Size</label>
+                                <span className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Font Size</span>
                                 <span className="text-[10px] text-zinc-400 font-mono">{(config.fontSizeScale * 100).toFixed(0)}%</span>
                             </div>
                             <div className="flex items-center gap-2 bg-zinc-800 border border-white/10 rounded-lg px-2 py-1.5">
@@ -2640,7 +2653,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
 
                         <div className="space-y-1.5">
                             <div className="flex justify-between items-center">
-                                <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Current Line Height</label>
+                                <span className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Current Line Height</span>
                                 <span className="text-[10px] text-zinc-400 font-mono">{(config.lyricLineHeight || 1.3).toFixed(1)}x</span>
                             </div>
                             <div className="flex items-center gap-2 bg-zinc-800 border border-white/10 rounded-lg px-2 py-1.5">
@@ -2667,7 +2680,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                         )}
 
                         <div className="space-y-1.5">
-                            <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Color</label>
+                            <span className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Color</span>
                             <div className="flex items-center gap-3 bg-zinc-800/30 p-2 rounded-lg border border-white/5">
                                 <input
                                     type="color"
@@ -2689,7 +2702,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                         </div>
 
                         <div className="space-y-1.5">
-                            <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Text Effect</label>
+                            <span className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Text Effect</span>
                             <GroupedSelection
                                 value={config.textEffect}
                                 onChange={(val) => handleChange('textEffect', val)}
@@ -2699,7 +2712,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
 
 
                         <div className="space-y-1.5">
-                            <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Text Animation</label>
+                            <span className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Text Animation</span>
                             <GroupedSelection
                                 value={config.textAnimation}
                                 onChange={(val) => handleChange('textAnimation', val)}
@@ -2710,7 +2723,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                     </div>
 
                     <div className="space-y-1.5">
-                        <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Transition</label>
+                        <span className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Transition</span>
                         <GroupedSelection
                             value={config.transitionEffect}
                             onChange={(val) => handleChange('transitionEffect', val)}
@@ -2721,7 +2734,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                     {/* Visual Transition (New) */}
                     <div className="space-y-1.5 pt-2 border-t border-white/5">
                         <div className="flex justify-between items-center">
-                            <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Visual Transition (Images/Video)</label>
+                            <span className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Visual Transition (Images/Video)</span>
                             {config.visualTransitionDuration && (
                                 <span className="text-[10px] text-zinc-400 font-mono">{config.visualTransitionDuration.toFixed(1)}s</span>
                             )}
@@ -2760,7 +2773,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
 
                         <div className="grid grid-cols-2 gap-2">
                             <div className="space-y-1.5">
-                                <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Resolution</label>
+                                <span className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Resolution</span>
                                 <div className="flex bg-zinc-800 rounded-lg p-1">
                                     <button
                                         onClick={() => setResolution('720p')}
@@ -2777,7 +2790,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                                 </div>
                             </div>
                             <div className="space-y-1.5">
-                                <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">FPS</label>
+                                <span className="text-[10px] text-zinc-500 font-bold uppercase ml-1">FPS</span>
                                 <GroupedSelection
                                     value={String(renderFps)}
                                     onChange={(val) => setRenderFps(parseInt(val))}
@@ -2787,7 +2800,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                         </div>
 
                         <div className="space-y-1.5">
-                            <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Aspect Ratio</label>
+                            <span className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Aspect Ratio</span>
                             <div className="grid grid-cols-4 gap-1">
                                 {['16:9', '9:16', '1:1', '4:5', '3:4', '4:3', '2:3', '3:2', '1:2', '2:1', '20:9', '21:9'].map((ratio) => (
                                     <button
@@ -2806,7 +2819,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
 
                         {/* Render Engine Selection */}
                         <div className="space-y-1.5">
-                            <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Render Engine</label>
+                            <span className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Render Engine</span>
                             <div className="flex bg-zinc-800 rounded-lg p-1 gap-1">
                                 <button
                                     onClick={() => setRenderEngine('mediarecorder')}
@@ -2842,7 +2855,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                         {/* Video Codec - Conditional based on engine */}
                         {renderEngine === 'mediarecorder' && (
                             <div className="space-y-1.5">
-                                <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Video Codec</label>
+                                <span className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Video Codec</span>
                                 <GroupedSelection
                                     value={renderCodec}
                                     onChange={(val) => setRenderCodec(val)}
@@ -2861,7 +2874,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
 
                         {renderEngine === 'ffmpeg' && (
                             <div className="space-y-1.5">
-                                <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">FFmpeg Codec</label>
+                                <span className="text-[10px] text-zinc-500 font-bold uppercase ml-1">FFmpeg Codec</span>
                                 <div className="grid grid-cols-2 gap-1">
                                     {[
                                         { label: 'H.264', value: 'h264', desc: 'Best Compatibility' },
@@ -2888,7 +2901,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
 
                         {renderEngine === 'webcodecs' && (
                             <div className="space-y-1.5">
-                                <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Video Codec</label>
+                                <span className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Video Codec</span>
                                 <div className="p-2 bg-zinc-800/50 rounded border border-white/5 text-[10px] text-zinc-400">
                                     H.264 / AAC (Hardware Accelerated)
                                 </div>
@@ -2896,7 +2909,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                         )}
 
                         <div className="space-y-1.5">
-                            <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Render Quality (Bitrate)</label>
+                            <span className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Render Quality (Bitrate)</span>
                             <div className="flex bg-zinc-800 rounded-lg p-1">
                                 <button
                                     onClick={() => setRenderQuality('low')}
