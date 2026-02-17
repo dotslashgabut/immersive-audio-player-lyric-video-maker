@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { X, Video, Settings, ImageIcon, Type, Layout, Palette, Music, FileText, Check, ListMusic, Bold, Italic, Underline, Strikethrough, AlignVerticalJustifyCenter, AlignVerticalJustifyStart, AlignVerticalJustifyEnd, Upload, Trash2, ChevronDown, Maximize, RotateCcw, Download, Keyboard as KeyboardIcon, Sparkles } from './Icons';
+import { X, Video, Settings, ImageIcon, Type, Layout, Palette, Music, FileText, Check, ListMusic, Bold, Italic, Underline, Strikethrough, AlignVerticalJustifyCenter, AlignVerticalJustifyStart, AlignVerticalJustifyEnd, Upload, Trash2, ChevronDown, Maximize, RotateCcw, Download, Keyboard as KeyboardIcon, Sparkles, Activity } from './Icons';
 import { RenderConfig, VideoPreset, RenderEngine, FFmpegCodec } from '../types';
 import { fontGroups, loadSingleGoogleFont } from '../utils/fonts';
 import { PRESET_DEFINITIONS, videoPresetGroups } from '../utils/presets';
@@ -109,6 +109,15 @@ const DEFAULT_CONFIG: RenderConfig = {
     useRealColorMedia: false,
     marginTopScale: 1.0,
     marginBottomScale: 1.0,
+    showVisualization: false,
+    visualizationType: 'bars',
+    visualizationColorMode: 'gradient',
+    visualizationColor1: '#a855f7',
+    visualizationColor2: '#6366f1',
+    visualizationOpacity: 0.6,
+    visualizationPosition: 'bottom',
+    visualizationSensitivity: 1.5,
+    visualizationBarCount: 48,
 };
 
 
@@ -966,6 +975,8 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
             channelInfoMarginScale: typeof config.channelInfoMarginScale === 'number' ? Number(config.channelInfoMarginScale.toFixed(6)) : config.channelInfoMarginScale,
             marginTopScale: typeof config.marginTopScale === 'number' ? Number(config.marginTopScale.toFixed(6)) : config.marginTopScale,
             marginBottomScale: typeof config.marginBottomScale === 'number' ? Number(config.marginBottomScale.toFixed(6)) : config.marginBottomScale,
+            visualizationOpacity: typeof config.visualizationOpacity === 'number' ? Number(config.visualizationOpacity.toFixed(4)) : config.visualizationOpacity,
+            visualizationSensitivity: typeof config.visualizationSensitivity === 'number' ? Number(config.visualizationSensitivity.toFixed(4)) : config.visualizationSensitivity,
 
             preset, // Include preset in export
             resolution,
@@ -1063,7 +1074,10 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                         'visualTransitionDuration',
                         'lyricLineHeight',
                         'marginTopScale',
-                        'marginBottomScale'
+                        'marginBottomScale',
+                        'visualizationOpacity',
+                        'visualizationSensitivity',
+                        'visualizationBarCount'
                     ];
 
                     numericFields.forEach(field => {
@@ -1085,6 +1099,8 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                     if (newConfig.showArtist !== undefined) newConfig.showArtist = Boolean(newConfig.showArtist);
                     if (newConfig.showCover !== undefined) newConfig.showCover = Boolean(newConfig.showCover);
                     if (newConfig.showLyrics !== undefined) newConfig.showLyrics = Boolean(newConfig.showLyrics);
+                    if (newConfig.showVisualization !== undefined) newConfig.showVisualization = Boolean(newConfig.showVisualization);
+                    if (newConfig.enableGradientOverlay !== undefined) newConfig.enableGradientOverlay = Boolean(newConfig.enableGradientOverlay);
 
                     // Restore Highlight Colors if missing but effect is present
                     if (newConfig.highlightEffect && (!newConfig.highlightColor || !newConfig.highlightBackground)) {
@@ -1135,6 +1151,17 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
 
                     if (newConfig.channelInfoPosition && !validPositions.includes(newConfig.channelInfoPosition)) newConfig.channelInfoPosition = 'bottom-right';
                     if (newConfig.channelInfoStyle && !isValidGroupOption(newConfig.channelInfoStyle, channelInfoStyleGroups)) newConfig.channelInfoStyle = 'classic';
+
+                    // Validate Visualization Settings
+                    const validVizTypes = ['bars', 'wave', 'circular', 'particles', 'pulse-ring'];
+                    if (newConfig.visualizationType && !validVizTypes.includes(newConfig.visualizationType)) newConfig.visualizationType = 'bars';
+                    const validColorModes = ['accent', 'gradient', 'custom', 'rainbow'];
+                    if (newConfig.visualizationColorMode && !validColorModes.includes(newConfig.visualizationColorMode)) newConfig.visualizationColorMode = 'gradient';
+                    const validVizPositions = ['bottom', 'top', 'full', 'center'];
+                    if (newConfig.visualizationPosition && !validVizPositions.includes(newConfig.visualizationPosition)) newConfig.visualizationPosition = 'bottom';
+                    if (newConfig.visualizationOpacity !== undefined) newConfig.visualizationOpacity = Math.max(0, Math.min(1, newConfig.visualizationOpacity));
+                    if (newConfig.visualizationSensitivity !== undefined) newConfig.visualizationSensitivity = Math.max(0.5, Math.min(3, newConfig.visualizationSensitivity));
+                    if (newConfig.visualizationBarCount !== undefined) newConfig.visualizationBarCount = Math.max(16, Math.min(128, Math.round(newConfig.visualizationBarCount)));
 
                     setConfig(newConfig);
 
@@ -1561,6 +1588,197 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                             <div className="w-8 h-4 bg-zinc-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-purple-600"></div>
                         </div>
                     </label>
+                </section>
+
+                {/* Audio Visualization (Web View Only) */}
+                <section className="space-y-3">
+                    <div className="flex items-center justify-between">
+                        <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-2">
+                            <Activity size={14} /> Audio Visualizer
+                        </h3>
+
+                    </div>
+
+                    {/* Enable Toggle */}
+                    <label className="bg-zinc-800/30 border border-white/5 rounded-lg p-2.5 flex items-center justify-between cursor-pointer hover:bg-zinc-800/50 transition-colors">
+                        <div className="flex flex-col">
+                            <span className="text-xs text-zinc-300 font-medium">Show Visualization</span>
+                            <span className="text-[10px] text-zinc-500">Real-time audio reactive visuals</span>
+                        </div>
+                        <div className="relative inline-flex items-center cursor-pointer">
+                            <input
+                                type="checkbox"
+                                name="show-visualization"
+                                checked={config.showVisualization ?? false}
+                                onChange={(e) => handleChange('showVisualization', e.target.checked)}
+                                className="sr-only peer"
+                            />
+                            <div className="w-8 h-4 bg-zinc-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-purple-600"></div>
+                        </div>
+                    </label>
+
+                    {config.showVisualization && (
+                        <div className="space-y-3 animate-in slide-in-from-top-2 fade-in duration-200">
+
+                            {/* Visualization Type */}
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Visualization Type</label>
+                                <GroupedSelection
+                                    value={config.visualizationType || 'bars'}
+                                    onChange={(val) => handleChange('visualizationType', val)}
+                                    groups={[{
+                                        label: "Minimalist",
+                                        options: [
+                                            { label: "Bars", value: "bars" },
+                                            { label: "Waveform", value: "wave" },
+                                        ]
+                                    }, {
+                                        label: "Dynamic",
+                                        options: [
+                                            { label: "Circular", value: "circular" },
+                                            { label: "Particles", value: "particles" },
+                                            { label: "Pulse Ring", value: "pulse-ring" },
+                                        ]
+                                    }]}
+                                />
+                            </div>
+
+                            {/* Color Mode */}
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Color Mode</label>
+                                <div className="grid grid-cols-4 gap-1">
+                                    {(['accent', 'gradient', 'rainbow', 'custom'] as const).map(mode => (
+                                        <button
+                                            key={mode}
+                                            onClick={() => handleChange('visualizationColorMode', mode)}
+                                            className={`px-2 py-1.5 rounded-md text-[10px] font-medium border transition-all capitalize ${config.visualizationColorMode === mode
+                                                ? 'bg-purple-600/40 border-purple-500/50 text-purple-200'
+                                                : 'bg-zinc-800/50 border-white/5 text-zinc-400 hover:border-white/20'
+                                                }`}
+                                        >
+                                            {mode}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Custom Colors */}
+                            {config.visualizationColorMode === 'custom' && (
+                                <div className="grid grid-cols-2 gap-2 animate-in slide-in-from-top-2 fade-in duration-200">
+                                    <div className="flex items-center gap-2 bg-zinc-800/30 p-2 rounded-lg border border-white/5">
+                                        <input
+                                            type="color"
+                                            name="viz-color-1"
+                                            aria-label="Visualization Color 1"
+                                            value={config.visualizationColor1 || '#a855f7'}
+                                            onChange={(e) => handleChange('visualizationColor1', e.target.value)}
+                                            className="w-8 h-8 rounded cursor-pointer bg-transparent border-none shrink-0"
+                                        />
+                                        <span className="text-[10px] text-zinc-400">Color 1</span>
+                                    </div>
+                                    <div className="flex items-center gap-2 bg-zinc-800/30 p-2 rounded-lg border border-white/5">
+                                        <input
+                                            type="color"
+                                            name="viz-color-2"
+                                            aria-label="Visualization Color 2"
+                                            value={config.visualizationColor2 || '#6366f1'}
+                                            onChange={(e) => handleChange('visualizationColor2', e.target.value)}
+                                            className="w-8 h-8 rounded cursor-pointer bg-transparent border-none shrink-0"
+                                        />
+                                        <span className="text-[10px] text-zinc-400">Color 2</span>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Position */}
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Position</label>
+                                <div className="grid grid-cols-4 gap-1">
+                                    {([{ label: 'Bottom', value: 'bottom' }, { label: 'Top', value: 'top' }, { label: 'Center', value: 'center' }, { label: 'Full', value: 'full' }] as const).map(pos => (
+                                        <button
+                                            key={pos.value}
+                                            onClick={() => handleChange('visualizationPosition', pos.value)}
+                                            className={`px-2 py-1.5 rounded-md text-[10px] font-medium border transition-all ${(config.visualizationPosition || 'bottom') === pos.value
+                                                ? 'bg-purple-600/40 border-purple-500/50 text-purple-200'
+                                                : 'bg-zinc-800/50 border-white/5 text-zinc-400 hover:border-white/20'
+                                                }`}
+                                        >
+                                            {pos.label}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Opacity Slider */}
+                            <div className="space-y-1.5">
+                                <div className="flex justify-between items-center">
+                                    <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Opacity</label>
+                                    <span className="text-[10px] text-zinc-400 font-mono">{((config.visualizationOpacity ?? 0.6) * 100).toFixed(0)}%</span>
+                                </div>
+                                <div className="flex items-center gap-2 bg-zinc-800 border border-white/10 rounded-lg px-2 py-1.5">
+                                    <input
+                                        type="range"
+                                        name="viz-opacity"
+                                        aria-label="Visualization Opacity"
+                                        min="0.1"
+                                        max="1.0"
+                                        step="0.05"
+                                        value={config.visualizationOpacity ?? 0.6}
+                                        onChange={(e) => handleChange('visualizationOpacity', parseFloat(e.target.value))}
+                                        className="w-full h-1 bg-zinc-600 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full hover:[&::-webkit-slider-thumb]:bg-purple-400 transition-all"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Sensitivity Slider */}
+                            <div className="space-y-1.5">
+                                <div className="flex justify-between items-center">
+                                    <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Sensitivity</label>
+                                    <span className="text-[10px] text-zinc-400 font-mono">{(config.visualizationSensitivity ?? 1.5).toFixed(1)}x</span>
+                                </div>
+                                <div className="flex items-center gap-2 bg-zinc-800 border border-white/10 rounded-lg px-2 py-1.5">
+                                    <input
+                                        type="range"
+                                        name="viz-sensitivity"
+                                        aria-label="Visualization Sensitivity"
+                                        min="0.5"
+                                        max="3.0"
+                                        step="0.1"
+                                        value={config.visualizationSensitivity ?? 1.5}
+                                        onChange={(e) => handleChange('visualizationSensitivity', parseFloat(e.target.value))}
+                                        className="w-full h-1 bg-zinc-600 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full hover:[&::-webkit-slider-thumb]:bg-purple-400 transition-all"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Bar Count Slider (for bar/circular types) */}
+                            {(['bars', 'circular', 'pulse-ring'].includes(config.visualizationType || 'bars')) && (
+                                <div className="space-y-1.5">
+                                    <div className="flex justify-between items-center">
+                                        <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1">
+                                            {(['circular', 'pulse-ring'].includes(config.visualizationType || 'bars')) ? 'Segments' : 'Bar Count'}
+                                        </label>
+                                        <span className="text-[10px] text-zinc-400 font-mono">{config.visualizationBarCount ?? 48}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2 bg-zinc-800 border border-white/10 rounded-lg px-2 py-1.5">
+                                        <input
+                                            type="range"
+                                            name="viz-bar-count"
+                                            aria-label="Visualization Bar Count"
+                                            min="16"
+                                            max="128"
+                                            step="4"
+                                            value={config.visualizationBarCount ?? 48}
+                                            onChange={(e) => handleChange('visualizationBarCount', parseInt(e.target.value))}
+                                            className="w-full h-1 bg-zinc-600 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full hover:[&::-webkit-slider-thumb]:bg-purple-400 transition-all"
+                                        />
+                                    </div>
+                                </div>
+                            )}
+
+
+                        </div>
+                    )}
                 </section>
 
                 {/* Lyric Display Mode */}

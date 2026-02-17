@@ -103,6 +103,10 @@
 - **Settings Management**:
   - **JSON Import/Export**: Backup, share, or restore your exact render configurations (including custom fonts, colors, and layouts) with a single click.
   - **Reset to Defaults**: Improved reset functionality to verify and clear all custom font selections and return to factory defaults.
+- **Audio Visualization (New)**:
+  - **Live & Export**: Real-time frequency analysis that works in the player AND is baked into your exported videos (WebCodecs/FFmpeg).
+  - **Visualizer Types**: **Bars** (Spectrum), **Wave** (Oscilloscope), **Circular** (Radial), **Pulse Ring** (Beat Reactive), and **Particles** (Dynamic layered effects).
+  - **Customization**: Full control over Position (Bottom, Center, Full), Colors (Gradient, Rainbow, Accent), Opacity, and Sensitivity.
 - **Advanced Backgrounds**:
   - **Timeline Media**: Use your custom images and videos from the timeline.
   - **Custom Image**: Direct support for single custom background images.

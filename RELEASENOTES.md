@@ -3,11 +3,30 @@
 # 2.3.10
 
 ## What's New
+- **Audio Visualization Integration**:
+  - **Universal Support**: Audio visualizations now work seamlessly across all modes: **Live Web View**, **MediaRecorder Export**, **WebCodecs Export**, and **FFmpeg Pro Export**.
+  - **New Visualizers**:
+    - **Particles (Rewritten)**: A completely new, high-performance particle system with 4 reactive layers: distinct rising embers (bass), frequency bursts (mids), floating orbs (highs), and shockwaves (bass drops).
+    - **Bars**: Spectrum analyzer with cleaner aesthetics.
+    - **Wave**: Smooth, oscillating waveform visualization.
+    - **Circular & Pulse Ring**: Radial visualizations that react to beat intensity.
+  - **Performance Core**: Refactored the entire visualization engine for 60FPS performance. Implemented off-screen canvas rendering, typed array pre-allocation, and smart throttling to minimize CPU usage during complex exports.
+  - **Settings Control**: Added a full suite of customization options in the Render Settings panel:
+    - **Type**: Bars, Wave, Circular, Particles, Pulse Ring.
+    - **Color Mode**: Gradient, Accent, Rainbow.
+    - **Position**: Bottom, Top, Center, Full Screen.
+    - **Fine Tuning**: Adjustable Sensitivity, Opacity, and Bar Count.
 - **Rendering Stability**:
   - **Custom Video Backgrounds**: Fixed an issue where custom video backgrounds would fail to loop or sync correctly during **WebCodecs** playlist rendering. The background now seamlessly maintains continuity and timing across all tracks.
   - **Looping Logic**: Enhanced the `syncVideoElements` logic to ensure custom background videos loop precisely as intended in the exported video, matching the timeline preview.
 - **User Interaction**:
   - **Minimal Mode Safety**: Disabled the "Double-Click/Double-Tap" shortcut (which toggles Minimal Mode) while a render is in progress. This prevents accidental UI changes that could disrupt the detailed render progress view.
+- **Bug Fixes & Improvements**:
+  - **Export Stability**: Fixed "MediaElement already connected" errors during MediaRecorder exports by properly managing AudioContext graphs.
+  - **WebCodecs & FFmpeg**: Implemented offline audio analysis (`computeFrequencyDataAtTime`) to ensure visualizations are generated accurately frame-by-frame during non-realtime exports.
+  - **Layout**: Fixed double-clipping and positioning issues that caused visualizations to appear cut off or misaligned in the web player.
+  - **Settings**: Updated JSON Import/Export/Reset logic to fully support all new visualization parameters, ensuring your custom visual styles are saved and restored correctly.
+  - **Audio Visualization**: Fixed a resizing issue where the visualization would appear zoomed in or too large after toggling visibility off and on in the Web View.
 
 
 # 2.3.9

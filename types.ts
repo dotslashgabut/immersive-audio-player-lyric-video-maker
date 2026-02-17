@@ -151,6 +151,17 @@ export interface RenderConfig {
   visualTransitionDuration?: number; // Seconds (default 1.0)
   enableGradientOverlay?: boolean;
   useRealColorMedia?: boolean;
+
+  // Audio Visualization (Web View Only)
+  showVisualization?: boolean;
+  visualizationType?: 'bars' | 'wave' | 'circular' | 'particles' | 'mirror-bars' | 'pulse-ring';
+  visualizationColorMode?: 'accent' | 'gradient' | 'custom' | 'rainbow';
+  visualizationColor1?: string;
+  visualizationColor2?: string;
+  visualizationOpacity?: number; // 0.0 to 1.0
+  visualizationPosition?: 'bottom' | 'top' | 'full' | 'center';
+  visualizationSensitivity?: number; // 0.5 to 3.0
+  visualizationBarCount?: number; // 16 to 128
 }
 
 // Render Engine: MediaRecorder (realtime) vs FFmpeg (frame-by-frame)

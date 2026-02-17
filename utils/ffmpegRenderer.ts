@@ -9,6 +9,7 @@ import { FFmpeg } from '@ffmpeg/ffmpeg';
 import { fetchFile, toBlobURL } from '@ffmpeg/util';
 import { LyricLine, VisualSlide, AudioMetadata, RenderConfig, VideoPreset } from '../types';
 import { drawCanvasFrame } from './canvasRenderer';
+import { decodeAudioForVisualization, computeFrequencyDataAtTime } from './visualizationRenderer';
 
 export interface FFmpegRenderOptions {
   canvas: HTMLCanvasElement;
@@ -381,6 +382,23 @@ export async function renderWithFFmpeg(options: FFmpegRenderOptions): Promise<FF
   // Standardize audio filename to avoid extension issues
   await ffmpeg.writeFile('audio_src', new Uint8Array(audioData));
 
+  // Decode audio for visualization (offline frequency analysis)
+  let pcmData: Float32Array | null = null;
+  let audioSampleRate = 44100;
+  if (renderConfig.showVisualization) {
+    try {
+      onLog?.('[FFmpeg] Decoding audio for visualization analysis...');
+      const tempCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const audioBuffer = await tempCtx.decodeAudioData(audioData.slice(0));
+      pcmData = audioBuffer.getChannelData(0);
+      audioSampleRate = audioBuffer.sampleRate;
+      tempCtx.close();
+      onLog?.(`[FFmpeg] Audio decoded: ${audioBuffer.duration.toFixed(1)}s @ ${audioSampleRate}Hz`);
+    } catch (e) {
+      onLog?.(`[FFmpeg] Warning: Could not decode audio for visualization: ${(e as Error).message}`);
+    }
+  }
+
   // Render frames
   const frameDigits = Math.max(6, totalFrames.toString().length);
 
@@ -396,6 +414,15 @@ export async function renderWithFFmpeg(options: FFmpegRenderOptions): Promise<FF
 
     // Sync video elements to current time (Async wait for seek)
     await syncVideoElements(videoMap, visualSlides, time, globalTime);
+
+    // Compute visualization data if enabled
+    let vizFreqData: Uint8Array | null = null;
+    let vizWaveData: Uint8Array | null = null;
+    if (pcmData && renderConfig.showVisualization) {
+      const result = computeFrequencyDataAtTime(pcmData, audioSampleRate, time, 512);
+      vizFreqData = result.frequencyData;
+      vizWaveData = result.waveformData;
+    }
 
     // Draw frame
     drawCanvasFrame(
@@ -415,7 +442,9 @@ export async function renderWithFFmpeg(options: FFmpegRenderOptions): Promise<FF
       audioDuration,
       renderConfig,
       isLastSong,
-      isFirstSong
+      isFirstSong,
+      vizFreqData,
+      vizWaveData
     );
 
     // Export frame as JPEG

@@ -1,4 +1,5 @@
 import { LyricLine, VideoPreset, VisualSlide, AudioMetadata, RenderConfig, LyricWord } from '../types';
+import { drawVisualization, getVizParams } from './visualizationRenderer';
 
 export const drawCanvasFrame = (
     ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D,
@@ -17,7 +18,9 @@ export const drawCanvasFrame = (
     duration: number,
     renderConfig?: RenderConfig,
     isLastSongInPlaylist: boolean = true,
-    isFirstSongInPlaylist: boolean = true
+    isFirstSongInPlaylist: boolean = true,
+    frequencyData?: Uint8Array<ArrayBufferLike> | null,
+    waveformData?: Uint8Array<ArrayBufferLike> | null
 ) => {
     // Helper: HEX to RGB
     const hexToRgb = (hex: string) => {
@@ -1103,6 +1106,22 @@ export const drawCanvasFrame = (
 
         ctx.fillStyle = gradient;
         ctx.fillRect(0, 0, width, height);
+    }
+
+    // --- Audio Visualization Layer (for export) ---
+    if (renderConfig?.showVisualization && frequencyData && frequencyData.length > 0) {
+        ctx.save();
+        const vizParams = getVizParams(renderConfig);
+        drawVisualization(
+            ctx,
+            frequencyData,
+            waveformData || null,
+            width,
+            height,
+            vizParams,
+            time * 1000 // convert to ms for consistent animation phase
+        );
+        ctx.restore();
     }
 
     if (activePreset === 'just_video' || activePreset === 'none') return;
