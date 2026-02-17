@@ -87,7 +87,7 @@ export async function getFFmpeg(onLog?: (message: string) => void): Promise<FFmp
       onLog?.('[FFmpeg] Cross-Origin Isolated: YES. Using Multi-Threaded Core 🚀');
 
       // Load FFmpeg with multi-threaded core
-      const remoteBaseURL = 'https://unpkg.com/@ffmpeg/core-mt@0.12.6/dist/esm';
+      const remoteBaseURL = 'https://unpkg.com/@ffmpeg/core-mt@0.12.10/dist/esm';
       let coreURL: string, wasmURL: string, workerURL: string;
 
       /**
@@ -182,7 +182,7 @@ export async function getFFmpeg(onLog?: (message: string) => void): Promise<FFmp
     } else {
       onLog?.('[FFmpeg] Cross-Origin Isolated: NO. Using Single-Threaded Core 🐢');
 
-      const remoteBaseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm';
+      const remoteBaseURL = 'https://unpkg.com/@ffmpeg/core@0.12.10/dist/esm';
       let coreURL: string, wasmURL: string;
 
       const loadLocalAssetST = async (base: string, name: string, type: string) => {
