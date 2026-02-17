@@ -7,6 +7,9 @@
   - **Form Labeling**: Resolved "No label associated with a form field" errors by ensuring all form inputs (checkboxes, sliders, color pickers, file inputs) have proper `aria-label` attributes or associated `<label>` elements.
   - **Semantic HTML**: Replaced misused `<label>` tags (used as section headers) with `<span>` or `<div>` tags to improve screen reader navigation and compliance.
   - **Interactive Toggles**: Enhanced toggle switches (Real Color Media, Show Visualization, etc.) by making the text labels clickable using `htmlFor` and `id` attributes, improving both accessibility and user experience. 
+- **Performance & Optimization**:
+  - **Google Fonts Loading**: Refactored the fonts loader to add preconnect links efficiently and load fonts per group. Each font group now generates its own stylesheet link with unique IDs to prevent duplicate injections, while `fonts.gstatic` preconnect correctly uses `crossOrigin`.
+  - **Extended Cache**: Increased the service worker cache for Google Fonts stylesheets from 10 to 30 entries, reducing cache evictions and ensuring better font availability.
 
 
 # 2.3.10
