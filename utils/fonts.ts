@@ -115,6 +115,7 @@ export const loadGoogleFonts = () => {
         preconnect1.id = 'google-fonts-preconnect';
         preconnect1.rel = 'preconnect';
         preconnect1.href = 'https://fonts.googleapis.com';
+        preconnect1.crossOrigin = 'anonymous';
         document.head.appendChild(preconnect1);
 
         const preconnect2 = document.createElement('link');
@@ -154,6 +155,7 @@ export const loadGoogleFonts = () => {
         const link = document.createElement('link');
         link.id = linkId;
         link.rel = 'stylesheet';
+        link.crossOrigin = 'anonymous';
         link.href = url;
         document.head.appendChild(link);
     });
@@ -172,6 +174,7 @@ export const loadSingleGoogleFont = (fontName: string) => {
     const link = document.createElement('link');
     link.id = id;
     link.rel = 'stylesheet';
+    link.crossOrigin = 'anonymous';
     link.href = `https://fonts.googleapis.com/css2?${param}&display=swap`;
     document.head.appendChild(link);
 };
