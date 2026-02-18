@@ -32,6 +32,7 @@ export default defineConfig(({ mode }) => {
     plugins: [
       react(),
       VitePWA({
+
         registerType: 'autoUpdate',
         workbox: {
           // Include WASM and Worker files in PWA caching
@@ -43,7 +44,7 @@ export default defineConfig(({ mode }) => {
               urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
               handler: 'StaleWhileRevalidate',
               options: {
-                cacheName: 'google-fonts-stylesheets',
+                cacheName: 'google-fonts-stylesheets-2',
                 expiration: {
                   maxEntries: 30,
                   maxAgeSeconds: 60 * 60 * 24 * 365, // 1 year
@@ -54,7 +55,7 @@ export default defineConfig(({ mode }) => {
               urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*/i,
               handler: 'CacheFirst',
               options: {
-                cacheName: 'google-fonts-webfonts',
+                cacheName: 'google-fonts-webfonts-2',
                 expiration: {
                   maxEntries: 100,
                   maxAgeSeconds: 60 * 60 * 24 * 365, // 1 year
