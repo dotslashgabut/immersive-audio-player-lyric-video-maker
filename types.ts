@@ -84,10 +84,15 @@ export interface PlaylistItem {
 }
 
 export interface RenderConfig {
-  backgroundSource: 'timeline' | 'custom' | 'color' | 'gradient' | 'smart-gradient' | 'image' | 'video';
+  backgroundSource: 'timeline' | 'custom' | 'color' | 'gradient' | 'smart-gradient' | 'image' | 'video' | 'threejs';
   backgroundColor: string;
   backgroundGradient: string;
   backgroundImage?: string;
+  threejsScene?: 'stars' | 'cubes' | 'waves' | 'particles' | 'galaxy' | 'dna' | 'aurora' | 'matrix' | 'nebula' | 'rings' | 'tunnel' | 'warp' | 'cybergrid' | 'vortex' | 'crystals';
+  threejsSpeed?: number;
+  threejsColor?: string;
+  threejsBgColor?: string;
+  threejsCameraMovement?: boolean;
   backgroundVideo?: string; // Data URL or Blob URL for video background
   renderMode: 'current' | 'playlist';
   textAlign: 'left' | 'center' | 'right';

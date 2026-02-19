@@ -1,5 +1,6 @@
 import { LyricLine, VideoPreset, VisualSlide, AudioMetadata, RenderConfig, LyricWord } from '../types';
 import { drawVisualization, getVizParams } from './visualizationRenderer';
+import { renderThreeFrame } from './threeRenderer';
 
 export const drawCanvasFrame = (
     ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D,
@@ -927,6 +928,9 @@ export const drawCanvasFrame = (
     // Set base background - default to black for timeline/custom to avoid color leaks
     if (renderConfig && (renderConfig.backgroundSource === 'color' || renderConfig.backgroundSource === 'smart-gradient')) {
         ctx.fillStyle = renderConfig.backgroundColor || '#000000';
+    } else if (renderConfig && renderConfig.backgroundSource === 'threejs') {
+        // Use threejs specific background color or default to black (so it doesn't leak purple base)
+        ctx.fillStyle = renderConfig.threejsBgColor || '#000000';
     } else {
         ctx.fillStyle = '#000000';
     }
@@ -959,6 +963,12 @@ export const drawCanvasFrame = (
         const vid = videos.get('__custom_bg_video__');
         if (vid) {
             drawScaled(vid);
+        }
+    } else if (renderConfig?.backgroundSource === 'threejs') {
+        // Draw ThreeJS Scene
+        const threeCanvas = renderThreeFrame(time, width, height, renderConfig);
+        if (threeCanvas) {
+            ctx.drawImage(threeCanvas, 0, 0, width, height);
         }
     }
 

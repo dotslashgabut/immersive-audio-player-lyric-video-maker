@@ -11,6 +11,8 @@ import VisualEditor from './components/VisualEditor';
 import PlaylistEditor from './components/PlaylistEditor';
 import RenderSettings, { highlightEffectGroups, deriveHighlightColors, lyricDisplayGroups, textCaseOptions } from './components/RenderSettings';
 import AudioVisualizer, { disconnectVisualizerAudio } from './components/AudioVisualizer';
+import { getSharedAudioContext, getOrCreateMediaElementSource } from './utils/audioContext';
+import ThreeBackground from './components/ThreeBackground';
 import { drawCanvasFrame } from './utils/canvasRenderer';
 import { loadGoogleFonts } from './utils/fonts';
 import { PRESET_CYCLE_LIST, PRESET_DEFINITIONS, videoPresetGroups } from './utils/presets';
@@ -807,7 +809,6 @@ function App() {
     visualSlides.forEach(s => {
       if (s.type === 'video') loadPromises.push(loadVid(s.id, s.url));
       else if (s.type === 'audio') loadPromises.push(loadAudio(s.id, s.url));
-      else if (s.type === 'audio') loadPromises.push(loadAudio(s.id, s.url));
       else loadPromises.push(loadImg(s.id, s.url));
     });
 
@@ -907,11 +908,15 @@ function App() {
     // Disconnect visualizer audio before creating export AudioContext
     disconnectVisualizerAudio();
 
-    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const audioContext = getSharedAudioContext();
+    if (audioContext.state === 'suspended') {
+      await audioContext.resume();
+    }
     const mixerDest = audioContext.createMediaStreamDestination();
 
     // Connect Source to Mixer
-    const source = audioContext.createMediaElementSource(audioEl);
+    const source = getOrCreateMediaElementSource(audioEl, audioContext);
+    source.disconnect(); // Disconnect anything previous to guarantee clean slate
     source.connect(mixerDest);
 
     // Create analyser for visualization in export (tap the source → analyser → destination)
@@ -930,12 +935,14 @@ function App() {
     // Connect Preloads
     videoMap.forEach((vidElement) => {
       vidElement.muted = true;
-      const src = audioContext.createMediaElementSource(vidElement);
+      const src = getOrCreateMediaElementSource(vidElement, audioContext);
+      src.disconnect();
       src.connect(mixerDest);
     });
     audioMap.forEach((audElement) => {
       audElement.muted = true;
-      const src = audioContext.createMediaElementSource(audElement);
+      const src = getOrCreateMediaElementSource(audElement, audioContext);
+      src.disconnect();
       src.connect(mixerDest);
     });
 
@@ -1109,8 +1116,8 @@ function App() {
       if (ctx) {
         // Read visualization data if enabled
         if (exportAnalyser && exportFreqBuf && exportWaveBuf) {
-          exportAnalyser.getByteFrequencyData(exportFreqBuf);
-          exportAnalyser.getByteTimeDomainData(exportWaveBuf);
+          exportAnalyser.getByteFrequencyData(exportFreqBuf as any);
+          exportAnalyser.getByteTimeDomainData(exportWaveBuf as any);
         }
 
         drawCanvasFrame(
@@ -1131,8 +1138,8 @@ function App() {
           renderConfig,
           renderConfig.renderMode === 'current' || (queueIndex === queue.length - 1),
           renderConfig.renderMode === 'current' || (queueIndex === 0),
-          exportFreqBuf,
-          exportWaveBuf
+          exportFreqBuf as any,
+          exportWaveBuf as any
         );
       }
     };
@@ -2044,7 +2051,7 @@ function App() {
           const derived = deriveHighlightColors(nextEffectZ);
 
           setRenderConfig(prev => {
-            const newConfig = { ...prev, highlightEffect: nextEffectZ };
+            const newConfig = { ...prev, highlightEffect: nextEffectZ as any };
 
             // Auto-disable custom colors on effect switch
             newConfig.useCustomHighlightColors = false;
@@ -2400,8 +2407,8 @@ function App() {
       {/* --- Visual Layer --- */}
       <div className="absolute inset-0 bg-black overflow-hidden pointer-events-none">
         {/* 1. Base Background */}
-        {renderConfig.backgroundSource === 'color' && (
-          <div className="absolute inset-0" style={{ backgroundColor: renderConfig.backgroundColor }} />
+        {(renderConfig.backgroundSource === 'color' || renderConfig.backgroundSource === 'threejs') && (
+          <div className="absolute inset-0" style={{ backgroundColor: renderConfig.backgroundSource === 'threejs' ? (renderConfig.threejsBgColor || '#000000') : renderConfig.backgroundColor }} />
         )}
         {renderConfig.backgroundSource === 'gradient' && (
           <div className="absolute inset-0" style={{ background: renderConfig.backgroundGradient }} />
@@ -2455,8 +2462,8 @@ function App() {
         )}
 
         {/* Solid Color / Gradient / Smart Gradient Background */}
-        {renderConfig.backgroundSource === 'color' && (
-          <div className="absolute inset-0 transition-all duration-500" style={{ backgroundColor: renderConfig.backgroundColor }}></div>
+        {(renderConfig.backgroundSource === 'color' || renderConfig.backgroundSource === 'threejs') && (
+          <div className="absolute inset-0 transition-all duration-500" style={{ backgroundColor: renderConfig.backgroundSource === 'threejs' ? (renderConfig.threejsBgColor || '#000000') : renderConfig.backgroundColor }}></div>
         )}
         {renderConfig.backgroundSource === 'gradient' && (
           <div className="absolute inset-0 transition-all duration-500" style={{ background: renderConfig.backgroundGradient }}></div>
@@ -2481,6 +2488,15 @@ function App() {
         {/* Default Gradient if nothing */}
         {!metadata.coverUrl && ((renderConfig.backgroundSource === 'timeline' && visualSlides.length === 0) || renderConfig.backgroundSource === 'custom') && (
           <div className="absolute inset-0 bg-gradient-to-br from-indigo-900 via-purple-900 to-black opacity-80"></div>
+        )}
+
+        {/* ThreeJS Background */}
+        {renderConfig.backgroundSource === 'threejs' && !isRendering && (
+          <ThreeBackground
+            isPlaying={isPlaying}
+            currentTime={currentTime}
+            config={renderConfig}
+          />
         )}
 
         {/* 2. Slide Overlay */}
@@ -3357,266 +3373,252 @@ function App() {
                         // Inactive/Future state defaults
                         if (!isWordActive && !isWordPast) {
                           if (hEffect === 'karaoke-smooth-white') {
-                            wordStyle.opacity = 1;
-                            wordStyle.color = '#ffffff';
-                          } else {
-                            wordStyle.opacity = 0.5;
-                          }
-                          wordStyle.transform = 'scale(1)';
-                          // Inherit color from preset (parent <p>)
-                        } else if (isWordPast) {
-                          if (hEffect === 'karaoke-fill') {
-                            const hBg = renderConfig.highlightBackground || '#fb923c';
-                            wordStyle.backgroundColor = hBg;
-                            wordStyle.color = '#000';
-                            wordStyle.padding = '2px 6px';
-                            wordStyle.borderRadius = '4px';
-                            wordStyle.opacity = 1;
-                          } else if (hEffect === 'karaoke-smooth' || hEffect === 'karaoke-smooth-white') {
-                            wordStyle.color = renderConfig.highlightColor || '#fb923c';
-                            wordStyle.opacity = 1;
-                          } else {
-                            // Standard Karaoke:
-                            // User Request: Only highlight CURRENT word for presets (non-custom).
-                            // Custom can keep behavior or follow suit.
-                            // If NOT Custom, past words should be normal color (un-highlighted).
+                            let wordIndex = 0; // To keep track of words in line.syncData
+                            contentRender = line.text.split(/(\s+)/).map((wText, wIdx) => {
+                              const isSpace = wText.trim() === '';
+                              if (isSpace) return <span key={wIdx}>{wText}</span>;
 
-                            if (preset === 'custom') {
-                              wordStyle.color = renderConfig.fontColor;
-                            }
+                              const w = line.syncData?.[wordIndex++];
+                              const wordStyle: React.CSSProperties = { display: 'inline-block', position: 'relative' };
+                              let isWordActive = false;
 
-                            // wordStyle.color = ... (Remove this to inherit)
-                            wordStyle.opacity = 1;
-                          }
-                        }
+                              if (w && isActive) {
+                                const wStart = w.startTime;
+                                // For 'pop', we want words to pop in sequentially.
+                                // So a word is 'active' (visible or highlighted) if we've passed its start time.
+                                if (renderConfig.wordAnimation === 'pop') {
+                                  isWordActive = currentTime >= wStart;
+                                  // Default state before popping in is invisible or transparent
+                                  if (!isWordActive) {
+                                    wordStyle.opacity = 0;
+                                    wordStyle.transform = 'scale(0.8)';
+                                  } else {
+                                    // Apply popping animation when active
+                                    // We use an animation defined in index.css
+                                    wordStyle.animation = 'anim-pop-in 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards';
+                                  }
+                                } else {
+                                  isWordActive = currentTime >= wStart && currentTime <= w.endTime;
+                                }
 
-                        // Active State Per Effect
+                                const hColor = renderConfig.highlightColor || '#fb923c';
+                                const hBg = renderConfig.highlightBackground || '#fb923c';
+                                // Active State Per Effect
+                                if (isWordActive) {
 
-                        // Active State Per Effect
-                        if (isWordActive) {
-                          const hColor = renderConfig.highlightColor || '#fb923c';
-                          const hBg = renderConfig.highlightBackground || '#fb923c';
+                                  if (hEffect === 'karaoke-smooth' || hEffect === 'karaoke-smooth-white') {
+                                    const duration = w.endTime - w.startTime;
+                                    const elapsed = currentTime - wStart;
+                                    const progress = Math.min(100, Math.max(0, (elapsed / duration) * 100));
 
-                          if (hEffect === 'karaoke-smooth' || hEffect === 'karaoke-smooth-white') {
-                            const duration = w.endTime - w.startTime;
-                            const elapsed = currentTime - wStart;
-                            const progress = Math.min(100, Math.max(0, (elapsed / duration) * 100));
+                                    const targetColor = hEffect === 'karaoke-smooth-white' ? '#ffffff' : (renderConfig.fontColor || '#ffffff');
+                                    wordStyle.backgroundImage = `linear-gradient(90deg, ${hColor} ${progress}%, ${targetColor} ${progress}%)`;
+                                    wordStyle.backgroundClip = 'text';
+                                    wordStyle.WebkitBackgroundClip = 'text';
+                                    wordStyle.color = 'transparent';
+                                    wordStyle.WebkitTextFillColor = 'transparent';
+                                    wordStyle.textShadow = 'none';
+                                  } else if (hEffect === 'karaoke' || hEffect === 'color') {
+                                    wordStyle.color = hColor;
+                                    wordStyle.textShadow = `0 0 10px ${hColor}`;
+                                  } else if (hEffect === 'karaoke-neon') {
+                                    wordStyle.color = '#fff';
+                                    wordStyle.textShadow = `0 0 5px #fff, 0 0 10px #fff, 0 0 20px ${hColor}, 0 0 35px ${hColor}`;
+                                  } else if (hEffect === 'karaoke-scale') {
+                                    wordStyle.color = hColor;
+                                    wordStyle.transform = 'scale(1.3)';
+                                  } else if (hEffect === 'karaoke-underline') {
+                                    wordStyle.color = hColor;
+                                    wordStyle.textDecoration = (wordStyle.textDecoration || '') + ' underline';
+                                    wordStyle.textDecorationColor = hColor;
+                                    wordStyle.textUnderlineOffset = '4px';
+                                  } else if (hEffect === 'karaoke-bounce') {
+                                    wordStyle.color = hColor;
+                                    wordStyle.transform = 'translateY(-10px)';
+                                  } else if (hEffect === 'karaoke-fill') {
+                                    wordStyle.backgroundColor = hBg;
+                                    wordStyle.color = '#000';
+                                    wordStyle.padding = '2px 6px';
+                                    wordStyle.borderRadius = '4px';
+                                  } else if (hEffect === 'karaoke-outline') {
+                                    wordStyle.color = 'transparent';
+                                    wordStyle.WebkitTextStroke = `2px ${hColor}`;
+                                  } else if (hEffect === 'karaoke-shadow') {
+                                    wordStyle.color = hColor;
+                                    wordStyle.textShadow = '3px 3px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000';
+                                  } else if (hEffect === 'karaoke-gradient') {
+                                    wordStyle.background = `linear-gradient(90deg, ${hColor}, ${hBg})`;
+                                    wordStyle.WebkitBackgroundClip = 'text';
+                                    wordStyle.WebkitTextFillColor = 'transparent';
+                                  } else if (hEffect === 'karaoke-wave') {
+                                    wordStyle.color = hColor;
+                                    wordStyle.animation = 'bounce 0.3s ease infinite';
+                                  } else if (hEffect === 'karaoke-pill') {
+                                    wordStyle.backgroundColor = hBg;
+                                    wordStyle.color = '#000';
+                                    wordStyle.padding = '4px 16px';
+                                    wordStyle.borderRadius = '9999px';
+                                  } else if (hEffect === 'karaoke-box') {
+                                    wordStyle.backgroundColor = hBg;
+                                    wordStyle.color = '#000';
+                                    wordStyle.padding = '4px 8px';
+                                    wordStyle.borderRadius = '0';
+                                  } else if (hEffect === 'karaoke-rounded') {
+                                    wordStyle.backgroundColor = hBg;
+                                    wordStyle.color = '#000';
+                                    wordStyle.padding = '4px 12px';
+                                    wordStyle.borderRadius = '12px';
+                                  } else if (hEffect === 'karaoke-glass') {
+                                    // Glass Effect
+                                    wordStyle.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+                                    wordStyle.color = '#fff';
+                                    wordStyle.padding = '4px 12px';
+                                    wordStyle.borderRadius = '8px';
+                                    wordStyle.backdropFilter = 'blur(4px)';
+                                    wordStyle.border = '1px solid rgba(255, 255, 255, 0.3)';
+                                    wordStyle.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.1)';
+                                  } else if (hEffect === 'karaoke-neon-multi') {
+                                    wordStyle.color = '#fff';
+                                    wordStyle.textShadow = '0 0 5px #fff, 0 0 10px #fff, 0 0 20px #ff00de, 0 0 35px #00ffff, 0 0 40px #ff00de';
+                                  } else if (hEffect === 'karaoke-soft-glow') {
+                                    wordStyle.color = hColor;
+                                    wordStyle.textShadow = `0 0 5px ${hColor}, 0 0 15px ${hColor}, 0 0 30px ${hColor}`;
+                                  } else if (hEffect === 'karaoke-3d') {
+                                    wordStyle.textShadow = `1px 1px 0px #ccc, 2px 2px 0px #bbb, 3px 3px 0px #aaa, 4px 4px 0px rgba(0,0,0,0.5)`;
+                                  } else if (hEffect === 'karaoke-emboss') {
+                                    wordStyle.color = '#ebebeb';
+                                    wordStyle.textShadow = '1px 2px 3px rgba(255,255,255,0.8), -1px -2px 3px rgba(0,0,0,0.8)';
+                                  } else if (hEffect === 'karaoke-chrome') {
+                                    wordStyle.background = 'linear-gradient(to bottom, #ebebeb 50%, #616161 50%, #ebebeb)';
+                                    (wordStyle as any).WebkitBackgroundClip = 'text';
+                                    wordStyle.color = 'transparent';
+                                  } else if (hEffect === 'karaoke-gold') {
+                                    wordStyle.background = 'linear-gradient(to bottom, #d4af37, #C5A028)';
+                                    (wordStyle as any).WebkitBackgroundClip = 'text';
+                                    wordStyle.color = 'transparent';
+                                  } else if (hEffect === 'karaoke-fire') {
+                                    wordStyle.color = '#fff';
+                                    wordStyle.textShadow = '0 -5px 4px #FFC107, 2px -10px 6px #FF9800, -2px -15px 11px #FF5722, 2px -25px 18px #795548';
+                                  } else if (hEffect === 'karaoke-frozen') {
+                                    wordStyle.color = '#fff';
+                                    wordStyle.textShadow = '0 0 5px rgba(255,255,255,0.8), 0 0 10px rgba(255,255,255,0.5), 0 0 20px #03A9F4, 0 0 30px #03A9F4';
+                                  } else if (hEffect === 'karaoke-rainbow') {
+                                    wordStyle.background = 'linear-gradient(to left, violet, indigo, blue, green, yellow, orange, red)';
+                                    (wordStyle as any).WebkitBackgroundClip = 'text';
+                                    wordStyle.color = 'transparent';
+                                  } else if (hEffect === 'karaoke-mirror') {
+                                    wordStyle.transform = 'scaleY(1.3) perspective(500px) rotateX(-10deg)';
+                                    wordStyle.textShadow = '0 15px 5px rgba(0,0,0,0.1), 0 -1px 3px rgba(0,0,0,0.3)';
+                                  } else if (hEffect === 'karaoke-vhs') {
+                                    wordStyle.textShadow = '2px 0 0 rgba(255,0,0,0.7), -2px 0 0 rgba(0,0,255,0.7)';
+                                  } else if (hEffect === 'karaoke-retro') {
+                                    wordStyle.fontFamily = "'Press Start 2P', cursive";
+                                    wordStyle.color = '#ff00ff';
+                                    wordStyle.textShadow = '4px 4px 0px #00ffff';
+                                  } else if (hEffect === 'karaoke-cyberpunk') {
+                                    wordStyle.color = '#fcee0a';
+                                    wordStyle.textShadow = '2px 2px 0px #000, -1px -1px 0 #05d9e8';
+                                    wordStyle.fontFamily = "'Orbitron', sans-serif";
+                                  } else if (hEffect === 'karaoke-hologram') {
+                                    wordStyle.color = 'rgba(0, 255, 255, 0.7)';
+                                    wordStyle.textShadow = '0 0 5px rgba(0,255,255,0.5)';
+                                  } else if (hEffect === 'karaoke-comic') {
+                                    wordStyle.fontFamily = "'Bangers', cursive";
+                                    wordStyle.color = '#ffcc00';
+                                    wordStyle.textShadow = '2px 2px 0px #000, -1px -1px 0 #000';
+                                  } else if (hEffect === 'karaoke-glitch-text') {
+                                    wordStyle.animation = 'anim-glitch 0.4s infinite linear';
+                                  } else if (hEffect === 'karaoke-pulse') {
+                                    wordStyle.animation = 'anim-pulse 1s infinite ease-in-out';
+                                  } else if (hEffect === 'karaoke-breathe') {
+                                    wordStyle.animation = 'anim-breathe 2s infinite ease-in-out';
+                                  } else if (hEffect === 'karaoke-float') {
+                                    wordStyle.animation = 'anim-float 2s infinite ease-in-out';
+                                  } else if (hEffect === 'karaoke-sway') {
+                                    wordStyle.animation = 'anim-sway 2s infinite ease-in-out';
+                                  } else if (hEffect === 'karaoke-flicker') {
+                                    wordStyle.animation = 'anim-flicker 2s infinite linear';
+                                  } else if (hEffect === 'karaoke-shake') {
+                                    wordStyle.animation = 'anim-shake 0.2s infinite linear';
+                                  } else if (hEffect === 'karaoke-wobble') {
+                                    wordStyle.animation = 'anim-wobble 1s infinite ease-in-out';
+                                  } else if (hEffect === 'karaoke-jello') {
+                                    wordStyle.animation = 'anim-jello 1s infinite';
+                                  } else if (hEffect === 'karaoke-rubberband') {
+                                    wordStyle.animation = 'anim-rubberband 1s infinite';
+                                  } else if (hEffect === 'karaoke-heartbeat') {
+                                    wordStyle.animation = 'anim-heartbeat 1.3s infinite ease-in-out';
+                                  } else if (hEffect === 'karaoke-flash') {
+                                    wordStyle.animation = 'anim-flash 1s infinite';
+                                  } else if (hEffect === 'karaoke-tada') {
+                                    wordStyle.animation = 'anim-tada 1s infinite';
+                                  } else if (hEffect === 'karaoke-swing') {
+                                    wordStyle.animation = 'anim-swing 2s infinite';
+                                  } else if (hEffect === 'karaoke-rotate') {
+                                    wordStyle.animation = 'anim-rotate 4s infinite linear';
+                                  } else if (hEffect === 'karaoke-spin') {
+                                    wordStyle.animation = 'anim-rotate 1s infinite linear';
+                                  } else if (hEffect === 'karaoke-glitch') {
+                                    wordStyle.animation = 'anim-glitch 0.3s infinite linear';
+                                  } else if (hEffect === 'karaoke-typewriter') {
+                                    // Web Preview Approximation using clip-path steps
+                                    wordStyle.animation = 'typewriter-reveal 0.5s steps(10, end) forwards';
+                                    wordStyle.whiteSpace = 'nowrap';
+                                    wordStyle.overflow = 'hidden';
+                                    wordStyle.display = 'inline-block';
+                                    wordStyle.verticalAlign = 'bottom';
+                                    // Note: steps(10) is an approximation since we don't know char count here easily without more logic.
+                                    // Ideally this would be dynamic style based on word length.
+                                  }
+                                } else if (hEffect as string === 'karaoke-fade') {
+                                  wordStyle.animation = 'trans-fade-in 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards';
+                                } else if (hEffect as string === 'karaoke-slide') {
+                                  wordStyle.animation = 'trans-slide-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards';
+                                } else if (hEffect as string === 'karaoke-drop') {
+                                  wordStyle.animation = 'trans-drop-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards';
+                                } else if (hEffect as string === 'karaoke-lightspeed') {
+                                  wordStyle.animation = 'trans-lightspeed-in 0.5s ease-out forwards';
+                                } else if (hEffect as string === 'karaoke-roll') {
+                                  wordStyle.animation = 'trans-roll-in 0.5s ease-out forwards';
+                                } else if (hEffect as string === 'karaoke-zoom') {
+                                  wordStyle.animation = 'trans-zoom-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards';
+                                } else if (hEffect as string === 'karaoke-elastic') {
+                                  wordStyle.animation = 'trans-elastic-in 0.7s ease-out forwards';
+                                } else if (hEffect as string === 'karaoke-scale-rotate') {
+                                  wordStyle.animation = 'trans-scale-rotate-in 0.5s ease-out forwards';
+                                } else if (hEffect as string === 'karaoke-flip') {
+                                  wordStyle.animation = 'trans-flip-in 0.5s ease-out forwards';
+                                } else if (hEffect as string === 'karaoke-rotate-in') {
+                                  wordStyle.animation = 'trans-rotate-in 0.5s ease-out forwards';
+                                } else if (hEffect as string === 'karaoke-spiral') {
+                                  wordStyle.animation = 'trans-spiral-in 0.6s ease-out forwards';
+                                } else if (hEffect as string === 'karaoke-blur') {
+                                  wordStyle.animation = 'trans-blur-in 0.4s ease-out forwards';
+                                } else if (hEffect as string === 'karaoke-shatter') {
+                                  wordStyle.animation = 'trans-shatter-in 0.5s ease-out forwards';
+                                } else if (['karaoke-blue', 'karaoke-purple', 'karaoke-green', 'karaoke-pink', 'karaoke-cyan', 'karaoke-glow-blue', 'karaoke-glow-pink'].includes(hEffect || '')) {
+                                  wordStyle.color = hColor;
+                                  wordStyle.textShadow = `0 0 10px ${hColor}`;
+                                  if (hEffect?.includes('glow')) {
+                                    wordStyle.textShadow = `0 0 5px ${hColor}, 0 0 15px ${hColor}, 0 0 30px ${hColor}`;
+                                  }
+                                }
+                              } // End of isWordActive styling
 
-                            const targetColor = hEffect === 'karaoke-smooth-white' ? '#ffffff' : (renderConfig.fontColor || '#ffffff');
-                            wordStyle.backgroundImage = `linear-gradient(90deg, ${hColor} ${progress}%, ${targetColor} ${progress}%)`;
-                            wordStyle.backgroundClip = 'text';
-                            wordStyle.WebkitBackgroundClip = 'text';
-                            wordStyle.color = 'transparent';
-                            wordStyle.WebkitTextFillColor = 'transparent';
-                            wordStyle.textShadow = 'none';
-                          } else if (hEffect === 'karaoke' || hEffect === 'color') {
-                            wordStyle.color = hColor;
-                            wordStyle.textShadow = `0 0 10px ${hColor}`;
-                          } else if (hEffect === 'karaoke-neon') {
-                            wordStyle.color = '#fff';
-                            wordStyle.textShadow = `0 0 5px #fff, 0 0 10px #fff, 0 0 20px ${hColor}, 0 0 35px ${hColor}`;
-                          } else if (hEffect === 'karaoke-scale') {
-                            wordStyle.color = hColor;
-                            wordStyle.transform = 'scale(1.3)';
-                          } else if (hEffect === 'karaoke-underline') {
-                            wordStyle.color = hColor;
-                            wordStyle.textDecoration = (wordStyle.textDecoration || '') + ' underline';
-                            wordStyle.textDecorationColor = hColor;
-                            wordStyle.textUnderlineOffset = '4px';
-                          } else if (hEffect === 'karaoke-bounce') {
-                            wordStyle.color = hColor;
-                            wordStyle.transform = 'translateY(-10px)';
-                          } else if (hEffect === 'karaoke-fill') {
-                            wordStyle.backgroundColor = hBg;
-                            wordStyle.color = '#000';
-                            wordStyle.padding = '2px 6px';
-                            wordStyle.borderRadius = '4px';
-                          } else if (hEffect === 'karaoke-outline') {
-                            wordStyle.color = 'transparent';
-                            wordStyle.WebkitTextStroke = `2px ${hColor}`;
-                          } else if (hEffect === 'karaoke-shadow') {
-                            wordStyle.color = hColor;
-                            wordStyle.textShadow = '3px 3px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000';
-                          } else if (hEffect === 'karaoke-gradient') {
-                            wordStyle.background = `linear-gradient(90deg, ${hColor}, ${hBg})`;
-                            wordStyle.WebkitBackgroundClip = 'text';
-                            wordStyle.WebkitTextFillColor = 'transparent';
-                          } else if (hEffect === 'karaoke-wave') {
-                            wordStyle.color = hColor;
-                            wordStyle.animation = 'bounce 0.3s ease infinite';
-                          } else if (hEffect === 'karaoke-pill') {
-                            wordStyle.backgroundColor = hBg;
-                            wordStyle.color = '#000';
-                            wordStyle.padding = '4px 16px';
-                            wordStyle.borderRadius = '9999px';
-                          } else if (hEffect === 'karaoke-box') {
-                            wordStyle.backgroundColor = hBg;
-                            wordStyle.color = '#000';
-                            wordStyle.padding = '4px 8px';
-                            wordStyle.borderRadius = '0';
-                          } else if (hEffect === 'karaoke-rounded') {
-                            wordStyle.backgroundColor = hBg;
-                            wordStyle.color = '#000';
-                            wordStyle.padding = '4px 12px';
-                            wordStyle.padding = '4px 12px';
-                            wordStyle.borderRadius = '12px';
-                          } else if (hEffect === 'karaoke-glass') {
-                            // Glass Effect
-                            wordStyle.backgroundColor = 'rgba(255, 255, 255, 0.1)';
-                            wordStyle.color = '#fff';
-                            wordStyle.padding = '4px 12px';
-                            wordStyle.borderRadius = '8px';
-                            wordStyle.backdropFilter = 'blur(4px)';
-                            wordStyle.border = '1px solid rgba(255, 255, 255, 0.3)';
-                            wordStyle.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.1)';
-                          } else if (hEffect === 'karaoke-neon-multi') {
-                            wordStyle.color = '#fff';
-                            wordStyle.textShadow = '0 0 5px #fff, 0 0 10px #fff, 0 0 20px #ff00de, 0 0 35px #00ffff, 0 0 40px #ff00de';
-                          } else if (hEffect === 'karaoke-soft-glow') {
-                            wordStyle.color = hColor;
-                            wordStyle.textShadow = `0 0 5px ${hColor}, 0 0 15px ${hColor}, 0 0 30px ${hColor}`;
-                          } else if (hEffect === 'karaoke-3d') {
-                            wordStyle.textShadow = `1px 1px 0px #ccc, 2px 2px 0px #bbb, 3px 3px 0px #aaa, 4px 4px 0px rgba(0,0,0,0.5)`;
-                          } else if (hEffect === 'karaoke-emboss') {
-                            wordStyle.color = '#ebebeb';
-                            wordStyle.textShadow = '1px 2px 3px rgba(255,255,255,0.8), -1px -2px 3px rgba(0,0,0,0.8)';
-                          } else if (hEffect === 'karaoke-chrome') {
-                            wordStyle.background = 'linear-gradient(to bottom, #ebebeb 50%, #616161 50%, #ebebeb)';
-                            (wordStyle as any).WebkitBackgroundClip = 'text';
-                            wordStyle.color = 'transparent';
-                          } else if (hEffect === 'karaoke-gold') {
-                            wordStyle.background = 'linear-gradient(to bottom, #d4af37, #C5A028)';
-                            (wordStyle as any).WebkitBackgroundClip = 'text';
-                            wordStyle.color = 'transparent';
-                          } else if (hEffect === 'karaoke-fire') {
-                            wordStyle.color = '#fff';
-                            wordStyle.textShadow = '0 -5px 4px #FFC107, 2px -10px 6px #FF9800, -2px -15px 11px #FF5722, 2px -25px 18px #795548';
-                          } else if (hEffect === 'karaoke-frozen') {
-                            wordStyle.color = '#fff';
-                            wordStyle.textShadow = '0 0 5px rgba(255,255,255,0.8), 0 0 10px rgba(255,255,255,0.5), 0 0 20px #03A9F4, 0 0 30px #03A9F4';
-                          } else if (hEffect === 'karaoke-rainbow') {
-                            wordStyle.background = 'linear-gradient(to left, violet, indigo, blue, green, yellow, orange, red)';
-                            (wordStyle as any).WebkitBackgroundClip = 'text';
-                            wordStyle.color = 'transparent';
-                          } else if (hEffect === 'karaoke-mirror') {
-                            wordStyle.transform = 'scaleY(1.3) perspective(500px) rotateX(-10deg)';
-                            wordStyle.textShadow = '0 15px 5px rgba(0,0,0,0.1), 0 -1px 3px rgba(0,0,0,0.3)';
-                          } else if (hEffect === 'karaoke-vhs') {
-                            wordStyle.textShadow = '2px 0 0 rgba(255,0,0,0.7), -2px 0 0 rgba(0,0,255,0.7)';
-                          } else if (hEffect === 'karaoke-retro') {
-                            wordStyle.fontFamily = "'Press Start 2P', cursive";
-                            wordStyle.color = '#ff00ff';
-                            wordStyle.textShadow = '4px 4px 0px #00ffff';
-                          } else if (hEffect === 'karaoke-cyberpunk') {
-                            wordStyle.color = '#fcee0a';
-                            wordStyle.textShadow = '2px 2px 0px #000, -1px -1px 0 #05d9e8';
-                            wordStyle.fontFamily = "'Orbitron', sans-serif";
-                          } else if (hEffect === 'karaoke-hologram') {
-                            wordStyle.color = 'rgba(0, 255, 255, 0.7)';
-                            wordStyle.textShadow = '0 0 5px rgba(0,255,255,0.5)';
-                          } else if (hEffect === 'karaoke-comic') {
-                            wordStyle.fontFamily = "'Bangers', cursive";
-                            wordStyle.color = '#ffcc00';
-                            wordStyle.textShadow = '2px 2px 0px #000, -1px -1px 0 #000';
-                          } else if (hEffect === 'karaoke-glitch-text') {
-                            wordStyle.animation = 'anim-glitch 0.4s infinite linear';
-                          } else if (hEffect === 'karaoke-pulse') {
-                            wordStyle.animation = 'anim-pulse 1s infinite ease-in-out';
-                          } else if (hEffect === 'karaoke-breathe') {
-                            wordStyle.animation = 'anim-breathe 2s infinite ease-in-out';
-                          } else if (hEffect === 'karaoke-float') {
-                            wordStyle.animation = 'anim-float 2s infinite ease-in-out';
-                          } else if (hEffect === 'karaoke-sway') {
-                            wordStyle.animation = 'anim-sway 2s infinite ease-in-out';
-                          } else if (hEffect === 'karaoke-flicker') {
-                            wordStyle.animation = 'anim-flicker 2s infinite linear';
-                          } else if (hEffect === 'karaoke-shake') {
-                            wordStyle.animation = 'anim-shake 0.2s infinite linear';
-                          } else if (hEffect === 'karaoke-wobble') {
-                            wordStyle.animation = 'anim-wobble 1s infinite ease-in-out';
-                          } else if (hEffect === 'karaoke-jello') {
-                            wordStyle.animation = 'anim-jello 1s infinite';
-                          } else if (hEffect === 'karaoke-rubberband') {
-                            wordStyle.animation = 'anim-rubberband 1s infinite';
-                          } else if (hEffect === 'karaoke-heartbeat') {
-                            wordStyle.animation = 'anim-heartbeat 1.3s infinite ease-in-out';
-                          } else if (hEffect === 'karaoke-flash') {
-                            wordStyle.animation = 'anim-flash 1s infinite';
-                          } else if (hEffect === 'karaoke-tada') {
-                            wordStyle.animation = 'anim-tada 1s infinite';
-                          } else if (hEffect === 'karaoke-swing') {
-                            wordStyle.animation = 'anim-swing 2s infinite';
-                          } else if (hEffect === 'karaoke-rotate') {
-                            wordStyle.animation = 'anim-rotate 4s infinite linear';
-                          } else if (hEffect === 'karaoke-spin') {
-                            wordStyle.animation = 'anim-rotate 1s infinite linear';
-                          } else if (hEffect === 'karaoke-glitch') {
-                            wordStyle.animation = 'anim-glitch 0.3s infinite linear';
-                          } else if (hEffect === 'karaoke-typewriter') {
-                            // Web Preview Approximation using clip-path steps
-                            wordStyle.animation = 'typewriter-reveal 0.5s steps(10, end) forwards';
-                            wordStyle.whiteSpace = 'nowrap';
-                            wordStyle.overflow = 'hidden';
-                            wordStyle.display = 'inline-block';
-                            wordStyle.verticalAlign = 'bottom';
-                            // Note: steps(10) is an approximation since we don't know char count here easily without more logic.
-                            // Ideally this would be dynamic style based on word length.
-                          }
-                          else if (hEffect === 'karaoke-fade') {
-                            wordStyle.animation = 'trans-fade-in 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards';
-                          } else if (hEffect === 'karaoke-slide') {
-                            wordStyle.animation = 'trans-slide-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards';
-                          } else if (hEffect === 'karaoke-drop') {
-                            wordStyle.animation = 'trans-drop-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards';
-                          } else if (hEffect === 'karaoke-lightspeed') {
-                            wordStyle.animation = 'trans-lightspeed-in 0.5s ease-out forwards';
-                          } else if (hEffect === 'karaoke-roll') {
-                            wordStyle.animation = 'trans-roll-in 0.5s ease-out forwards';
-                          } else if (hEffect === 'karaoke-zoom') {
-                            wordStyle.animation = 'trans-zoom-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards';
-                          } else if (hEffect === 'karaoke-elastic') {
-                            wordStyle.animation = 'trans-elastic-in 0.7s ease-out forwards';
-                          } else if (hEffect === 'karaoke-scale-rotate') {
-                            wordStyle.animation = 'trans-scale-rotate-in 0.5s ease-out forwards';
-                          } else if (hEffect === 'karaoke-flip') {
-                            wordStyle.animation = 'trans-flip-in 0.5s ease-out forwards';
-                          } else if (hEffect === 'karaoke-rotate-in') {
-                            wordStyle.animation = 'trans-rotate-in 0.5s ease-out forwards';
-                          } else if (hEffect === 'karaoke-spiral') {
-                            wordStyle.animation = 'trans-spiral-in 0.6s ease-out forwards';
-                          } else if (hEffect === 'karaoke-blur') {
-                            wordStyle.animation = 'trans-blur-in 0.4s ease-out forwards';
-                          } else if (hEffect === 'karaoke-shatter') {
-                            wordStyle.animation = 'trans-shatter-in 0.5s ease-out forwards';
-                          }
+                              const element = (
+                                <span key={wIdx} className="inline-block" style={wordStyle}>
+                                  {wText}
+                                </span>
+                              );
 
-                          // Handle legacy color names by mapping them to use the custom color if user wants, 
-                          // or keep them hardcoded. For now, let's make them respect the custom color 
-                          // effectively treating the preset name as just a "style" of effect but allowing color override.
-                          // However, to keep it simple, I'll update the explicit color ones to use defaults BUT
-                          // since the user now has a color picker, they probably want that color to apply everywhere.
-                          // I will update the "karaoke-blue", "purple" etc to just be aliases for standard colored styling
-                          // but using the user's SELECTED color if they changed it, or defaults if they didn't.
-                          // actually, the prompt implies "pilihlah highlight effect ini untuk mengatur highlight font"
-                          // so all effects should respect the color picker.
-
-                          else if (['karaoke-blue', 'karaoke-purple', 'karaoke-green', 'karaoke-pink', 'karaoke-cyan', 'karaoke-glow-blue', 'karaoke-glow-pink'].includes(hEffect || '')) {
-                            wordStyle.color = hColor;
-                            wordStyle.textShadow = `0 0 10px ${hColor}`;
-                            if (hEffect?.includes('glow')) {
-                              wordStyle.textShadow = `0 0 5px ${hColor}, 0 0 15px ${hColor}, 0 0 30px ${hColor}`;
-                            }
+                              // If we encountered a space (which we bypassed earlier to preserve sequence, or if we have general terms), 
+                              // we need to make sure we render the space. But here we assume the regex kept space as empty string tokens.
+                              return element; // we handle spaces earlier, assuming split logic keeps them
+                            }); // End of map
                           }
                         }
-
-                        const element = (
-                          <span key={wIdx} className="inline-block" style={wordStyle}>
-                            {wText}
-                          </span>
-                        );
-
-                        return shouldAddSpace ? <React.Fragment key={wIdx}>{element}{' '}</React.Fragment> : element;
-                      });
+                        return <span key={wIdx} className="inline-block" style={wordStyle}>{wText}{shouldAddSpace ? '\u00A0' : ''}</span>;
+                      }); // end of words map
                   } else if (hEffect === 'karaoke' || hEffect?.startsWith('karaoke-')) {
                     // Fallback Karaoke (Line Fill)
                     const hColor = renderConfig.highlightColor || '#fb923c';
@@ -3624,7 +3626,7 @@ function App() {
 
                     textEffectStyles.color = hColor;
 
-                    if (hEffect === 'karaoke-neon') textEffectStyles.textShadow = `0 0 10px ${hColor}, 0 0 20px ${hColor}`; // Simplify fallback neon
+                    if (hEffect === 'karaoke-neon') textEffectStyles.textShadow = `0 0 10px ${hColor}, 0 0 20px ${hColor}`;
                     if (hEffect === 'karaoke-scale') textEffectStyles.transform = (textEffectStyles.transform || '') + ' scale(1.1)';
                     if (hEffect === 'karaoke-underline') textEffectStyles.textDecoration = 'underline';
                     if (hEffect === 'karaoke-bounce') textEffectStyles.transform = (textEffectStyles.transform || '') + ' translateY(-5px)';
@@ -3675,7 +3677,8 @@ function App() {
                     </span>
                   </p>
                 );
-              })}
+              })
+              }
               <div className={`transition-all duration-500 ${renderConfig.contentPosition === 'center' ? ((activeTab === TabView.EDITOR || isPlaylistMode) ? 'h-[25vh]' : (!isHeaderVisible && !isFooterVisible) ? 'h-[50vh]' : 'h-[40vh]') : 'h-0'}`}></div>
             </div>
           ) : (

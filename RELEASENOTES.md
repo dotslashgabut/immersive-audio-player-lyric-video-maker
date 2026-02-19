@@ -1,5 +1,19 @@
 # Release Notes
 
+# 2.3.12
+
+## What's New
+- **Three.js 3D Backgrounds** *(New Feature)*:
+  - **15 Animated 3D Scenes**: A brand-new background source option — "Three.js 3D Background" — powered by WebGL via **Three.js**. Choose from: **Stars**, **Cubes**, **Waves**, **Particles**, **Galaxy**, **DNA Helix**, **Aurora**, **Matrix**, **Nebula**, **Rings**, **Tunnel**, **Warp**, **CyberGrid**, **Vortex**, and **Crystals**.
+  - **Full Customization**: Control **Theme Color**, **Background Color**, **Animation Speed**, and toggle **Auto Camera Movement** for each scene.
+  - **Cinematic Camera**: Each scene has a unique, smooth cinematic camera path that continuously orbits, pans, or dives through the 3D environment when Auto Camera Movement is enabled.
+  - **Live & Export**: The 3D background renders in the live web player via the new `ThreeBackground` component. During video export (WebCodecs/FFmpeg), frames are composited directly via `threeRenderer.ts`.
+  - **GPU Memory Management**: Scene objects are properly disposed (geometries, materials) when switching scenes or unmounting, preventing GPU memory leaks.
+- **Shared AudioContext** *(Bug Fix)*:
+  - Introduced `utils/audioContext.ts` — a module-level singleton `AudioContext` and a `WeakMap`-based `MediaElementAudioSourceNode` cache. This permanently fixes the `InvalidStateError: Failed to execute 'createMediaElementSource' on 'AudioContext'` crash that occurred when switching tracks or restarting renders.
+  - The `AudioVisualizer`, `MediaRecorder` export, and all timeline audio sources now share the same `AudioContext` and reuse source nodes correctly.
+
+
 # 2.3.11
 
 ## What's New
