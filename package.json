@@ -1,7 +1,7 @@
 {
   "name": "immersive-audio-player",
   "private": true,
-  "version": "2.3.11",
+  "version": "2.3.12",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -31,6 +31,7 @@
     "vite-plugin-pwa": "^1.2.0"
   },
   "overrides": {
+    "minimatch": "^10.2.1",
     "sourcemap-codec": "npm:@jridgewell/sourcemap-codec@^1.4.15",
     "rollup": {
       "source-map": "0.7.4"

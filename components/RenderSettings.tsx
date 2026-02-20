@@ -449,7 +449,41 @@ const backgroundSourceGroups = [
             { label: "Gradient (Manual)", value: "gradient" },
             { label: "Solid Color", value: "color" },
             { label: "Custom Image", value: "image" },
-            { label: "Custom Video (Loops)", value: "video" }
+            { label: "Custom Video (Loops)", value: "video" },
+            { label: "Three.js 3D Background", value: "threejs" }
+        ]
+    }
+];
+
+export const threejsSceneGroups = [
+    {
+        label: "Classic",
+        options: [
+            { label: "✦ Stars", value: "stars" },
+            { label: "◇ Rotating Cubes", value: "cubes" },
+            { label: "≈ Wireframe Waves", value: "waves" },
+            { label: "● Particle Flow", value: "particles" }
+        ]
+    },
+    {
+        label: "Cosmic",
+        options: [
+            { label: "🌀 Spiral Galaxy", value: "galaxy" },
+            { label: "☁ Cosmic Nebula", value: "nebula" },
+            { label: "🌌 Aurora Borealis", value: "aurora" },
+            { label: "🚀 Warp Speed", value: "warp" },
+            { label: "🌪 Particle Vortex", value: "vortex" }
+        ]
+    },
+    {
+        label: "Sci-Fi",
+        options: [
+            { label: "🧬 DNA Helix", value: "dna" },
+            { label: "▓ Matrix Rain", value: "matrix" },
+            { label: "◎ Saturn Rings", value: "rings" },
+            { label: "🚇 Infinity Tunnel", value: "tunnel" },
+            { label: "🌐 Cyber Grid", value: "cybergrid" },
+            { label: "💎 Geometric Crystals", value: "crystals" }
         ]
     }
 ];
@@ -805,6 +839,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
     const backgroundVideoInputRef = useRef<HTMLInputElement>(null);
     const settingsInputRef = useRef<HTMLInputElement>(null);
     const [showShortcuts, setShowShortcuts] = useState(false);
+    const [importedFileName, setImportedFileName] = useState<string | null>(null);
 
 
     const handleChange = (key: keyof RenderConfig, value: any) => {
@@ -932,7 +967,11 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
     };
 
     const handleReset = async () => {
-        if (await confirm('Reset all render settings, including styles and watermark, to default values?', "Reset All Settings")) {
+        const confirmed = await confirm(
+            'This will reset ALL settings to factory defaults:\n\n• Visual preset → Default\n• Background, fonts & colors\n• Text effects, animations & transitions\n• Song info, watermark & visualization\n• Output: 1080p, 30fps, MediaRecorder\n\nThis cannot be undone.',
+            'Reset All Settings to Default'
+        );
+        if (confirmed) {
             setConfig(DEFAULT_CONFIG);
             setPreset('default');
             setResolution('1080p');
@@ -947,38 +986,127 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
             if (channelImageInputRef.current) channelImageInputRef.current.value = '';
             if (backgroundImageInputRef.current) backgroundImageInputRef.current.value = '';
             if (backgroundVideoInputRef.current) backgroundVideoInputRef.current.value = '';
+            if (settingsInputRef.current) settingsInputRef.current.value = '';
 
             // Reset Custom Font
             onClearCustomFont();
             if (onClearChannelCustomFont) onClearChannelCustomFont();
             if (onClearInfoCustomFont) onClearInfoCustomFont();
 
-            // Reset Font Inputs
-            if (config.channelInfoFontFamily === 'ChannelFont' && channelFontInputRef.current) channelFontInputRef.current.value = '';
-            if (config.infoFontFamily === 'InfoFont' && infoFontInputRef.current) infoFontInputRef.current.value = '';
+            // Reset Font File Inputs
+            if (fontInputRef.current) fontInputRef.current.value = '';
+            if (channelFontInputRef.current) channelFontInputRef.current.value = '';
+            if (infoFontInputRef.current) infoFontInputRef.current.value = '';
 
-
-
-            toast.success("All settings have been reset to default.");
+            setImportedFileName(null);
+            toast.success('All settings have been reset to default.');
         }
     };
 
     const handleExportSettings = () => {
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-        const exportData = {
-            ...config,
-            // Fix potential floating point precision issues in export
-            fontSizeScale: typeof config.fontSizeScale === 'number' ? Number(config.fontSizeScale.toFixed(6)) : config.fontSizeScale,
-            infoSizeScale: typeof config.infoSizeScale === 'number' ? Number(config.infoSizeScale.toFixed(6)) : config.infoSizeScale,
-            infoMarginScale: typeof config.infoMarginScale === 'number' ? Number(config.infoMarginScale.toFixed(6)) : config.infoMarginScale,
-            channelInfoSizeScale: typeof config.channelInfoSizeScale === 'number' ? Number(config.channelInfoSizeScale.toFixed(6)) : config.channelInfoSizeScale,
-            channelInfoMarginScale: typeof config.channelInfoMarginScale === 'number' ? Number(config.channelInfoMarginScale.toFixed(6)) : config.channelInfoMarginScale,
-            marginTopScale: typeof config.marginTopScale === 'number' ? Number(config.marginTopScale.toFixed(6)) : config.marginTopScale,
-            marginBottomScale: typeof config.marginBottomScale === 'number' ? Number(config.marginBottomScale.toFixed(6)) : config.marginBottomScale,
-            visualizationOpacity: typeof config.visualizationOpacity === 'number' ? Number(config.visualizationOpacity.toFixed(4)) : config.visualizationOpacity,
-            visualizationSensitivity: typeof config.visualizationSensitivity === 'number' ? Number(config.visualizationSensitivity.toFixed(4)) : config.visualizationSensitivity,
+        const now = new Date();
+        const timestamp = now.toISOString().replace(/[:.]/g, '-').slice(0, 19);
 
-            preset, // Include preset in export
+        const fix = (v: unknown, digits = 6) =>
+            typeof v === 'number' ? Number(v.toFixed(digits)) : v;
+
+        // ── Resolve real font name + source type for each slot ───────────────
+        // fontFamily / channelInfoFontFamily / infoFontFamily store a CSS
+        // placeholder name when a custom file font is used:
+        //   'CustomFont'  → uploaded file for lyrics     (real name = customFontName)
+        //   'ChannelFont' → uploaded file for watermark  (real name = customChannelFontName)
+        //   'InfoFont'    → uploaded file for song-info  (real name = customInfoFontName)
+        // For Google Fonts loaded in-session, fontFamily IS the real name but
+        // requires an internet connection on the target machine.
+        type FontNote = {
+            slot: string;
+            cssValue: string;
+            realName: string;
+            source: 'uploaded-file' | 'google-font' | 'built-in';
+            warning: string;
+        };
+        const resolveFontNote = (
+            cssValue: string | undefined,
+            uploadedName: string | null | undefined,
+            placeholder: string,
+            slotLabel: string,
+        ): FontNote => {
+            if (cssValue === placeholder && uploadedName) {
+                return {
+                    slot: slotLabel,
+                    cssValue: placeholder,
+                    realName: uploadedName,
+                    source: 'uploaded-file',
+                    warning: `Re-upload font file "${uploadedName}" after importing this config.`,
+                };
+            }
+            if (cssValue && loadedGoogleFonts.some(f => cssValue.includes(f))) {
+                const gName = cssValue.replace(/['"]/g, '').trim();
+                return {
+                    slot: slotLabel,
+                    cssValue: cssValue,
+                    realName: gName,
+                    source: 'google-font',
+                    warning: `Google Font "${gName}" – internet connection required on target machine.`,
+                };
+            }
+            return {
+                slot: slotLabel,
+                cssValue: cssValue ?? 'sans-serif',
+                realName: cssValue ?? 'sans-serif',
+                source: 'built-in',
+                warning: '',
+            };
+        };
+
+        const fnLyrics = resolveFontNote(config.fontFamily, customFontName, 'CustomFont', 'lyrics');
+        const fnChannel = resolveFontNote(config.channelInfoFontFamily, customChannelFontName, 'ChannelFont', 'channel-watermark');
+        const fnInfo = resolveFontNote(config.infoFontFamily, customInfoFontName, 'InfoFont', 'song-info');
+
+        const fontNotes = [fnLyrics, fnChannel, fnInfo].filter(n => n.source !== 'built-in');
+
+        const exportData: Record<string, unknown> = {
+            // ── Meta block ────────────────────────────────────────────────────
+            _meta: {
+                exportedAt: now.toISOString(),
+                appVersion: '1.0',
+                schema: 'render-settings-v1',
+                // _fontNotes documents every non-built-in font in this config.
+                // It tells you the real font name and what to do after importing.
+                _fontNotes: fontNotes.length > 0 ? fontNotes : 'all fonts are built-in system fonts',
+            },
+            // ── Visual config ─────────────────────────────────────────────────
+            ...config,
+            // Fix floating-point noise in scale fields
+            fontSizeScale: fix(config.fontSizeScale),
+            infoSizeScale: fix(config.infoSizeScale),
+            infoMarginScale: fix(config.infoMarginScale),
+            channelInfoSizeScale: fix(config.channelInfoSizeScale),
+            channelInfoMarginScale: fix(config.channelInfoMarginScale),
+            marginTopScale: fix(config.marginTopScale),
+            marginBottomScale: fix(config.marginBottomScale),
+            visualizationOpacity: fix(config.visualizationOpacity, 4),
+            visualizationSensitivity: fix(config.visualizationSensitivity, 4),
+            // ── Font family keys with inline "comment" companions ─────────────
+            // __note_ fields are JSON pseudo-comments (stripped on import).
+            // They make the file self-explanatory when opened in a text editor.
+            fontFamily: config.fontFamily,
+            ...(fnLyrics.source !== 'built-in' && {
+                __note_fontFamily: `Real name: "${fnLyrics.realName}" [${fnLyrics.source}]` +
+                    (fnLyrics.source === 'uploaded-file' ? ' – re-upload required after import' : ''),
+            }),
+            channelInfoFontFamily: config.channelInfoFontFamily,
+            ...(fnChannel.source !== 'built-in' && config.channelInfoFontFamily && {
+                __note_channelInfoFontFamily: `Real name: "${fnChannel.realName}" [${fnChannel.source}]` +
+                    (fnChannel.source === 'uploaded-file' ? ' – re-upload required after import' : ''),
+            }),
+            infoFontFamily: config.infoFontFamily,
+            ...(fnInfo.source !== 'built-in' && config.infoFontFamily && {
+                __note_infoFontFamily: `Real name: "${fnInfo.realName}" [${fnInfo.source}]` +
+                    (fnInfo.source === 'uploaded-file' ? ' – re-upload required after import' : ''),
+            }),
+            // ── Output / render settings ──────────────────────────────────────
+            preset,
             resolution,
             aspectRatio,
             renderCodec,
@@ -986,48 +1114,46 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
             renderQuality,
             renderEngine,
             ffmpegCodec,
-            customFontName, // Include custom font name meta-data
+            // ── Font file name metadata ───────────────────────────────────────
+            // Human-readable names for 'CustomFont' / 'ChannelFont' / 'InfoFont'.
+            // The actual font data is NOT exported (binary); re-upload is required.
+            customFontName,
             customChannelFontName,
             customInfoFontName,
-            // Explicitly ensure these are exported (though they are in config spread)
+            // Guarantee these are present even though they live in config spread
             channelInfoFontWeight: config.channelInfoFontWeight,
             channelInfoFontStyle: config.channelInfoFontStyle,
             infoFontWeight: config.infoFontWeight,
-            infoFontStyle: config.infoFontStyle
-        } as any;
+            infoFontStyle: config.infoFontStyle,
+        };
 
-        // Cleanup unused large data to keep file size down
-        if (exportData.backgroundSource !== 'image') {
-            exportData.backgroundImage = undefined;
-        }
-        if (exportData.backgroundSource !== 'video') {
-            exportData.backgroundVideo = undefined;
-        }
-        if (!exportData.showChannelInfo) {
-            exportData.channelInfoImage = undefined;
-        }
+        // Strip large binary fields that don't belong to the current source
+        if (exportData.backgroundSource !== 'image') delete exportData.backgroundImage;
+        if (exportData.backgroundSource !== 'video') delete exportData.backgroundVideo;
+        if (!exportData.showChannelInfo) delete exportData.channelInfoImage;
 
         try {
             const jsonString = JSON.stringify(exportData, null, 2);
-            const blob = new Blob([jsonString], { type: "application/json" });
+            const blob = new Blob([jsonString], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
-
-            const downloadAnchorNode = document.createElement('a');
-            downloadAnchorNode.setAttribute("href", url);
-            downloadAnchorNode.setAttribute("download", `render_settings_${timestamp}.json`);
-            document.body.appendChild(downloadAnchorNode);
-            downloadAnchorNode.click();
-            downloadAnchorNode.remove();
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `render_settings_${timestamp}.json`;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
             URL.revokeObjectURL(url);
+            toast.success(`Settings exported as render_settings_${timestamp}.json`);
         } catch (err) {
-            console.error("Export failed:", err);
-            toast.error("Failed to export settings.");
+            console.error('Export failed:', err);
+            toast.error('Failed to export settings.');
         }
     };
 
     const handleImportSettings = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (!file) return;
+        setImportedFileName(file.name);
 
         const reader = new FileReader();
         reader.onload = (e) => {
@@ -1036,6 +1162,12 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                 if (json && typeof json === 'object') {
                     // Extract Output Settings and meta that are NOT part of RenderConfig
                     const {
+                        // ── Top-level meta / pseudo-comment fields (strip on import) ──
+                        _meta: _metaIgnored,               // meta block added by export
+                        __note_fontFamily: _nf,            // pseudo-comment field
+                        __note_channelInfoFontFamily: _nc, // pseudo-comment field
+                        __note_infoFontFamily: _ni,        // pseudo-comment field
+                        // ── Output settings (state outside RenderConfig) ──
                         resolution: importedResolution,
                         aspectRatio: importedAspectRatio,
                         renderCodec: importedRenderCodec,
@@ -1101,6 +1233,8 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                     if (newConfig.showLyrics !== undefined) newConfig.showLyrics = Boolean(newConfig.showLyrics);
                     if (newConfig.showVisualization !== undefined) newConfig.showVisualization = Boolean(newConfig.showVisualization);
                     if (newConfig.enableGradientOverlay !== undefined) newConfig.enableGradientOverlay = Boolean(newConfig.enableGradientOverlay);
+                    // Three.js boolean fields
+                    if (newConfig.threejsCameraMovement !== undefined) newConfig.threejsCameraMovement = Boolean(newConfig.threejsCameraMovement);
 
                     // Restore Highlight Colors if missing but effect is present
                     if (newConfig.highlightEffect && (!newConfig.highlightColor || !newConfig.highlightBackground)) {
@@ -1221,55 +1355,115 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
             className="no-minimal-mode-toggle absolute right-0 top-0 bottom-0 w-full sm:w-80 bg-zinc-900/95 backdrop-blur-xl border-l border-white/10 z-50 flex flex-col shadow-2xl animate-in slide-in-from-right duration-300"
         >
             {/* Header */}
-            <div className="h-14 border-b border-white/10 flex items-center justify-between px-3 md:px-4 bg-zinc-900/50">
-                <div className="flex items-center gap-2">
-                    <Settings size={18} className="text-purple-400" />
-                    <h2 className="font-bold text-zinc-200">Render Settings</h2>
+            <div className="h-14 border-b border-white/10 flex items-center justify-between px-3 md:px-4 bg-zinc-900/50 overflow-hidden">
+                <div className="flex items-center gap-2 min-w-0">
+                    <Settings size={18} className="text-purple-400 shrink-0" />
+                    <h2 className="font-bold text-zinc-200 truncate">Render Settings</h2>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1 shrink-0 ml-2">
                     <input
                         ref={settingsInputRef}
                         type="file"
                         name="import-settings"
                         id="import-settings"
-                        aria-label="Import Settings"
-                        accept=".json,.txt"
+                        aria-label="Import Settings JSON"
+                        accept=".json"
                         className="hidden"
                         onChange={handleImportSettings}
                     />
+                    {/* Import */}
                     <button
                         onClick={() => settingsInputRef.current?.click()}
-                        className="p-1.5 hover:bg-white/10 rounded-full text-zinc-400 hover:text-white transition-colors"
-                        title="Import Settings"
+                        className="p-1.5 rounded-lg text-zinc-400 hover:text-emerald-300 hover:bg-emerald-500/10 transition-all"
+                        title="Import settings (.json)"
                     >
-                        <Upload size={16} />
+                        <Upload size={15} />
                     </button>
+                    {/* Export */}
                     <button
                         onClick={handleExportSettings}
-                        className="p-1.5 hover:bg-white/10 rounded-full text-zinc-400 hover:text-white transition-colors"
-                        title="Export Settings"
+                        className="p-1.5 rounded-lg text-zinc-400 hover:text-blue-300 hover:bg-blue-500/10 transition-all"
+                        title="Export settings (.json)"
                     >
-                        <Download size={16} />
+                        <Download size={15} />
                     </button>
-                    <div className="w-px h-4 bg-white/10 mx-1"></div>
+                    {/* Reset */}
                     <button
                         onClick={handleReset}
-                        className="p-1.5 hover:bg-white/10 rounded-full text-zinc-400 hover:text-white transition-colors"
-                        title="Reset to Default"
+                        className="p-1.5 rounded-lg text-zinc-500 hover:text-red-400 hover:bg-red-500/10 transition-all"
+                        title="Reset all settings to defaults"
                     >
-                        <RotateCcw size={16} />
+                        <RotateCcw size={15} />
                     </button>
+                    <div className="w-px h-4 bg-white/10 mx-0.5" />
+                    {/* Close */}
                     <button
                         onClick={onClose}
-                        className="p-1.5 hover:bg-white/10 rounded-full text-zinc-400 hover:text-white transition-colors"
+                        className="p-1.5 hover:bg-white/10 rounded-lg text-zinc-400 hover:text-white transition-colors"
+                        title="Close"
                     >
-                        <X size={20} />
+                        <X size={18} />
                     </button>
                 </div>
             </div>
 
             {/* Content */}
             <div className="flex-1 overflow-y-auto p-3 md:p-4 space-y-6 custom-scrollbar">
+
+                {/* ── Settings Management Card ─────────────────────────────── */}
+                <section className="space-y-2">
+                    <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-2">
+                        <Settings size={14} /> Settings Management
+                    </h3>
+                    <div className="rounded-xl border border-white/10 bg-zinc-800/40 overflow-hidden">
+                        {/* Import row */}
+                        <div className="flex items-center gap-3 px-3 py-2.5 border-b border-white/5">
+                            <div className="flex-1 min-w-0">
+                                <p className="text-xs font-semibold text-zinc-200">Import Settings</p>
+                                <p className="text-[10px] text-zinc-500 truncate">
+                                    {importedFileName
+                                        ? <span className="text-emerald-400 font-mono">✓ {importedFileName}</span>
+                                        : 'Load a previously exported .json file'}
+                                </p>
+                            </div>
+                            <button
+                                onClick={() => settingsInputRef.current?.click()}
+                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/40 border border-emerald-500/30 text-emerald-300 hover:text-emerald-100 text-xs font-semibold transition-all active:scale-95 shrink-0"
+                                title="Import settings from a .json file"
+                            >
+                                <Upload size={13} /> Import
+                            </button>
+                        </div>
+                        {/* Export row */}
+                        <div className="flex items-center gap-3 px-3 py-2.5 border-b border-white/5">
+                            <div className="flex-1 min-w-0">
+                                <p className="text-xs font-semibold text-zinc-200">Export Settings</p>
+                                <p className="text-[10px] text-zinc-500">Save current config as a .json file</p>
+                            </div>
+                            <button
+                                onClick={handleExportSettings}
+                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600/20 hover:bg-blue-600/40 border border-blue-500/30 text-blue-300 hover:text-blue-100 text-xs font-semibold transition-all active:scale-95 shrink-0"
+                                title="Export current settings as a .json file"
+                            >
+                                <Download size={13} /> Export
+                            </button>
+                        </div>
+                        {/* Reset row */}
+                        <div className="flex items-center gap-3 px-3 py-2.5">
+                            <div className="flex-1 min-w-0">
+                                <p className="text-xs font-semibold text-zinc-200">Reset to Default</p>
+                                <p className="text-[10px] text-zinc-500">Restore all settings to factory defaults</p>
+                            </div>
+                            <button
+                                onClick={handleReset}
+                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-600/10 hover:bg-red-600/30 border border-red-500/20 hover:border-red-500/50 text-red-400 hover:text-red-200 text-xs font-semibold transition-all active:scale-95 shrink-0"
+                                title="Reset all settings to factory defaults"
+                            >
+                                <RotateCcw size={13} /> Reset
+                            </button>
+                        </div>
+                    </div>
+                </section>
 
                 {/* Visual Preset */}
                 <section className="space-y-3">
@@ -1377,6 +1571,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                     {config.backgroundSource === 'color' && (
                         <div className="flex items-center gap-3 bg-zinc-800/30 p-2 rounded-lg border border-white/5">
                             <input
+                                id="solid-bg-color"
                                 type="color"
                                 name="solid-bg-color"
                                 aria-label="Background Color"
@@ -1385,6 +1580,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                                 className="w-8 h-8 rounded cursor-pointer bg-transparent border-none shrink-0"
                             />
                             <input
+                                id="solid-bg-hex"
                                 type="text"
                                 name="solid-bg-hex"
                                 aria-label="Background Color Hex"
@@ -1497,6 +1693,96 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                                         <span className="text-xs">Upload Video Loop</span>
                                     </button>
                                 )}
+                            </div>
+                        </div>
+                    )}
+
+                    {config.backgroundSource === 'threejs' && (
+                        <div className="space-y-3 animate-in slide-in-from-top-1 fade-in duration-200">
+                            <div className="space-y-1.5">
+                                <span className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Three.js Scene Effect</span>
+                                <GroupedSelection
+                                    value={config.threejsScene || 'stars'}
+                                    onChange={(val) => handleChange('threejsScene', val)}
+                                    groups={threejsSceneGroups}
+                                />
+                            </div>
+                            <div className="space-y-1.5 flex flex-col gap-1">
+                                <label htmlFor="threejs-speed" className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Speed: {config.threejsSpeed || 1}x</label>
+                                <input
+                                    id="threejs-speed"
+                                    type="range"
+                                    min="0.1"
+                                    max="5"
+                                    step="0.1"
+                                    value={config.threejsSpeed || 1}
+                                    onChange={(e) => handleChange('threejsSpeed', parseFloat(e.target.value))}
+                                    className="w-full accent-purple-500"
+                                />
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="space-y-1.5">
+                                    <label htmlFor="threejs-color" className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Theme Color</label>
+                                    <div className="flex items-center gap-2 bg-zinc-800 border border-white/10 rounded-lg px-2 py-1.5 h-9">
+                                        <input
+                                            id="threejs-color"
+                                            name="threejs-color"
+                                            type="color"
+                                            value={config.threejsColor || '#a855f7'}
+                                            onChange={(e) => handleChange('threejsColor', e.target.value)}
+                                            className="w-6 h-6 bg-transparent cursor-pointer border-none shrink-0"
+                                        />
+                                        <input
+                                            id="threejs-color-hex"
+                                            name="threejs-color-hex"
+                                            type="text"
+                                            aria-label="Theme Color Hex"
+                                            value={config.threejsColor || '#a855f7'}
+                                            onChange={(e) => handleChange('threejsColor', e.target.value)}
+                                            className="w-full bg-transparent border-none text-xs items-center flex text-zinc-200 focus:outline-none font-mono"
+                                        />
+                                    </div>
+                                </div>
+                                <div className="space-y-1.5">
+                                    <label htmlFor="threejs-bg-color" className="text-[10px] text-zinc-500 font-bold uppercase ml-1" title="Leave empty for transparent (uses app background)">Bg Color</label>
+                                    <div className="flex items-center gap-2 bg-zinc-800 border border-white/10 rounded-lg px-2 py-1.5 h-9">
+                                        <input
+                                            id="threejs-bg-color"
+                                            name="threejs-bg-color"
+                                            type="color"
+                                            value={config.threejsBgColor || '#000000'}
+                                            onChange={(e) => handleChange('threejsBgColor', e.target.value)}
+                                            className="w-6 h-6 bg-transparent cursor-pointer border-none shrink-0"
+                                        />
+                                        <input
+                                            id="threejs-bg-color-hex"
+                                            name="threejs-bg-color-hex"
+                                            type="text"
+                                            placeholder="None"
+                                            aria-label="Background Color Hex"
+                                            value={config.threejsBgColor || ''}
+                                            onChange={(e) => handleChange('threejsBgColor', e.target.value)}
+                                            className="w-full bg-transparent border-none text-xs items-center flex text-zinc-200 focus:outline-none placeholder:text-zinc-600 font-mono"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="pt-1">
+                                <label htmlFor="threejs-camera-movement" className="flex items-center gap-2 cursor-pointer group">
+                                    <div className="relative flex items-center justify-center">
+                                        <input
+                                            id="threejs-camera-movement"
+                                            name="threejs-camera-movement"
+                                            type="checkbox"
+                                            checked={config.threejsCameraMovement || false}
+                                            onChange={(e) => handleChange('threejsCameraMovement', e.target.checked)}
+                                            className="peer sr-only"
+                                        />
+                                        <div className="w-5 h-5 bg-zinc-800 border border-white/20 rounded-md peer-checked:bg-purple-500 peer-checked:border-purple-500 transition-colors"></div>
+                                        <Check size={12} className="absolute text-white opacity-0 peer-checked:opacity-100 transition-opacity" />
+                                    </div>
+                                    <span className="text-xs text-zinc-300 font-medium group-hover:text-purple-300 transition-colors">Auto Camera Movement</span>
+                                </label>
                             </div>
                         </div>
                     )}
@@ -1672,6 +1958,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                                 <div className="grid grid-cols-2 gap-2 animate-in slide-in-from-top-2 fade-in duration-200">
                                     <div className="flex items-center gap-2 bg-zinc-800/30 p-2 rounded-lg border border-white/5">
                                         <input
+                                            id="viz-color-1"
                                             type="color"
                                             name="viz-color-1"
                                             aria-label="Visualization Color 1"
@@ -1683,6 +1970,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                                     </div>
                                     <div className="flex items-center gap-2 bg-zinc-800/30 p-2 rounded-lg border border-white/5">
                                         <input
+                                            id="viz-color-2"
                                             type="color"
                                             name="viz-color-2"
                                             aria-label="Visualization Color 2"
@@ -1833,6 +2121,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                                         <span className="text-[10px] text-zinc-400 font-bold uppercase">Text/Glow Color</span>
                                         <div className="flex items-center gap-2 bg-zinc-800 p-1.5 rounded-lg border border-white/5">
                                             <input
+                                                id="highlight-color"
                                                 type="color"
                                                 name="highlight-color"
                                                 aria-label="Highlight Text Color"
@@ -1841,6 +2130,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                                                 className="w-8 h-6 rounded cursor-pointer bg-transparent border-none shrink-0"
                                             />
                                             <input
+                                                id="highlight-color-hex"
                                                 type="text"
                                                 name="highlight-color-hex"
                                                 aria-label="Highlight Text Color Hex"
@@ -1855,6 +2145,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                                         <span className="text-[10px] text-zinc-400 font-bold uppercase">Back/Shape Color</span>
                                         <div className="flex items-center gap-2 bg-zinc-800 p-1.5 rounded-lg border border-white/5">
                                             <input
+                                                id="highlight-bg-color"
                                                 type="color"
                                                 name="highlight-bg-color"
                                                 aria-label="Highlight Background Color"
@@ -1863,6 +2154,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                                                 className="w-8 h-6 rounded cursor-pointer bg-transparent border-none shrink-0"
                                             />
                                             <input
+                                                id="highlight-bg-hex"
                                                 type="text"
                                                 name="highlight-bg-hex"
                                                 aria-label="Highlight Background Color Hex"
@@ -2178,6 +2470,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                                     <span className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Text Color</span>
                                     <div className="flex items-center gap-3 bg-zinc-800/30 p-2 rounded-lg border border-white/5">
                                         <input
+                                            id="channel-font-color"
                                             type="color"
                                             name="channel-font-color"
                                             aria-label="Channel Font Color"
@@ -2369,6 +2662,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                             <span className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Text Color</span>
                             <div className="flex items-center gap-3 bg-zinc-800/30 p-2 rounded-lg border border-white/5">
                                 <input
+                                    id="info-font-color"
                                     type="color"
                                     name="info-font-color"
                                     aria-label="Song Info Text Color"
@@ -2683,6 +2977,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                             <span className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Color</span>
                             <div className="flex items-center gap-3 bg-zinc-800/30 p-2 rounded-lg border border-white/5">
                                 <input
+                                    id="main-font-color"
                                     type="color"
                                     name="main-font-color"
                                     aria-label="Main Font Color"
@@ -2691,6 +2986,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                                     className="w-8 h-8 rounded cursor-pointer bg-transparent border-none shrink-0"
                                 />
                                 <input
+                                    id="main-font-hex"
                                     type="text"
                                     name="main-font-hex"
                                     aria-label="Main Font Color Hex"

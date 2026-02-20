@@ -1,7 +1,7 @@
 <div align="center">
   <img src="public/icon.svg" width="100" />
   <h1>Immersive Audio Player & Lyric Video Maker</h1>
-  <p><b>Version 2.3.11</b></p>
+  <p><b>Version 2.3.12</b></p>
 </div>
 
 **Immersive Audio Player & Lyric Video Maker** is a powerful all-in-one web tool designed for music lovers and content creators. It combines a distraction-free audio player with a professional-grade timeline editor, allowing you to create stunning, synchronized lyric videos directly in your browser. Whether you want to enjoy your local music library with beautiful visuals or create viral content for TikTok, Instagram, and YouTube, this app delivers high-quality results without watermarks or server uploads.
@@ -42,7 +42,7 @@
     - **Subtitle**: Cinematic bottom-centered text (No song metadata).
     - **Just Video**: Hides text content.
     - **None**: Hides everything (Lyrics, Titles, and Metadata).
-  - **Karaoke Styles**: **Neon**, **Glow**, **Bounce**, **Wave**, and **Color/Shape** highlights (Pill, Box, Rounded) with **customizable colors**.
+  - **Karaoke Styles**: **Neon**, **Glow**, **Bounce**, **Wave**, and **Color/Shape** highlights (Pill, Box, Rounded) with **customizable colors**. Extended with 20+ new word-level effects: **Scale**, **Underline**, **Outline**, **Shadow**, **Gradient**, **Glass**, **Neon Multi**, **Soft Glow**, **3D**, **Emboss**, **Chrome**, **Gold**, **Fire**, **Frozen**, **Rainbow**, **Mirror**, **VHS**, **Retro**, **Cyberpunk**, **Hologram**, **Comic**, **Glitch Text**, **Pulse**, **Breathe**, and **Float**.
   - **Text Animations**: Bounce, Pulse, Wave, Glitch, Shake, Typewriter, Heartbeat, Tada, Jello, and more.
   - **Display Modes**: Control lyric visibility context and **Style Target** (Apply styles to Active Line only or All Lines).
 - **AI Transcription**: Built-in integration with **Google Gemini** (supports **Gemini 2.5 Flash** and **3.0 Flash Preview**) for automatic high-accuracy audio transcription.
@@ -115,6 +115,7 @@
   - **Solid Color**: Simple, clean backgrounds.
   - **Gradient Overlay**: Optional bottom-up fade for better text readability.
   - **Real Color Media**: Toggle to disable the default dark dimming overlay, allowing background visual colors to pop.
+  - **Three.js 3D Background (New)**: 15 fully animated, WebGL-powered 3D scenes — **Stars**, **Cubes**, **Waves**, **Particles**, **Galaxy**, **DNA Helix**, **Aurora**, **Matrix**, **Nebula**, **Rings**, **Tunnel**, **Warp**, **CyberGrid**, **Vortex**, and **Crystals** — with customizable color, speed, and cinematic auto-camera movement. Fully composited into video exports.
 - **Lyric Display Control**:
   - **Modes**: Show All, Previous/Next, Next Only, or Active Line Only highlighting.
   - **Visibility**: Toggle Lyrics, Title, Artist, Cover Art, and Intro overlays independently.
