@@ -1,6 +1,7 @@
-import React, { useRef, useEffect, useCallback } from 'react';
+import React, { useRef, useEffect } from 'react';
 import { RenderConfig } from '../types';
 import { drawVisualization, getVizParams } from '../utils/visualizationRenderer';
+import { getSharedAudioContext, getOrCreateMediaElementSource } from '../utils/audioContext';
 
 interface AudioVisualizerProps {
     audioElement: HTMLAudioElement | null;
@@ -8,8 +9,7 @@ interface AudioVisualizerProps {
     isPlaying: boolean;
 }
 
-// Persistent audio context and analyser across re-renders
-let audioCtx: AudioContext | null = null;
+// Persistent analyser across re-renders
 let analyserNode: AnalyserNode | null = null;
 let sourceNode: MediaElementAudioSourceNode | null = null;
 let connectedElement: HTMLAudioElement | null = null;
@@ -26,15 +26,12 @@ export function disconnectVisualizerAudio() {
     try {
         if (sourceNode) {
             sourceNode.disconnect();
-            sourceNode = null;
+            // Do NOT null out sourceNode or audioCtx because they are shared system-wide.
+            // Just disconnect from analyser map to prevent overlapping routing
         }
         if (analyserNode) {
             analyserNode.disconnect();
             analyserNode = null;
-        }
-        if (audioCtx) {
-            audioCtx.close().catch(() => { });
-            audioCtx = null;
         }
         connectedElement = null;
         freqBuffer = null;
@@ -49,34 +46,27 @@ const AudioVisualizer: React.FC<AudioVisualizerProps> = ({ audioElement, config,
     const animFrameRef = useRef<number>(0);
     const lastDrawRef = useRef<number>(0);
 
-
     // Connect audio element to Web Audio API analyser
     useEffect(() => {
         if (!audioElement) return;
 
+        const audioCtx = getSharedAudioContext();
         // If already connected to this element, skip
-        if (connectedElement === audioElement && analyserNode && audioCtx) return;
+        if (connectedElement === audioElement && analyserNode) return;
 
         try {
-            if (!audioCtx) {
-                audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-            }
-
             // Create new analyser
             analyserNode = audioCtx.createAnalyser();
             analyserNode.fftSize = 512;
             analyserNode.smoothingTimeConstant = 0.8;
 
-            // Only create a new source node if audioElement changed
+            // Use the shared media element source creator
             if (connectedElement !== audioElement) {
-                try {
-                    sourceNode = audioCtx.createMediaElementSource(audioElement);
-                } catch {
-                    // Element may already have a source - just reconnect analyser
-                }
+                sourceNode = getOrCreateMediaElementSource(audioElement, audioCtx);
             }
 
             if (sourceNode) {
+                sourceNode.disconnect(); // Disconnect anything old first safely
                 sourceNode.connect(analyserNode);
                 analyserNode.connect(audioCtx.destination);
             }
@@ -98,6 +88,7 @@ const AudioVisualizer: React.FC<AudioVisualizerProps> = ({ audioElement, config,
 
     // Resume audio context on play
     useEffect(() => {
+        const audioCtx = getSharedAudioContext();
         if (isPlaying && audioCtx && audioCtx.state === 'suspended') {
             audioCtx.resume();
         }
