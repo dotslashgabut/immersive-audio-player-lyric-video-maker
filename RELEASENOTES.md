@@ -9,6 +9,8 @@
   - **Cinematic Camera**: Each scene has a unique, smooth cinematic camera path that continuously orbits, pans, or dives through the 3D environment when Auto Camera Movement is enabled.
   - **Live & Export**: The 3D background renders in the live web player via the new `ThreeBackground` component. During video export (WebCodecs/FFmpeg), frames are composited directly via `threeRenderer.ts`.
   - **GPU Memory Management**: Scene objects are properly disposed (geometries, materials) when switching scenes or unmounting, preventing GPU memory leaks.
+- **User Interaction**:
+  - Improve **Render Settings** UI for import/export `json` and reset to default settings.
 - **Shared AudioContext** *(Bug Fix)*:
   - Introduced `utils/audioContext.ts` — a module-level singleton `AudioContext` and a `WeakMap`-based `MediaElementAudioSourceNode` cache. This permanently fixes the `InvalidStateError: Failed to execute 'createMediaElementSource' on 'AudioContext'` crash that occurred when switching tracks or restarting renders.
   - The `AudioVisualizer`, `MediaRecorder` export, and all timeline audio sources now share the same `AudioContext` and reuse source nodes correctly.
