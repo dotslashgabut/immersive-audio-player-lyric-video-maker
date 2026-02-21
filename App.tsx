@@ -2820,7 +2820,7 @@ function App() {
                 </svg>
               </a>
               <a
-                href="https://ai.studio/apps/drive/11YaG-jtLXb8BnXM3aMfj7wmKIw-S3mt3?fullscreenApplet=true"
+                href="https://ai.studio/apps/f72cc364-2af0-4d42-9e52-28ba3dff297c?fullscreenApplet=true"
                 target="_blank"
                 rel="noopener noreferrer"
                 title="LyricalEditorPlus - Universal Lyrics/Subtitle Editor"
