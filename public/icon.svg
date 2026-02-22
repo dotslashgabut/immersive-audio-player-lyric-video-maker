@@ -1,66 +1,15 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   <defs>
-    <radialGradient id="bg" cx="50%" cy="50%" r="70%">
-      <stop offset="0%" stop-color="#271c3a"/>
-      <stop offset="100%" stop-color="#09090b"/>
-    </radialGradient>
-    
-    <linearGradient id="orbGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#f472b6"/>
-      <stop offset="30%" stop-color="#d946ef"/>
-      <stop offset="70%" stop-color="#8b5cf6"/>
-      <stop offset="100%" stop-color="#3b82f6"/>
-    </linearGradient>
-
-    <filter id="glowOrb" x="-50%" y="-50%" width="200%" height="200%">
-      <feGaussianBlur stdDeviation="32" result="blur" />
-      <feMerge>
-        <feMergeNode in="blur" />
-        <feMergeNode in="SourceGraphic" />
-      </feMerge>
-    </filter>
-    
-    <filter id="ringBlur" x="-20%" y="-20%" width="140%" height="140%">
-      <feGaussianBlur stdDeviation="6" />
-    </filter>
-
-    <filter id="sparkle" x="-50%" y="-50%" width="200%" height="200%">
-      <feGaussianBlur stdDeviation="2" result="blur" />
-      <feMerge>
-        <feMergeNode in="blur" />
-        <feMergeNode in="SourceGraphic" />
-      </feMerge>
-    </filter>
-
-    <filter id="barShadow" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#000" flood-opacity="0.5"/>
+    <filter id="note-shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#000000" flood-opacity="0.25"/>
     </filter>
   </defs>
-
-  <rect width="512" height="512" fill="url(#bg)"/>
-
-  <!-- Immersive audio spatial rings -->
-  <circle cx="256" cy="256" r="210" fill="none" stroke="url(#orbGrad)" stroke-width="1.5" opacity="0.15" />
-  <circle cx="256" cy="256" r="160" fill="none" stroke="url(#orbGrad)" stroke-width="6" opacity="0.2" filter="url(#ringBlur)"/>
-
-  <!-- Floating particles -->
-  <circle cx="150" cy="130" r="4" fill="#f472b6" opacity="0.8" filter="url(#sparkle)"/>
-  <circle cx="380" cy="150" r="6" fill="#3b82f6" opacity="0.6" filter="url(#sparkle)"/>
-  <circle cx="130" cy="370" r="5" fill="#8b5cf6" opacity="0.8" filter="url(#sparkle)"/>
-  <circle cx="390" cy="350" r="3" fill="#d946ef" opacity="0.9" filter="url(#sparkle)"/>
-
-  <!-- The core immersive orb -->
-  <circle cx="256" cy="256" r="108" fill="url(#orbGrad)" filter="url(#glowOrb)"/>
   
-  <!-- Glass reflection on the orb for 3D effect -->
-  <path d="M 148 256 A 108 108 0 0 1 364 256 A 108 80 0 0 0 148 256 Z" fill="#ffffff" opacity="0.15" />
-
-  <!-- Play button styled as 4 audio bars -->
-  <!-- Visually centered within the orb -->
-  <g filter="url(#barShadow)">
-    <rect x="222" y="192" width="16" height="128" rx="8" fill="#ffffff"/>
-    <rect x="250" y="208" width="16" height="96" rx="8" fill="#ffffff"/>
-    <rect x="278" y="224" width="16" height="64" rx="8" fill="#ffffff"/>
-    <rect x="306" y="240" width="16" height="32" rx="8" fill="#ffffff"/>
+  <rect width="512" height="512" rx="112" fill="#09090b"/>
+  
+  <circle cx="256" cy="256" r="192" fill="#9333ea"/>
+  
+  <g transform="translate(-37, 5)" fill="#ffffff" filter="url(#note-shadow)">
+    <path d="M415.4,121.7L235.4,166.7c-5.8,1.4-9.9,6.6-9.9,12.5v154.5c-7.8-5.3-17.1-8.5-27.2-8.5 c-26.5,0-48,21.5-48,48s21.5,48,48,48s48-21.5,48-48V206.8l144-36v126.9c-7.8-5.3-17.1-8.5-27.2-8.5c-26.5,0-48,21.5-48,48 s21.5,48,48,48s48-21.5,48-48V132.5C435.3,125.7,429.5,120,422.3,120C419.6,120,417.2,120.8,415.4,121.7z"/>
   </g>
 </svg>
