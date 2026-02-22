@@ -789,3 +789,19 @@
     width: 100%;
   }
 }
+
+/* Lyrics Root Dynamic Scaling */
+.lyrics-root {
+  --fs-scale: 1;
+  --l-height: 1.2;
+}
+
+.lyrics-root .text-lg { font-size: calc(1.125rem * var(--fs-scale)); line-height: calc(1.75rem * var(--fs-scale) * var(--l-height)); }
+.lyrics-root .text-xl { font-size: calc(1.25rem * var(--fs-scale)); line-height: calc(1.75rem * var(--fs-scale) * var(--l-height)); }
+.lyrics-root .text-2xl { font-size: calc(1.5rem * var(--fs-scale)); line-height: calc(2rem * var(--fs-scale) * var(--l-height)); }
+.lyrics-root .text-3xl { font-size: calc(1.875rem * var(--fs-scale)); line-height: calc(2.25rem * var(--fs-scale) * var(--l-height)); }
+.lyrics-root .text-4xl { font-size: calc(2.25rem * var(--fs-scale)); line-height: calc(2.5rem * var(--fs-scale) * var(--l-height)); }
+.lyrics-root .text-5xl { font-size: calc(3rem * var(--fs-scale)); line-height: calc(1 * var(--l-height)); }
+.lyrics-root .text-6xl { font-size: calc(3.75rem * var(--fs-scale)); line-height: calc(1 * var(--l-height)); }
+.lyrics-root .text-7xl { font-size: calc(4.5rem * var(--fs-scale)); line-height: calc(1 * var(--l-height)); }
+.lyrics-root .text-8xl { font-size: calc(6rem * var(--fs-scale)); line-height: calc(1 * var(--l-height)); }

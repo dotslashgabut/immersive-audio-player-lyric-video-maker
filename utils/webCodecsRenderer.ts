@@ -51,6 +51,73 @@ async function decodeAudio(file: File | Blob): Promise<AudioBuffer> {
 }
 
 /**
+ * Resample an AudioBuffer to a target sample rate
+ */
+async function resampleAudioBuffer(audioBuffer: AudioBuffer, targetSampleRate: number): Promise<AudioBuffer> {
+    if (audioBuffer.sampleRate === targetSampleRate) return audioBuffer;
+
+    const offlineCtx = new OfflineAudioContext(
+        audioBuffer.numberOfChannels,
+        Math.ceil(audioBuffer.duration * targetSampleRate),
+        targetSampleRate
+    );
+
+    const source = offlineCtx.createBufferSource();
+    source.buffer = audioBuffer;
+    source.connect(offlineCtx.destination);
+    source.start(0);
+
+    return await offlineCtx.startRendering();
+}
+
+/**
+ * Get a supported audio configuration for AudioEncoder
+ */
+async function getAudioConfig(sampleRate: number, numberOfChannels: number): Promise<{
+    codec: string,
+    sampleRate: number,
+    numberOfChannels: number,
+    bitrate: number
+}> {
+    const aacConfig = {
+        codec: 'mp4a.40.2',
+        sampleRate,
+        numberOfChannels,
+        bitrate: 128_000
+    };
+
+    if (typeof AudioEncoder !== 'undefined' && 'isConfigSupported' in AudioEncoder) {
+        try {
+            const aacSupport = await AudioEncoder.isConfigSupported(aacConfig);
+            if (aacSupport.supported) {
+                return aacConfig;
+            }
+        } catch (e) {
+            console.warn("AAC config check failed:", e);
+        }
+
+        const opusConfig = {
+            codec: 'opus',
+            sampleRate: 48000, // Opus usually prefers 48kHz
+            numberOfChannels,
+            bitrate: 128_000
+        };
+
+        try {
+            const opusSupport = await AudioEncoder.isConfigSupported(opusConfig);
+            if (opusSupport.supported) {
+                return opusConfig;
+            }
+        } catch (e) {
+            console.warn("Opus config check failed:", e);
+        }
+    }
+
+    // Default to initial AAC config
+    return aacConfig;
+}
+
+/**
 * Sync video elements to a specific time (Async with seek wait)
 */
 async function syncVideoElements(
@@ -209,7 +276,17 @@ export async function renderWithWebCodecs(options: WebCodecsRenderOptions): Prom
 
     // 1. Prepare Audio
     onLog?.('Decoding audio...');
-    const audioBuffer = await decodeAudio(audioFile);
+    let audioBuffer = await decodeAudio(audioFile);
+
+    // Determine the best audio codec and resample if necessary (e.g., Firefox doesn't support AAC)
+    let audioConfig = await getAudioConfig(audioBuffer.sampleRate, audioBuffer.numberOfChannels);
+    if (audioConfig.codec === 'opus' && audioBuffer.sampleRate !== 48000) {
+        onLog?.('Resampling audio to 48kHz for Opus support...');
+        audioBuffer = await resampleAudioBuffer(audioBuffer, 48000);
+        // Re-get config with new sample rate
+        audioConfig = await getAudioConfig(audioBuffer.sampleRate, audioBuffer.numberOfChannels);
+    }
+
     const duration = audioBuffer.duration;
     const totalFrames = Math.ceil(duration * fps);
 
@@ -222,10 +299,11 @@ export async function renderWithWebCodecs(options: WebCodecsRenderOptions): Prom
             height: canvas.height
         },
         audio: {
-            codec: 'aac',
-            sampleRate: audioBuffer.sampleRate,
-            numberOfChannels: audioBuffer.numberOfChannels
+            codec: audioConfig.codec === 'opus' ? 'opus' : 'aac',
+            sampleRate: audioConfig.sampleRate,
+            numberOfChannels: audioConfig.numberOfChannels
         },
+        firstTimestampBehavior: 'offset', // Fix "first chunk must have timestamp 0" error
         fastStart: 'in-memory'
     });
 
@@ -235,7 +313,19 @@ export async function renderWithWebCodecs(options: WebCodecsRenderOptions): Prom
     const bitrate = baseBitrate * qualityMult;
 
     const videoEncoder = new VideoEncoder({
-        output: (chunk, meta) => muxer.addVideoChunk(chunk, meta),
+        output: (chunk, meta) => {
+            // Provide config to first chunk to avoid "colorSpace" or "decoderConfig" errors in mp4-muxer
+            if (meta && !meta.decoderConfig) {
+                meta.decoderConfig = {
+                    codec: 'avc1.4d002a',
+                    width: canvas.width,
+                    height: canvas.height,
+                    displayAspectWidth: canvas.width,
+                    displayAspectHeight: canvas.height
+                } as any;
+            }
+            muxer.addVideoChunk(chunk, meta);
+        },
         error: (e) => {
             console.error("VideoEncoder error:", e);
             onLog?.(`VideoEncoder error: ${e.message}`);
@@ -259,12 +349,7 @@ export async function renderWithWebCodecs(options: WebCodecsRenderOptions): Prom
         }
     });
 
-    audioEncoder.configure({
-        codec: 'mp4a.40.2',
-        sampleRate: audioBuffer.sampleRate,
-        numberOfChannels: audioBuffer.numberOfChannels,
-        bitrate: 128_000
-    });
+    audioEncoder.configure(audioConfig);
 
     // 5. Encode Audio
     onProgress(5, 'Encoding Audio...');
@@ -384,7 +469,7 @@ export async function renderWithWebCodecs(options: WebCodecsRenderOptions): Prom
     return {
         blob: new Blob([buffer], { type: 'video/mp4' }),
         duration,
-        format: 'mp4'
+        format: audioConfig.codec === 'opus' ? 'mkv' : 'mp4'
     };
 }
 
@@ -425,7 +510,16 @@ export async function renderPlaylistWithWebCodecs(
     onProgress(0, 'Decoding first track...');
 
     // 1. Decode first track's audio to get consistent sample rate and channels
-    const firstAudioBuffer = await decodeAudio(tracks[0].audioFile);
+    let firstAudioBuffer = await decodeAudio(tracks[0].audioFile);
+
+    // Determine best audio codec for the playlist
+    let audioConfig = await getAudioConfig(firstAudioBuffer.sampleRate, firstAudioBuffer.numberOfChannels);
+    if (audioConfig.codec === 'opus' && firstAudioBuffer.sampleRate !== 48000) {
+        onLog?.('Resampling first track audio to 48kHz for Opus support...');
+        firstAudioBuffer = await resampleAudioBuffer(firstAudioBuffer, 48000);
+        audioConfig = await getAudioConfig(firstAudioBuffer.sampleRate, firstAudioBuffer.numberOfChannels);
+    }
+
     const sampleRate = firstAudioBuffer.sampleRate;
     const numberOfChannels = firstAudioBuffer.numberOfChannels;
 
@@ -440,10 +534,11 @@ export async function renderPlaylistWithWebCodecs(
             height: canvas.height
         },
         audio: {
-            codec: 'aac',
+            codec: audioConfig.codec === 'opus' ? 'opus' : 'aac',
             sampleRate: sampleRate,
             numberOfChannels: numberOfChannels
         },
+        firstTimestampBehavior: 'offset', // Fix "first chunk must have timestamp 0" error
         fastStart: 'in-memory'
     });
 
@@ -453,7 +548,19 @@ export async function renderPlaylistWithWebCodecs(
     const bitrate = baseBitrate * qualityMult;
 
     const videoEncoder = new VideoEncoder({
-        output: (chunk, meta) => muxer.addVideoChunk(chunk, meta),
+        output: (chunk, meta) => {
+            // Provide config to first chunk to avoid "colorSpace" or "decoderConfig" errors in mp4-muxer
+            if (meta && !meta.decoderConfig) {
+                meta.decoderConfig = {
+                    codec: 'avc1.4d002a',
+                    width: canvas.width,
+                    height: canvas.height,
+                    displayAspectWidth: canvas.width,
+                    displayAspectHeight: canvas.height
+                } as any;
+            }
+            muxer.addVideoChunk(chunk, meta);
+        },
         error: (e) => {
             console.error("VideoEncoder error:", e);
             onLog?.(`VideoEncoder error: ${e.message}`);
@@ -476,12 +583,7 @@ export async function renderPlaylistWithWebCodecs(
         }
     });
 
-    audioEncoder.configure({
-        codec: 'mp4a.40.2',
-        sampleRate: sampleRate,
-        numberOfChannels: numberOfChannels,
-        bitrate: 128_000
-    });
+    audioEncoder.configure(audioConfig);
 
     let currentTimeMicro = 0;
     let totalPlaylistDuration = 0;
@@ -509,17 +611,24 @@ export async function renderPlaylistWithWebCodecs(
 
         // A. Decode Audio
         onLog?.(`Decoding track ${i + 1} audio...`);
-        const audioBuffer = i === 0 ? firstAudioBuffer : await decodeAudio(track.audioFile);
-        const duration = audioBuffer.duration;
+        let trackAudioBuffer = i === 0 ? firstAudioBuffer : await decodeAudio(track.audioFile);
+
+        // Resample if necessary to match the encoder's configuration
+        if (trackAudioBuffer.sampleRate !== sampleRate) {
+            onLog?.(`Resampling track ${i + 1} audio to match initial sample rate (${sampleRate}Hz)...`);
+            trackAudioBuffer = await resampleAudioBuffer(trackAudioBuffer, sampleRate);
+        }
+
+        const duration = trackAudioBuffer.duration;
         totalPlaylistDuration += duration;
 
         // B. Encode Audio for this track
-        const currentSamples = audioBuffer.length;
-        const currentChannels = audioBuffer.numberOfChannels;
-        const currentSampleRate = audioBuffer.sampleRate;
+        const currentSamples = trackAudioBuffer.length;
+        const currentChannels = trackAudioBuffer.numberOfChannels;
+        const currentSampleRate = trackAudioBuffer.sampleRate;
 
-        if (currentSampleRate !== sampleRate || currentChannels !== numberOfChannels) {
-            onLog?.(`Warning: Track ${i + 1} has different audio properties (${currentSampleRate}Hz, ${currentChannels}ch). Expected ${sampleRate}Hz, ${numberOfChannels}ch.`);
+        if (currentChannels !== numberOfChannels) {
+            onLog?.(`Warning: Track ${i + 1} has different channel count (${currentChannels}ch). Expected ${numberOfChannels}ch.`);
         }
 
         const samplesPerChunk = currentSampleRate;
@@ -535,7 +644,7 @@ export async function renderPlaylistWithWebCodecs(
 
             const dataBuffer = new Float32Array(length * currentChannels);
             for (let ch = 0; ch < currentChannels; ch++) {
-                const channelData = audioBuffer.getChannelData(ch);
+                const channelData = trackAudioBuffer.getChannelData(ch);
                 dataBuffer.set(channelData.subarray(s, s + length), ch * length);
             }
 
@@ -574,7 +683,7 @@ export async function renderPlaylistWithWebCodecs(
             let vizFreqData: Uint8Array | null = null;
             let vizWaveData: Uint8Array | null = null;
             if (renderConfig.showVisualization) {
-                const trackPcm = audioBuffer.getChannelData(0);
+                const trackPcm = trackAudioBuffer.getChannelData(0);
                 const result = computeFrequencyDataAtTime(trackPcm, currentSampleRate, time, 512);
                 vizFreqData = result.frequencyData;
                 vizWaveData = result.waveformData;
@@ -638,7 +747,7 @@ export async function renderPlaylistWithWebCodecs(
     return {
         blob: new Blob([buffer], { type: 'video/mp4' }),
         duration: totalPlaylistDuration,
-        format: 'mp4'
+        format: audioConfig.codec === 'opus' ? 'mkv' : 'mp4' // Opus in MP4 is less supported, so we label it correctly if needed, though Muxer uses MP4
     };
 }
 

@@ -247,6 +247,11 @@ function App() {
   const handleAudioUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      // Cleanup old source
+      if (audioSrc && audioSrc.startsWith('blob:')) {
+        URL.revokeObjectURL(audioSrc);
+      }
+
       const url = URL.createObjectURL(file);
       setAudioSrc(url);
 
@@ -301,6 +306,7 @@ function App() {
       setIsPlaying(false);
       setCurrentTime(0);
       setCurrentTrackIndex(-1);
+      setAudioElementKey(prev => prev + 1); // Fresh start for manually loaded audio too
       if (lyricsContainerRef.current) {
         lyricsContainerRef.current.scrollTop = 0;
       }
@@ -463,6 +469,16 @@ function App() {
     if (index < 0 || index >= currentList.length) return;
     const track = currentList[index];
 
+    // Cleanup old source if it's a blob URL
+    if (audioSrc && audioSrc.startsWith('blob:')) {
+      URL.revokeObjectURL(audioSrc);
+    }
+
+    // Stop current state to prevent animation loop issues during switch
+    setIsPlaying(false);
+    setCurrentTime(0);
+    setAudioElementKey(prev => prev + 1); // Force audio element remount for fresh state
+
     // Load Audio
     const url = URL.createObjectURL(track.audioFile);
     setAudioSrc(url);
@@ -512,12 +528,13 @@ function App() {
 
     // Auto-play logic
     if (autoPlay) {
+      // Small delay to allow audio element remount and src attachment
       setTimeout(() => {
         if (audioRef.current) {
           audioRef.current.play().catch(e => console.log("Autoplay failed", e));
           setIsPlaying(true);
         }
-      }, 100);
+      }, 150);
     } else {
       setIsPlaying(false);
       // Ensure we don't hold onto previous playing state
@@ -526,7 +543,7 @@ function App() {
         audioRef.current.currentTime = 0;
       }
     }
-  }, [playlist]);
+  }, [playlist, audioSrc]);
 
   const playNextSong = useCallback(() => {
     if (playlist.length === 0) return;
@@ -2928,20 +2945,12 @@ function App() {
               style={{
                 maskImage: (isHeaderVisible || isFooterVisible) && preset !== 'subtitle'
                   ? 'linear-gradient(to bottom, transparent, black 10%, black 90%, transparent)'
-                  : 'none'
+                  : 'none',
+                // @ts-ignore
+                '--fs-scale': renderConfig.fontSizeScale || 1,
+                '--l-height': renderConfig.lyricLineHeight || 1.2
               }}
             >
-              <style>{`
-                .lyrics-root .text-lg { font-size: calc(1.125rem * ${renderConfig.fontSizeScale}); line-height: calc(1.75rem * ${renderConfig.fontSizeScale} * ${renderConfig.lyricLineHeight || 1.2}); }
-                .lyrics-root .text-xl { font-size: calc(1.25rem * ${renderConfig.fontSizeScale}); line-height: calc(1.75rem * ${renderConfig.fontSizeScale} * ${renderConfig.lyricLineHeight || 1.2}); }
-                .lyrics-root .text-2xl { font-size: calc(1.5rem * ${renderConfig.fontSizeScale}); line-height: calc(2rem * ${renderConfig.fontSizeScale} * ${renderConfig.lyricLineHeight || 1.2}); }
-                .lyrics-root .text-3xl { font-size: calc(1.875rem * ${renderConfig.fontSizeScale}); line-height: calc(2.25rem * ${renderConfig.fontSizeScale} * ${renderConfig.lyricLineHeight || 1.2}); }
-                .lyrics-root .text-4xl { font-size: calc(2.25rem * ${renderConfig.fontSizeScale}); line-height: calc(2.5rem * ${renderConfig.fontSizeScale} * ${renderConfig.lyricLineHeight || 1.2}); }
-                .lyrics-root .text-5xl { font-size: calc(3rem * ${renderConfig.fontSizeScale}); line-height: calc(1 * ${renderConfig.lyricLineHeight || 1.2}); }
-                .lyrics-root .text-6xl { font-size: calc(3.75rem * ${renderConfig.fontSizeScale}); line-height: calc(1 * ${renderConfig.lyricLineHeight || 1.2}); }
-                .lyrics-root .text-7xl { font-size: calc(4.5rem * ${renderConfig.fontSizeScale}); line-height: calc(1 * ${renderConfig.lyricLineHeight || 1.2}); }
-                .lyrics-root .text-8xl { font-size: calc(6rem * ${renderConfig.fontSizeScale}); line-height: calc(1 * ${renderConfig.lyricLineHeight || 1.2}); }
-              `}</style>
               <div className={`transition-all duration-500 ${renderConfig.contentPosition === 'center' ? ((activeTab === TabView.EDITOR || isPlaylistMode) ? 'h-[25vh]' : (!isHeaderVisible && !isFooterVisible) ? 'h-[50vh]' : 'h-[40vh]') : 'h-0'}`}></div>
               {adjustedLyrics.map((line, idx) => {
                 const isActive = idx === currentLyricIndex;
@@ -3363,7 +3372,7 @@ function App() {
                         if (wIdx === arr.length - 1) shouldAddSpace = false;
 
                         // Use inline-block but NO margin. We insert spaces manually.
-                        let wordStyle: React.CSSProperties = { display: 'inline-block', transition: 'all 0.1s ease' }; // Base style
+                        let wordStyle: React.CSSProperties = { display: 'inline-block' }; // Base style (removed transition for performance)
 
                         // Apply Global Decoration
                         if (renderConfig.textDecoration && renderConfig.textDecoration !== 'none') {
