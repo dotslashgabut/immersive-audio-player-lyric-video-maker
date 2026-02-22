@@ -1,5 +1,17 @@
 # Release Notes
 
+# 2.3.13
+
+## What's New
+- **WebCodecs Export Fixes**:
+  - **Firefox Compatibility**: Implemented an automatic audio codec fallback. If AAC encoding is not supported by the browser (common in Firefox), the engine now switches to **Opus**.
+  - **Audio Resampling**: Added built-in audio resampling to 48kHz for Opus compatibility, ensuring consistent and high-quality audio output regardless of the source sample rate.
+  - **Muxer Stability**: Resolved the "first chunk must have timestamp 0" validation error in `mp4-muxer` by implementing timestamp offsetting.
+  - **Decoder Config Fix**: Fixed the `decoderConfig` / `colorSpace` null errors that caused muxing failures, ensuring exported videos are properly formatted and playable.
+  - **Automatic Format Detection**: The exporter now correctly labels the output file extension (`.mp4` or `.mkv`) based on the underlying codec selection.
+- **Playlist Export**: Improved stability when Batch Rendering multiple songs with varying audio formats.
+
+
 # 2.3.12
 
 ## What's New
