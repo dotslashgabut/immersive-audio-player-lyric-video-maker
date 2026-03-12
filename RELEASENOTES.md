@@ -1,5 +1,13 @@
 # Release Notes
 
+# 2.3.14
+
+## What's New
+- **Video Render Fixes**:
+  - **WebCodecs Export**: Fixed an issue where custom video backgrounds would fail to loop or sync correctly during **WebCodecs** playlist rendering. The background now seamlessly maintains continuity and timing across all tracks.
+  - **Looping Logic**: Enhanced the `syncVideoElements` logic to ensure custom background videos loop precisely as intended in the exported video, matching the timeline preview.
+
+
 # 2.3.13
 
 ## What's New
