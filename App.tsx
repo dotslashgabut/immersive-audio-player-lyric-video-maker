@@ -40,6 +40,7 @@ function App() {
 
   // State: Media & Data
   const [audioSrc, setAudioSrc] = useState<string | null>(null);
+  const [currentAudioFile, setCurrentAudioFile] = useState<File | null>(null);
   const [audioElementKey, setAudioElementKey] = useState(0);
   const [metadata, setMetadata] = useState<AudioMetadata>({
     title: 'No Audio Loaded',
@@ -254,6 +255,7 @@ function App() {
 
       const url = URL.createObjectURL(file);
       setAudioSrc(url);
+      setCurrentAudioFile(file);
 
       // Initial Fallback Metadata
       const fallbackMeta = {
@@ -482,6 +484,7 @@ function App() {
     // Load Audio
     const url = URL.createObjectURL(track.audioFile);
     setAudioSrc(url);
+    setCurrentAudioFile(track.audioFile);
 
     // Metadata - use cover art from track if available
     setMetadata({
@@ -1286,6 +1289,8 @@ function App() {
       metadataToRender = playlist[0].metadata;
     } else if (playlist.length > 0 && currentTrackIndex >= 0) {
       audioFile = playlist[currentTrackIndex].audioFile;
+    } else if (currentAudioFile) {
+      audioFile = currentAudioFile;
     } else if (audioSrc) {
       try {
         const res = await fetch(audioSrc);
@@ -1558,6 +1563,8 @@ function App() {
       metadataToRender = playlist[0].metadata;
     } else if (playlist.length > 0 && currentTrackIndex >= 0) {
       audioFile = playlist[currentTrackIndex].audioFile;
+    } else if (currentAudioFile) {
+      audioFile = currentAudioFile;
     } else if (audioSrc) {
       try {
         const res = await fetch(audioSrc);
