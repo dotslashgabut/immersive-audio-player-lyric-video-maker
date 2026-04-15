@@ -141,7 +141,7 @@ const AudioVisualizer: React.FC<AudioVisualizerProps> = ({ audioElement, config,
             const params = getVizParams(config);
 
             // Only get waveform data for types that need it
-            const needsWave = params.type === 'wave' || params.type === 'pulse-ring';
+            const needsWave = ['wave', 'pulse-ring', 'waveform', 'stereo-field'].includes(params.type);
             if (needsWave) {
                 analyserNode.getByteTimeDomainData(waveBuffer);
             }

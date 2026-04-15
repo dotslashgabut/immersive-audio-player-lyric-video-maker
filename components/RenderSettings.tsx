@@ -1287,7 +1287,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                     if (newConfig.channelInfoStyle && !isValidGroupOption(newConfig.channelInfoStyle, channelInfoStyleGroups)) newConfig.channelInfoStyle = 'classic';
 
                     // Validate Visualization Settings
-                    const validVizTypes = ['bars', 'wave', 'circular', 'particles', 'pulse-ring'];
+                    const validVizTypes = ['bars', 'wave', 'circular', 'particles', 'pulse-ring', 'waveform', 'spectrogram', 'spectrum', 'stereo-field'];
                     if (newConfig.visualizationType && !validVizTypes.includes(newConfig.visualizationType)) newConfig.visualizationType = 'bars';
                     const validColorModes = ['accent', 'gradient', 'custom', 'rainbow'];
                     if (newConfig.visualizationColorMode && !validColorModes.includes(newConfig.visualizationColorMode)) newConfig.visualizationColorMode = 'gradient';
@@ -1921,7 +1921,15 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                                         label: "Minimalist",
                                         options: [
                                             { label: "Bars", value: "bars" },
-                                            { label: "Waveform", value: "wave" },
+                                            { label: "Wave", value: "wave" },
+                                            { label: "Waveform (Filled)", value: "waveform" },
+                                            { label: "Spectrum", value: "spectrum" },
+                                        ]
+                                    }, {
+                                        label: "Advanced",
+                                        options: [
+                                            { label: "Spectrogram", value: "spectrogram" },
+                                            { label: "Stereo Field", value: "stereo-field" },
                                         ]
                                     }, {
                                         label: "Dynamic",
