@@ -3,6 +3,8 @@
 # 2.3.14
 
 ## What's New
+- **Embedded Lyrics Support**:
+  - **Metadata Extraction**: Automatically detect and extract embedded lyrics metadata (e.g., `USLT` tags) directly from audio files upon upload to the main player or playlist, seamlessly loading them into the timeline.
 - **Video Render Fixes**:
   - **WebCodecs Export**: Fixed an issue where custom video backgrounds would fail to loop or sync correctly during **WebCodecs** playlist rendering. The background now seamlessly maintains continuity and timing across all tracks.
   - **Looping Logic**: Enhanced the `syncVideoElements` logic to ensure custom background videos loop precisely as intended in the exported video, matching the timeline preview.
