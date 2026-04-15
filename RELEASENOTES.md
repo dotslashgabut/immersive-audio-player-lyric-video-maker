@@ -3,6 +3,14 @@
 # 2.3.15
 
 ## What's New
+- **Audio Visualization Expansion** *(New Feature)*:
+  - **New Visualizer Types**: Added four new audio visualization types to the Render Settings dropdown:
+    - **Waveform (Filled)**: A symmetrical, dynamically filled representation of the audio envelope.
+    - **Spectrum**: A continuous peak filled graph with a sharp top line tracking frequency magnitudes.
+    - **Spectrogram**: A clean, scrolling waterfall interface plotting frequency history over time.
+    - **Stereo Field**: Dynamic simulation of a phase goniometer/Lissajous monitor using offset phase mappings.
+  - **Full Support**: Seamlessly integrated to render properly in real-time within the web preview and flawlessly baked into offline renderers (FFmpeg/WebCodecs).
+
 - **Embedded Lyrics — Cross-Format Support** *(Bug Fix / New Feature)*:
   - **Root Cause**: The `jsmediatags` library only reads lyrics from **MP3** (ID3v2 `USLT` tag) and **M4A/ALAC** (MP4 `©lyr` atom). For FLAC, it parses Vorbis Comments but hardcodes only 5 fields (title, artist, album, track, genre) — the `LYRICS` field is completely ignored. For OGG, OPUS, and WAV, it has **no reader at all** and fails silently.
   - **Custom Binary Parser**: Introduced `utils/embeddedLyrics.ts` — a zero-dependency binary parser that directly reads embedded lyrics from:
