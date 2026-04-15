@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import { PlaylistItem, LyricLine } from '../types';
-import { Plus, Trash2, Play, Pause, Volume2, FileText, ListMusic, Shuffle, User, Disc, Music, X, Sparkles, Loader2, FileJson, FileType, FileDown, Key, Upload, Square, Search, Folder, GripVertical } from './Icons';
+import { Plus, Trash2, Play, Pause, Volume2, FileText, ListMusic, Shuffle, User, Disc, Music, X, Sparkles, Loader2, FileJson, FileType, FileDown, Key, Upload, Square, Search, Folder, GripVertical, RotateCcw } from './Icons';
 import { formatTime, parseLRC, parseSRT, parseTTML, parseTimestamp, parseJSON, parseVTT } from '../utils/parsers';
 import { useUI } from '../contexts/UIContext';
 import { transcribeAudio } from '../services/geminiService';
@@ -195,14 +195,16 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
         const newItems: PlaylistItem[] = [];
 
 
-        const extractMetadata = async (file: File, fallbackTitle: string): Promise<{ title: string; artist: string; album?: string; coverUrl: string | null; backgroundType?: 'image' | 'video' }> => {
+        const extractMetadata = async (file: File, fallbackTitle: string): Promise<{ metadata: {title: string; artist: string; album?: string; coverUrl: string | null; backgroundType?: 'image' | 'video'}, embeddedLyrics?: string }> => {
             return new Promise((resolve) => {
                 if (file.type.startsWith('video/')) {
                     resolve({
-                        title: fallbackTitle,
-                        artist: 'Unknown Artist',
-                        coverUrl: URL.createObjectURL(file),
-                        backgroundType: 'video'
+                        metadata: {
+                            title: fallbackTitle,
+                            artist: 'Unknown Artist',
+                            coverUrl: URL.createObjectURL(file),
+                            backgroundType: 'video'
+                        }
                     });
                     return;
                 }
@@ -211,7 +213,7 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
                 import('jsmediatags/dist/jsmediatags.min.js').then((jsmediatags) => {
                     jsmediatags.read(file, {
                         onSuccess: (tag: any) => {
-                            const { title, artist, album, picture } = tag.tags;
+                            const { title, artist, album, picture, lyrics, USLT } = tag.tags;
                             let coverUrl: string | null = null;
                             if (picture) {
                                 const { data, format } = picture;
@@ -221,26 +223,38 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
                                 }
                                 coverUrl = `data:${format};base64,${window.btoa(base64String)}`;
                             }
+                            let embeddedLyrics: string | undefined;
+                            const lyricsTag = lyrics || USLT;
+                            if (lyricsTag) {
+                                embeddedLyrics = typeof lyricsTag === 'string' ? lyricsTag : (lyricsTag.lyrics || lyricsTag.data || undefined);
+                            }
                             resolve({
-                                title: title || fallbackTitle,
-                                artist: artist || 'Unknown Artist',
-                                album: album || undefined,
-                                coverUrl
+                                metadata: {
+                                    title: title || fallbackTitle,
+                                    artist: artist || 'Unknown Artist',
+                                    album: album || undefined,
+                                    coverUrl
+                                },
+                                embeddedLyrics
                             });
                         },
                         onError: () => {
                             resolve({
-                                title: fallbackTitle,
-                                artist: 'Unknown Artist',
-                                coverUrl: null
+                                metadata: {
+                                    title: fallbackTitle,
+                                    artist: 'Unknown Artist',
+                                    coverUrl: null
+                                }
                             });
                         }
                     });
                 }).catch(() => {
                     resolve({
-                        title: fallbackTitle,
-                        artist: 'Unknown Artist',
-                        coverUrl: null
+                        metadata: {
+                            title: fallbackTitle,
+                            artist: 'Unknown Artist',
+                            coverUrl: null
+                        }
                     });
                 });
             });
@@ -265,19 +279,29 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
 
         for (const [basename, group] of fileGroups.entries()) {
             if (group.audio) {
-                const metadata = await extractMetadata(group.audio, basename);
+                const { metadata, embeddedLyrics } = await extractMetadata(group.audio, basename);
                 const id = Math.random().toString(36).substr(2, 9);
 
                 // Parse lyrics if available
                 let itemParsedLyrics: LyricLine[] = [];
+                let itemLyricFile = group.lyric;
+
                 if (group.lyric) {
                     itemParsedLyrics = await parseLyrics(group.lyric);
+                } else if (embeddedLyrics) {
+                    itemParsedLyrics = parseLRC(embeddedLyrics);
+                    if (itemParsedLyrics.length === 0 && embeddedLyrics.trim()) {
+                        itemParsedLyrics = embeddedLyrics.split('\n')
+                           .filter(l => l.trim())
+                           .map(l => ({ time: 0, text: l.trim() }));
+                    }
+                    itemLyricFile = new File([embeddedLyrics], `embedded.lrc`, { type: 'text/plain' });
                 }
 
                 newItems.push({
                     id,
                     audioFile: group.audio,
-                    lyricFile: group.lyric,
+                    lyricFile: itemLyricFile,
                     parsedLyrics: itemParsedLyrics,
                     metadata,
                     duration: 0 // Will be known when played
@@ -1055,6 +1079,50 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
         }
     };
 
+    const handleReloadEmbeddedLyrics = async (item: PlaylistItem) => {
+        if (!item.audioFile) return;
+
+        // @ts-ignore
+        import('jsmediatags/dist/jsmediatags.min.js').then((jsmediatags) => {
+            jsmediatags.read(item.audioFile, {
+                onSuccess: (tag: any) => {
+                    const { lyrics, USLT } = tag.tags;
+                    const lyricsTag = lyrics || USLT;
+                    let embeddedLyrics: string | undefined;
+                    
+                    if (lyricsTag) {
+                        embeddedLyrics = typeof lyricsTag === 'string' ? lyricsTag : (lyricsTag.lyrics || lyricsTag.data || undefined);
+                    }
+                    
+                    if (embeddedLyrics) {
+                        let parsed = parseLRC(embeddedLyrics);
+                        if (parsed.length === 0 && embeddedLyrics.trim()) {
+                            parsed = embeddedLyrics.split('\n')
+                                .filter((l: string) => l.trim())
+                                .map((l: string) => ({ time: 0, text: l.trim() }));
+                        }
+                        
+                        setPlaylist(prev => prev.map(p =>
+                            p.id === item.id ? {
+                                ...p,
+                                parsedLyrics: parsed,
+                                lyricFile: new File([embeddedLyrics!], `embedded.lrc`, { type: 'text/plain' })
+                            } : p
+                        ));
+                    } else {
+                        alert("No embedded lyrics found in this audio file.");
+                    }
+                },
+                onError: (error: any) => {
+                    console.error('Error reading tags:', error);
+                    alert("No embedded lyrics found or could not read tags.");
+                }
+            });
+        }).catch(() => {
+            alert("Could not load tag reader library.");
+        });
+    };
+
     const handleManualLyricUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file || !manualLyricTargetId) return;
@@ -1352,12 +1420,12 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
                                         </span>
                                         {item.lyricFile ? (
                                             <div
-                                                className="flex items-center gap-0.5 text-[8px] px-1 rounded bg-blue-900/30 text-blue-300/80"
-                                                title={item.lyricFile.name}
+                                                className={`flex items-center gap-0.5 text-[8px] px-1 rounded ${item.lyricFile.name === 'embedded.lrc' ? 'bg-zinc-600/50 text-zinc-300' : 'bg-[#202022] text-zinc-200 border border-zinc-700/30'}`}
+                                                title={item.lyricFile.name === 'embedded.lrc' ? 'Metadata Lyrics' : item.lyricFile.name}
                                             >
                                                 <FileText size={7} />
                                                 <span className="truncate max-w-[80px]">
-                                                    {item.lyricFile.name}
+                                                    {item.lyricFile.name === 'embedded.lrc' ? 'Embedded' : item.lyricFile.name}
                                                 </span>
                                             </div>
                                         ) : (
@@ -1408,6 +1476,15 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
                                 </div>
 
                                 <div className="flex items-center gap-1 shrink-0 px-1">
+                                    {lyrics.length === 0 && (
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); handleReloadEmbeddedLyrics(item); }}
+                                            className="p-1.5 rounded bg-zinc-800/50 border border-zinc-700/50 text-zinc-400 hover:bg-zinc-700/50 transition-colors"
+                                            title="Reload Embedded Lyrics"
+                                        >
+                                            <RotateCcw size={14} />
+                                        </button>
+                                    )}
                                     <button
                                         onClick={(e) => {
                                             e.stopPropagation();
