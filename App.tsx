@@ -271,7 +271,7 @@ function App() {
         import('jsmediatags/dist/jsmediatags.min.js').then((jsmediatags) => {
           jsmediatags.read(file, {
             onSuccess: (tag: any) => {
-              const { title, artist, picture } = tag.tags;
+              const { title, artist, picture, lyrics, USLT } = tag.tags;
               let coverUrl = null;
               if (picture) {
                 const { data, format } = picture;
@@ -287,6 +287,24 @@ function App() {
                 artist: artist || fallbackMeta.artist,
                 coverUrl: coverUrl || null
               });
+
+              const lyricsTag = lyrics || USLT;
+              let embeddedLyrics = '';
+              if (lyricsTag) {
+                embeddedLyrics = typeof lyricsTag === 'string' ? lyricsTag : (lyricsTag.lyrics || lyricsTag.data || '');
+              }
+              if (embeddedLyrics) {
+                setLyrics((curr) => {
+                  if (curr && curr.length > 0) return curr; // If already uploaded manually, do not override
+                  let parsed = parseLRC(embeddedLyrics);
+                  if (parsed.length === 0 && embeddedLyrics.trim()) {
+                    parsed = embeddedLyrics.split('\n')
+                      .filter(l => l.trim())
+                      .map(l => ({ time: 0, text: l.trim() }));
+                  }
+                  return parsed;
+                });
+              }
             },
             onError: (error: any) => {
               console.log('Error reading tags:', error);
@@ -304,6 +322,7 @@ function App() {
       }
 
       // Reset play state
+      setLyrics([]);
       setLyricOffset(0);
       setIsPlaying(false);
       setCurrentTime(0);
