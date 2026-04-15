@@ -16,6 +16,7 @@
 
 ### 🎧 Advanced Audio Player & Playlist
 - **Smart Playlist**: Drag & drop multiple files. Automatically groups audio/video files with matching lyric files (`.lrc`, `.srt`, `.vtt`, `.ttml`, `.xml`) based on filename.
+- **Broad Audio Format Support**: Handles **MP3**, **M4A/ALAC**, **FLAC**, **OGG Vorbis**, **OPUS**, **WAV**, and video files. Automatically extracts embedded metadata (title, artist, cover art) and **embedded lyrics** from all supported formats.
 - **Interactive Lyric Timeline**: Each playlist item shows a mini-timeline of lyrics. Click any line to play that specific track starting from that time.
 - **Sorting & Management**: Sort by Filename, Artist, Title, Album (Ascending/Descending), or Shuffle.
 - **Repeat Modes**: Cycle between **Off**, **Repeat One**, **Play All** (Play playlist once), and **Repeat All** (Loop playlist).
@@ -50,6 +51,13 @@
 - **Export Lyrics**: Save your transcribed or edited lyrics as `.lrc` (Standard or **Enhanced/Karaoke**), `.srt`, `.vtt` (Standard or **Karaoke**), `.json`, or `.txt` files.
 - **Online Lyric Search**: Built-in search engine to find and download synchronized lyrics from **LRCLIB** with a single click. **Netease** and **Musixmatch** (maybe not working).
 - **Manual Management**: Manually load external `.lrc` / `.srt` files or clear existing lyrics for any track.
+- **Embedded Lyrics Extraction**: Automatically reads lyrics embedded inside audio files on import. Supports:
+  - **MP3**: ID3v2 `USLT` (Unsynchronized Lyrics) tag.
+  - **M4A / ALAC**: MP4 `©lyr` atom.
+  - **FLAC**: Vorbis Comment `LYRICS` / `UNSYNCEDLYRICS` fields (via custom binary parser).
+  - **OGG Vorbis / OPUS**: Vorbis Comment lyrics (via custom binary parser).
+  - **WAV**: RIFF `LIST INFO` lyrics chunks.
+  - **Reload Button**: Re-extract embedded lyrics at any time using the ↻ button in the playlist.
 
 ### 🎬 Professional Visual Timeline Editor
  Create complex visual stories synchronized to your music.
@@ -245,7 +253,8 @@ This application is built with React + Vite and requires **Node.js** to run.
 
 1. **Build a Playlist**: 
     - Click **"Add Audio & Lyrics"** in the Playlist panel.
-    - Select multiple MP3s and LRCs at once. The app will pair them automatically.
+    - Select multiple audio files (MP3, M4A, FLAC, OGG, OPUS, WAV) and lyric files at once. The app will pair them automatically.
+    - **Embedded lyrics** are extracted automatically from all supported formats on import.
 2. **Design Visuals**: 
     - Press **T** to open the Timeline.
     - Drag & Drop media or use "Import Media".
@@ -263,9 +272,10 @@ This application is built with React + Vite and requires **Node.js** to run.
 - **Tipografi Super Canggih**: Load **Google Fonts Individu** secara terpisah untuk Lirik, Info Lagu, dan Nama Channel. Termasuk kontrol granular untuk gaya (Bold/Italic) dan warna kustom tiap elemen.
 - **Rendering Kilat (WebCodecs)**: Engine baru memanfaatkan akselerasi hardware (GPU) untuk ekspor video hingga 5x lebih cepat. Tetap tersedia opsi **FFmpeg** untuk kualitas frame-by-frame.
 - **Manajemen Pengaturan Lengkap**: **Ekspor/Impor JSON** untuk menyimpan/membagikan konfigurasi render (termasuk font kustom). Tombol **Reset** yang disempurnakan.
-- **Playlist Pintar**: Masukkan banyak file sekaligus. Aplikasi otomatis memasangkan lagu dengan lirik (`.lrc`/`.srt`) yang bernama sama.
+- **Playlist Pintar**: Masukkan banyak file sekaligus. Aplikasi otomatis memasangkan lagu dengan lirik (`.lrc`/`.srt`) yang bernama sama. Mendukung berbagai format audio: **MP3, M4A, FLAC, OGG, OPUS,** dan **WAV**.
+- **Ekstraksi Lirik Tersemat**: Fitur canggih untuk membaca lirik yang tertanam langsung di dalam file audio (FLAC Vorbis Lyrics, MP4 Lyrics, ID3v2 USLT, dll) secara otomatis saat import.
 - **Timeline Lirik Interaktif**: Lihat cuplikan lirik di playlist. Klik baris mana saja untuk langsung memutar lagu itu.
-- **Format Luas**: Dukungan untuk `.lrc`, `.srt`, **`.vtt` (termasuk Karaoke/Word-Level)**, dan **`.ttml` / `.xml`**.
+- **Format Luas**: Dukungan lirik `.lrc`, `.srt`, **`.vtt` (termasuk Karaoke/Word-Level)**, dan **`.ttml` / `.xml`**.
 - **Support Video**: Load file video (MP4, WebM) sebagai track audio + background otomatis.
 - **Karaoke Kustom**: Pilihan efek highlight baru (**Neon, Glow, Box, Pill**) dengan **Pewarnaan Kustom** (Text & Background Color).
 - **Visual Efek**: Fitur **Background Blur** (dengan **Slider Kekuatan Blur**), **Smart Gradient**, dan **Text Animation** (Bounce, Pulse, Glitch, dll).
@@ -292,8 +302,8 @@ Aplikasi ini berbasis web modern (React + Vite).
 
 ### Alur Kerja (Workflow)
 1.  **Siapkan Playlist**: 
-    - Klik **"Add Audio & Lyrics"** atau cukup **Drag & Drop** file MP3 dan LRC/SRT kamu ke area playlist.
-    - File akan otomatis berpasangan jika namanya sama.
+    - Klik **"Add Audio & Lyrics"** atau cukup **Drag & Drop** file audio (MP3, M4A, FLAC, OGG, OPUS, WAV) dan file lirik kamu.
+    - File akan otomatis berpasangan jika namanya sama, dan lirik tersemat akan diekstrak secara otomatis.
 2.  **Desain Visual (Editor Timeline)**:
     - Tekan **T** untuk membuka Timeline Editor.
     - Drag gambar/video ke track visual.
