@@ -159,7 +159,7 @@ export interface RenderConfig {
 
   // Audio Visualization (Web View Only)
   showVisualization?: boolean;
-  visualizationType?: 'bars' | 'wave' | 'circular' | 'particles' | 'mirror-bars' | 'pulse-ring';
+  visualizationType?: 'bars' | 'wave' | 'circular' | 'particles' | 'mirror-bars' | 'pulse-ring' | 'waveform' | 'spectrogram' | 'spectrum' | 'stereo-field';
   visualizationColorMode?: 'accent' | 'gradient' | 'custom' | 'rainbow';
   visualizationColor1?: string;
   visualizationColor2?: string;

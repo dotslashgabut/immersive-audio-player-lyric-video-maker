@@ -48,6 +48,7 @@
   - **Display Modes**: Control lyric visibility context and **Style Target** (Apply styles to Active Line only or All Lines).
 - **AI Transcription**: Built-in integration with **Google Gemini** (supports **Gemini 2.5 Flash** and **3.0 Flash Preview**) for automatic high-accuracy audio transcription.
   - **Mixed-Language Support**: Expertly handles code-switching (e.g., K-Pop, J-Pop with English) and preserves native scripts (No forced transliteration).
+  - **Line/Word**: Use **Line** for standard formats, and **Word** for precise karaoke highlighting (Enhanced).
 - **Export Lyrics**: Save your transcribed or edited lyrics as `.lrc` (Standard or **Enhanced/Karaoke**), `.srt`, `.vtt` (Standard or **Karaoke**), `.json`, or `.txt` files.
 - **Online Lyric Search**: Built-in search engine to find and download synchronized lyrics from **LRCLIB** with a single click. **Netease** and **Musixmatch** (maybe not working).
 - **Manual Management**: Manually load external `.lrc` / `.srt` files or clear existing lyrics for any track.
@@ -111,9 +112,9 @@
 - **Settings Management**:
   - **JSON Import/Export**: Backup, share, or restore your exact render configurations (including custom fonts, colors, and layouts) with a single click.
   - **Reset to Defaults**: Improved reset functionality to verify and clear all custom font selections and return to factory defaults.
-- **Audio Visualization (New)**:
+- **Audio Visualization**:
   - **Live & Export**: Real-time frequency analysis that works in the player AND is baked into your exported videos (WebCodecs/FFmpeg).
-  - **Visualizer Types**: **Bars** (Spectrum), **Wave** (Oscilloscope), **Circular** (Radial), **Pulse Ring** (Beat Reactive), and **Particles** (Dynamic layered effects).
+  - **Visualizer Types**: **Bars**, **Wave**, **Waveform (Filled)**, **Spectrum**, **Spectrogram**, **Stereo Field**, **Circular**, **Pulse Ring**, and **Particles**.
   - **Customization**: Full control over Position (Bottom, Center, Full), Colors (Gradient, Rainbow, Accent), Opacity, and Sensitivity.
 - **Advanced Backgrounds**:
   - **Timeline Media**: Use your custom images and videos from the timeline.

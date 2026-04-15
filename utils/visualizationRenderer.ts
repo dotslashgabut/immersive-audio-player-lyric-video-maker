@@ -122,6 +122,18 @@ export function drawVisualization(
         case 'pulse-ring':
             drawPulseRing(ctx, frequencyData, waveformData, region, params, time, normalizedAvg);
             break;
+        case 'waveform':
+            drawWaveform(ctx, waveformData || frequencyData, region, params, time);
+            break;
+        case 'spectrum':
+            drawSpectrum(ctx, frequencyData, region, params, time);
+            break;
+        case 'spectrogram':
+            drawSpectrogram(ctx, frequencyData, region, params, time);
+            break;
+        case 'stereo-field':
+            drawStereoField(ctx, waveformData || frequencyData, region, params, time);
+            break;
     }
 
     ctx.restore();
@@ -504,6 +516,193 @@ function drawPulseRing(
         ctx.lineWidth = 2;
         ctx.stroke();
     }
+}
+
+// ========================
+// SPECTROGRAM
+// ========================
+let spectrogramCanvas: OffscreenCanvas | HTMLCanvasElement | null = null;
+let spectrogramCtx: OffscreenCanvasRenderingContext2D | CanvasRenderingContext2D | null = null;
+let lastSpectrogramTime = -1;
+
+function getSpectrogramCanvas(w: number, h: number) {
+    if (!spectrogramCanvas || spectrogramCanvas.width !== w || spectrogramCanvas.height !== h) {
+        if (typeof OffscreenCanvas !== 'undefined') {
+            spectrogramCanvas = new OffscreenCanvas(w, h);
+        } else {
+            spectrogramCanvas = document.createElement('canvas');
+            spectrogramCanvas.width = w;
+            spectrogramCanvas.height = h;
+        }
+        spectrogramCtx = spectrogramCanvas.getContext('2d', { willReadFrequently: true }) as any;
+        if (spectrogramCtx) {
+            spectrogramCtx.fillStyle = '#000000';
+            spectrogramCtx.fillRect(0, 0, w, h);
+        }
+    }
+    return { specCanvas: spectrogramCanvas, specCtx: spectrogramCtx! };
+}
+
+function drawSpectrogram(
+    ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D,
+    data: AnyUint8Array,
+    region: Region,
+    params: VizParams,
+    time: number
+) {
+    const { specCanvas, specCtx } = getSpectrogramCanvas(region.w, region.h);
+
+    if (time !== lastSpectrogramTime) {
+        lastSpectrogramTime = time;
+        const shift = 2;
+        specCtx.drawImage(specCanvas, 0, 0, region.w, region.h - shift, 0, shift, region.w, region.h - shift);
+
+        const slices = data.length;
+        const sliceW = region.w / slices;
+        for (let i = 0; i < slices; i++) {
+            const value = (data[i] / 255) * params.sensitivity;
+            specCtx.fillStyle = colorFor(params, i, slices, Math.min(1, value), time);
+            specCtx.fillRect(Math.floor(i * sliceW), 0, Math.ceil(sliceW + 0.5), shift);
+        }
+    }
+
+    ctx.save();
+    ctx.globalAlpha = params.opacity;
+    ctx.drawImage(specCanvas, region.x, region.y);
+    ctx.restore();
+}
+
+// ========================
+// SPECTRUM
+// ========================
+function drawSpectrum(
+    ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D,
+    data: AnyUint8Array,
+    region: Region,
+    params: VizParams,
+    time: number
+) {
+    const count = Math.min(params.barCount * 2, data.length);
+    const sliceW = region.w / (count - 1);
+    const bottomY = region.y + region.h;
+
+    ctx.beginPath();
+    ctx.moveTo(region.x, bottomY);
+
+    for (let i = 0; i < count; i++) {
+        const dataIndex = Math.floor(i * (data.length / count));
+        const value = Math.min(1, (data[dataIndex] / 255) * params.sensitivity);
+        const y = bottomY - value * region.h;
+        ctx.lineTo(region.x + i * sliceW, y);
+    }
+    ctx.lineTo(region.x + region.w, bottomY);
+    ctx.closePath();
+
+    const colorTop = colorFor(params, 0.5, 1, 1, time);
+    const colorBottom = colorFor(params, 0.5, 1, 0, time).replace(/[\d.]+\)$/, '0)');
+    
+    const grad = ctx.createLinearGradient(0, region.y, 0, bottomY);
+    grad.addColorStop(0, colorTop);
+    grad.addColorStop(1, colorBottom);
+
+    ctx.fillStyle = grad;
+    ctx.fill();
+
+    ctx.beginPath();
+    for (let i = 0; i < count; i++) {
+        const dataIndex = Math.floor(i * (data.length / count));
+        const value = Math.min(1, (data[dataIndex] / 255) * params.sensitivity);
+        const y = bottomY - value * region.h;
+        if (i === 0) ctx.moveTo(region.x, y);
+        else ctx.lineTo(region.x + i * sliceW, y);
+    }
+    ctx.strokeStyle = colorFor(params, 0.5, 1, 0.8, time);
+    ctx.lineWidth = 2;
+    ctx.stroke();
+}
+
+// ========================
+// WAVEFORM (FILLED)
+// ========================
+function drawWaveform(
+    ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D,
+    data: AnyUint8Array,
+    region: Region,
+    params: VizParams,
+    time: number
+) {
+    const yCenter = region.y + region.h / 2;
+    const amplitude = region.h * 0.45 * params.sensitivity;
+    const sliceW = region.w / (data.length - 1);
+
+    ctx.beginPath();
+    ctx.moveTo(region.x, yCenter);
+
+    for (let i = 0; i < data.length; i++) {
+        const v = data[i] / 128.0;
+        const env = Math.abs(v - 1.0);
+        ctx.lineTo(region.x + i * sliceW, yCenter - env * amplitude);
+    }
+    
+    for (let i = data.length - 1; i >= 0; i--) {
+        const v = data[i] / 128.0;
+        const env = Math.abs(v - 1.0);
+        ctx.lineTo(region.x + i * sliceW, yCenter + env * amplitude);
+    }
+    ctx.closePath();
+
+    ctx.fillStyle = colorFor(params, 0.5, 1, 0.8, time);
+    ctx.fill();
+}
+
+// ========================
+// STEREO FIELD
+// ========================
+function drawStereoField(
+    ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D,
+    data: AnyUint8Array,
+    region: Region,
+    params: VizParams,
+    time: number
+) {
+    const centerX = region.x + region.w / 2;
+    const centerY = region.y + region.h / 2;
+    const radius = Math.min(region.w, region.h) * 0.45 * params.sensitivity;
+    
+    ctx.beginPath();
+    ctx.strokeStyle = colorFor(params, 0.5, 1, 0.8, time);
+    ctx.lineWidth = 2;
+    
+    const delay = Math.max(1, Math.floor(data.length * 0.02));
+    let started = false;
+    let hasSignal = false;
+    
+    for (let i = 0; i < 10; i++) {
+        if (data[i] !== 128) hasSignal = true;
+    }
+
+    if (!hasSignal) {
+        ctx.arc(centerX, centerY, 2, 0, Math.PI * 2);
+        ctx.fillStyle = ctx.strokeStyle;
+        ctx.fill();
+        return;
+    }
+    
+    for (let i = delay; i < data.length; i++) {
+        const v1 = (data[i] / 128.0) - 1.0; 
+        const v2 = (data[i - delay] / 128.0) - 1.0;
+        
+        const x = (v1 - v2) * Math.SQRT1_2 * radius;
+        const y = (v1 + v2) * Math.SQRT1_2 * radius;
+        
+        if (!started) {
+            ctx.moveTo(centerX + x, centerY - y);
+            started = true;
+        } else {
+            ctx.lineTo(centerX + x, centerY - y);
+        }
+    }
+    ctx.stroke();
 }
 
 // ========================
