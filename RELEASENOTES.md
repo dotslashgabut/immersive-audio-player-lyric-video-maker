@@ -1,5 +1,18 @@
 # Release Notes
 
+# 2.3.15
+
+## What's New
+- **Embedded Lyrics — Cross-Format Support** *(Bug Fix / New Feature)*:
+  - **Root Cause**: The `jsmediatags` library only reads lyrics from **MP3** (ID3v2 `USLT` tag) and **M4A/ALAC** (MP4 `©lyr` atom). For FLAC, it parses Vorbis Comments but hardcodes only 5 fields (title, artist, album, track, genre) — the `LYRICS` field is completely ignored. For OGG, OPUS, and WAV, it has **no reader at all** and fails silently.
+  - **Custom Binary Parser**: Introduced `utils/embeddedLyrics.ts` — a zero-dependency binary parser that directly reads embedded lyrics from:
+    - **FLAC**: Parses metadata blocks to find the VORBIS_COMMENT block (type 4) and extracts `LYRICS`, `UNSYNCEDLYRICS`, `SYNCEDLYRICS` fields.
+    - **OGG Vorbis / OPUS**: Parses OGG pages, reassembles the comment header packet (handling multi-segment packets), and reads Vorbis Comments including lyrics.
+    - **WAV**: Parses RIFF chunks looking for `LIST INFO` sub-chunks (`ILYC`/`ILYR` for lyrics).
+  - **Seamless Fallback**: The custom parser is called automatically when `jsmediatags` either returns no lyrics (FLAC) or fails entirely (OGG/OPUS/WAV). Title, artist, and album metadata are also extracted as a bonus for unsupported formats.
+  - **All Code Paths Covered**: Works in the main player (single-file upload), the Playlist Editor (batch import), **and** the **Reload Embedded Lyrics** button (↻) — which was previously using a separate, outdated code path that only checked `lyrics || USLT`.
+
+
 # 2.3.14
 
 ## What's New

@@ -4,6 +4,7 @@ import { Plus, Trash2, Play, Pause, Volume2, FileText, ListMusic, Shuffle, User,
 import { formatTime, parseLRC, parseSRT, parseTTML, parseTimestamp, parseJSON, parseVTT } from '../utils/parsers';
 import { useUI } from '../contexts/UIContext';
 import { transcribeAudio } from '../services/geminiService';
+import { extractEmbeddedLyrics } from '../utils/embeddedLyrics';
 
 interface PlaylistEditorProps {
     playlist: PlaylistItem[];
@@ -213,7 +214,7 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
                 import('jsmediatags/dist/jsmediatags.min.js').then((jsmediatags) => {
                     jsmediatags.read(file, {
                         onSuccess: (tag: any) => {
-                            const { title, artist, album, picture, lyrics, USLT } = tag.tags;
+                            const { title, artist, album, picture } = tag.tags;
                             let coverUrl: string | null = null;
                             if (picture) {
                                 const { data, format } = picture;
@@ -224,37 +225,80 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
                                 coverUrl = `data:${format};base64,${window.btoa(base64String)}`;
                             }
                             let embeddedLyrics: string | undefined;
-                            const lyricsTag = lyrics || USLT;
+                            const lyricsTag = tag.tags.lyrics || tag.tags.LYRICS || tag.tags.USLT || tag.tags.SYLT || tag.tags.unsyncedlyrics || tag.tags.SYNCEDLYRICS || tag.tags['©lyr'];
                             if (lyricsTag) {
-                                embeddedLyrics = typeof lyricsTag === 'string' ? lyricsTag : (lyricsTag.lyrics || lyricsTag.data || undefined);
+                                if (typeof lyricsTag === 'string') {
+                                    embeddedLyrics = lyricsTag;
+                                } else if (Array.isArray(lyricsTag)) {
+                                    embeddedLyrics = lyricsTag.join('\n');
+                                } else {
+                                    embeddedLyrics = lyricsTag.lyrics || lyricsTag.data || lyricsTag.text || undefined;
+                                }
                             }
-                            resolve({
-                                metadata: {
-                                    title: title || fallbackTitle,
-                                    artist: artist || 'Unknown Artist',
-                                    album: album || undefined,
-                                    coverUrl
-                                },
-                                embeddedLyrics
-                            });
+
+                            const meta = {
+                                title: title || fallbackTitle,
+                                artist: artist || 'Unknown Artist',
+                                album: album || undefined,
+                                coverUrl
+                            };
+
+                            if (embeddedLyrics) {
+                                resolve({ metadata: meta, embeddedLyrics });
+                            } else {
+                                // jsmediatags succeeded but found no lyrics
+                                // (e.g. FLAC: parses Vorbis Comments but skips LYRICS field)
+                                extractEmbeddedLyrics(file).then(result => {
+                                    resolve({ metadata: meta, embeddedLyrics: result.lyrics || undefined });
+                                }).catch(() => {
+                                    resolve({ metadata: meta });
+                                });
+                            }
                         },
                         onError: () => {
-                            resolve({
-                                metadata: {
-                                    title: fallbackTitle,
-                                    artist: 'Unknown Artist',
-                                    coverUrl: null
-                                }
+                            // jsmediatags has no reader for OGG, OPUS, WAV, WMA, etc.
+                            // Use custom binary extractor for metadata + lyrics
+                            extractEmbeddedLyrics(file).then(result => {
+                                resolve({
+                                    metadata: {
+                                        title: result.title || fallbackTitle,
+                                        artist: result.artist || 'Unknown Artist',
+                                        album: result.album || undefined,
+                                        coverUrl: null
+                                    },
+                                    embeddedLyrics: result.lyrics || undefined
+                                });
+                            }).catch(() => {
+                                resolve({
+                                    metadata: {
+                                        title: fallbackTitle,
+                                        artist: 'Unknown Artist',
+                                        coverUrl: null
+                                    }
+                                });
                             });
                         }
                     });
                 }).catch(() => {
-                    resolve({
-                        metadata: {
-                            title: fallbackTitle,
-                            artist: 'Unknown Artist',
-                            coverUrl: null
-                        }
+                    // jsmediatags import failed — try custom extractor
+                    extractEmbeddedLyrics(file).then(result => {
+                        resolve({
+                            metadata: {
+                                title: result.title || fallbackTitle,
+                                artist: result.artist || 'Unknown Artist',
+                                album: result.album || undefined,
+                                coverUrl: null
+                            },
+                            embeddedLyrics: result.lyrics || undefined
+                        });
+                    }).catch(() => {
+                        resolve({
+                            metadata: {
+                                title: fallbackTitle,
+                                artist: 'Unknown Artist',
+                                coverUrl: null
+                            }
+                        });
                     });
                 });
             });
@@ -1082,44 +1126,72 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
     const handleReloadEmbeddedLyrics = async (item: PlaylistItem) => {
         if (!item.audioFile) return;
 
+        // Helper to apply found lyrics text to this playlist item
+        const applyLyrics = (lyricsText: string) => {
+            let parsed = parseLRC(lyricsText);
+            if (parsed.length === 0 && lyricsText.trim()) {
+                parsed = lyricsText.split('\n')
+                    .filter((l: string) => l.trim())
+                    .map((l: string) => ({ time: 0, text: l.trim() }));
+            }
+
+            if (parsed.length > 0) {
+                setPlaylist(prev => prev.map(p =>
+                    p.id === item.id ? {
+                        ...p,
+                        parsedLyrics: parsed,
+                        lyricFile: new File([lyricsText], `embedded.lrc`, { type: 'text/plain' })
+                    } : p
+                ));
+            } else {
+                alert("No embedded lyrics found in this audio file.");
+            }
+        };
+
+        // Helper: use custom binary extractor for formats jsmediatags can't handle
+        const tryCustomExtractor = () => {
+            extractEmbeddedLyrics(item.audioFile).then(result => {
+                if (result.lyrics) {
+                    applyLyrics(result.lyrics);
+                } else {
+                    alert("No embedded lyrics found in this audio file.");
+                }
+            }).catch(() => {
+                alert("No embedded lyrics found or could not read tags.");
+            });
+        };
+
         // @ts-ignore
         import('jsmediatags/dist/jsmediatags.min.js').then((jsmediatags) => {
             jsmediatags.read(item.audioFile, {
                 onSuccess: (tag: any) => {
-                    const { lyrics, USLT } = tag.tags;
-                    const lyricsTag = lyrics || USLT;
+                    const lyricsTag = tag.tags.lyrics || tag.tags.LYRICS || tag.tags.USLT || tag.tags.SYLT || tag.tags.unsyncedlyrics || tag.tags.SYNCEDLYRICS || tag.tags['©lyr'];
                     let embeddedLyrics: string | undefined;
-                    
+
                     if (lyricsTag) {
-                        embeddedLyrics = typeof lyricsTag === 'string' ? lyricsTag : (lyricsTag.lyrics || lyricsTag.data || undefined);
-                    }
-                    
-                    if (embeddedLyrics) {
-                        let parsed = parseLRC(embeddedLyrics);
-                        if (parsed.length === 0 && embeddedLyrics.trim()) {
-                            parsed = embeddedLyrics.split('\n')
-                                .filter((l: string) => l.trim())
-                                .map((l: string) => ({ time: 0, text: l.trim() }));
+                        if (typeof lyricsTag === 'string') {
+                            embeddedLyrics = lyricsTag;
+                        } else if (Array.isArray(lyricsTag)) {
+                            embeddedLyrics = lyricsTag.join('\n');
+                        } else {
+                            embeddedLyrics = lyricsTag.lyrics || lyricsTag.data || lyricsTag.text || undefined;
                         }
-                        
-                        setPlaylist(prev => prev.map(p =>
-                            p.id === item.id ? {
-                                ...p,
-                                parsedLyrics: parsed,
-                                lyricFile: new File([embeddedLyrics!], `embedded.lrc`, { type: 'text/plain' })
-                            } : p
-                        ));
+                    }
+
+                    if (embeddedLyrics) {
+                        applyLyrics(embeddedLyrics);
                     } else {
-                        alert("No embedded lyrics found in this audio file.");
+                        // jsmediatags succeeded but found no lyrics (e.g. FLAC skips LYRICS field)
+                        tryCustomExtractor();
                     }
                 },
-                onError: (error: any) => {
-                    console.error('Error reading tags:', error);
-                    alert("No embedded lyrics found or could not read tags.");
+                onError: () => {
+                    // jsmediatags has no reader for OGG, OPUS, WAV, etc.
+                    tryCustomExtractor();
                 }
             });
         }).catch(() => {
-            alert("Could not load tag reader library.");
+            tryCustomExtractor();
         });
     };
 

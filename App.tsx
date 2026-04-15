@@ -19,6 +19,7 @@ import { PRESET_CYCLE_LIST, PRESET_DEFINITIONS, videoPresetGroups } from './util
 import { useUI } from './contexts/UIContext';
 import { renderWithFFmpeg, renderPlaylistWithFFmpeg, isFFmpegAvailable, getFFmpegCodecs } from './utils/ffmpegRenderer';
 import { renderWithWebCodecs, renderPlaylistWithWebCodecs, isWebCodecsSupported } from './utils/webCodecsRenderer';
+import { extractEmbeddedLyrics } from './utils/embeddedLyrics';
 
 
 
@@ -265,13 +266,27 @@ function App() {
       };
       setMetadata(fallbackMeta);
 
-      // jsmediatags parsing
-      if (file.type.startsWith('audio/')) {
+      // Helper: apply embedded lyrics text to state
+      const applyEmbeddedLyrics = (lyricsText: string) => {
+        setLyrics((curr) => {
+          if (curr && curr.length > 0) return curr; // If already uploaded manually, do not override
+          let parsed = parseLRC(lyricsText);
+          if (parsed.length === 0 && lyricsText.trim()) {
+            parsed = lyricsText.split('\n')
+              .filter(l => l.trim())
+              .map(l => ({ time: 0, text: l.trim() }));
+          }
+          return parsed;
+        });
+      };
+
+      // jsmediatags parsing — also handle files with no MIME type (e.g. .flac, .ogg)
+      if (!file.type.startsWith('video/')) {
         // @ts-ignore
         import('jsmediatags/dist/jsmediatags.min.js').then((jsmediatags) => {
           jsmediatags.read(file, {
             onSuccess: (tag: any) => {
-              const { title, artist, picture, lyrics, USLT } = tag.tags;
+              const { title, artist, picture } = tag.tags;
               let coverUrl = null;
               if (picture) {
                 const { data, format } = picture;
@@ -288,26 +303,41 @@ function App() {
                 coverUrl: coverUrl || null
               });
 
-              const lyricsTag = lyrics || USLT;
+              const lyricsTag = tag.tags.lyrics || tag.tags.LYRICS || tag.tags.USLT || tag.tags.SYLT || tag.tags.unsyncedlyrics || tag.tags.SYNCEDLYRICS || tag.tags['©lyr'];
               let embeddedLyrics = '';
               if (lyricsTag) {
-                embeddedLyrics = typeof lyricsTag === 'string' ? lyricsTag : (lyricsTag.lyrics || lyricsTag.data || '');
+                if (typeof lyricsTag === 'string') {
+                  embeddedLyrics = lyricsTag;
+                } else if (Array.isArray(lyricsTag)) {
+                  embeddedLyrics = lyricsTag.join('\n');
+                } else {
+                  embeddedLyrics = lyricsTag.lyrics || lyricsTag.data || lyricsTag.text || '';
+                }
               }
               if (embeddedLyrics) {
-                setLyrics((curr) => {
-                  if (curr && curr.length > 0) return curr; // If already uploaded manually, do not override
-                  let parsed = parseLRC(embeddedLyrics);
-                  if (parsed.length === 0 && embeddedLyrics.trim()) {
-                    parsed = embeddedLyrics.split('\n')
-                      .filter(l => l.trim())
-                      .map(l => ({ time: 0, text: l.trim() }));
-                  }
-                  return parsed;
-                });
+                applyEmbeddedLyrics(embeddedLyrics);
+              } else {
+                // jsmediatags succeeded but found no lyrics — try custom binary extractor
+                // (e.g. FLAC: jsmediatags parses Vorbis Comments but skips the LYRICS field)
+                extractEmbeddedLyrics(file).then(result => {
+                  if (result.lyrics) applyEmbeddedLyrics(result.lyrics);
+                }).catch(e => console.warn('[EmbeddedLyrics] Fallback failed:', e));
               }
             },
             onError: (error: any) => {
-              console.log('Error reading tags:', error);
+              console.log('jsmediatags has no reader for this format:', error);
+              // jsmediatags has no reader for OGG, OPUS, WAV, WMA, etc.
+              // Use custom binary extractor for metadata + lyrics
+              extractEmbeddedLyrics(file).then(result => {
+                if (result.title || result.artist) {
+                  setMetadata(prev => ({
+                    ...prev,
+                    title: result.title || prev.title,
+                    artist: result.artist || prev.artist,
+                  }));
+                }
+                if (result.lyrics) applyEmbeddedLyrics(result.lyrics);
+              }).catch(e => console.warn('[EmbeddedLyrics] Fallback failed:', e));
             }
           });
         });
