@@ -236,7 +236,13 @@ function App() {
     }));
   }, [lyrics, lyricOffset]);
 
-  const currentLyricIndex = adjustedLyrics.findIndex((line, index) => {
+  // Detect unsynced lyrics (all timestamps are 0 — e.g. embedded USLT without timing)
+  const isUnsyncedLyrics = useMemo(() => {
+    if (adjustedLyrics.length === 0) return false;
+    return adjustedLyrics.every(l => l.time === 0 && (l.endTime === undefined || l.endTime === 0));
+  }, [adjustedLyrics]);
+
+  const currentLyricIndex = isUnsyncedLyrics ? -1 : adjustedLyrics.findIndex((line, index) => {
     if (line.endTime !== undefined) {
       return currentTime >= line.time && currentTime < line.endTime;
     }
