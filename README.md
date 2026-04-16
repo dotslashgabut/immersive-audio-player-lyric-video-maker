@@ -23,6 +23,7 @@
 - **Immersive Mode**: UI controls automatically fade out when idle for a distraction-free experience.
 - **Minimal Mode Interaction**: Double-click or double-tap anywhere on the screen to quickly exit Minimal Mode.
 - **Smart Play/Pause**: Clicking the active track in the playlist toggles Play/Pause.
+- **Unified Uploads**: Audio files and lyrics uploaded from the main interface are instantly auto-synced to your active playlist queue.
 - **Auto-Load**: Automatically cues the first track for playback when adding new audio files.
 - **Export Playlist**: Export your current playlist to `.m3u8` format.
 
@@ -273,7 +274,7 @@ This application is built with React + Vite and requires **Node.js** to run.
 - **Tipografi Super Canggih**: Load **Google Fonts Individu** secara terpisah untuk Lirik, Info Lagu, dan Nama Channel. Termasuk kontrol granular untuk gaya (Bold/Italic) dan warna kustom tiap elemen.
 - **Rendering Kilat (WebCodecs)**: Engine baru memanfaatkan akselerasi hardware (GPU) untuk ekspor video hingga 5x lebih cepat. Tetap tersedia opsi **FFmpeg** untuk kualitas frame-by-frame.
 - **Manajemen Pengaturan Lengkap**: **Ekspor/Impor JSON** untuk menyimpan/membagikan konfigurasi render (termasuk font kustom). Tombol **Reset** yang disempurnakan.
-- **Playlist Pintar**: Masukkan banyak file sekaligus. Aplikasi otomatis memasangkan lagu dengan lirik (`.lrc`/`.srt`) yang bernama sama. Mendukung berbagai format audio: **MP3, M4A, FLAC, OGG, OPUS,** dan **WAV**.
+- **Playlist Pintar Terpadu**: File yang diupload dari menu utama kini otomatis langsung tersinkron dan masuk ke dalam Playlist. Masukkan banyak file sekaligus via Playlist untuk otomatis dipasangkan dengan lirik berdasarkan nama.
 - **Ekstraksi Lirik Tersemat**: Fitur canggih untuk membaca lirik yang tertanam langsung di dalam file audio (FLAC Vorbis Lyrics, MP4 Lyrics, ID3v2 USLT, dll) secara otomatis saat import.
 - **Timeline Lirik Interaktif**: Lihat cuplikan lirik di playlist. Klik baris mana saja untuk langsung memutar lagu itu.
 - **Format Luas**: Dukungan lirik `.lrc`, `.srt`, **`.vtt` (termasuk Karaoke/Word-Level)**, dan **`.ttml` / `.xml`**.
