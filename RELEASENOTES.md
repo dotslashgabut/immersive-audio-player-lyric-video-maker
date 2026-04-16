@@ -20,6 +20,13 @@
   - **Seamless Fallback**: The custom parser is called automatically when `jsmediatags` either returns no lyrics (FLAC) or fails entirely (OGG/OPUS/WAV). Title, artist, and album metadata are also extracted as a bonus for unsupported formats.
   - **All Code Paths Covered**: Works in the main player (single-file upload), the Playlist Editor (batch import), **and** the **Reload Embedded Lyrics** button (↻) — which was previously using a separate, outdated code path that only checked `lyrics || USLT`.
 
+- **Workflow Improvements**:
+  - **Playlist Auto-Sync**: Audio files and lyrics uploaded directly from the main view now seamlessly integrate into the persistent playlist. The track becomes instantly available within the Playlist Editor, eliminating isolated track states and creating a unified experience.
+
+- **Branding & UI Updates**:
+  - **Brand Icons**: Integrated `react-simple-icons` to properly display specific brand logos on the About page.
+  - **Icons Update**: Updated `lucide-react` to the latest version for improved icon availability and security.
+
 
 # 2.3.14
 
