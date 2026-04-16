@@ -266,6 +266,16 @@ function App() {
       };
       setMetadata(fallbackMeta);
 
+      const newItemId = Math.random().toString(36).substr(2, 9);
+      const newItem: PlaylistItem = {
+        id: newItemId,
+        audioFile: file,
+        lyricFile: undefined,
+        parsedLyrics: [],
+        metadata: fallbackMeta,
+        duration: 0
+      };
+
       // Helper: apply embedded lyrics text to state
       const applyEmbeddedLyrics = (lyricsText: string) => {
         setLyrics((curr) => {
@@ -276,6 +286,11 @@ function App() {
               .filter(l => l.trim())
               .map(l => ({ time: 0, text: l.trim() }));
           }
+          
+          setPlaylist(prev => prev.map(item =>
+            item.id === newItemId ? { ...item, parsedLyrics: parsed, lyricFile: new File([lyricsText], 'embedded.lrc', { type: 'text/plain' }) } : item
+          ));
+          
           return parsed;
         });
       };
@@ -297,11 +312,16 @@ function App() {
                 coverUrl = `data:${format};base64,${window.btoa(base64String)}`;
               }
 
-              setMetadata({
+              const newMetadata = {
                 title: title || fallbackMeta.title,
                 artist: artist || fallbackMeta.artist,
                 coverUrl: coverUrl || null
-              });
+              };
+
+              setMetadata(newMetadata);
+              setPlaylist(prev => prev.map(item =>
+                item.id === newItemId ? { ...item, metadata: newMetadata } : item
+              ));
 
               const lyricsTag = tag.tags.lyrics || tag.tags.LYRICS || tag.tags.USLT || tag.tags.SYLT || tag.tags.unsyncedlyrics || tag.tags.SYNCEDLYRICS || tag.tags['©lyr'];
               let embeddedLyrics = '';
@@ -330,11 +350,17 @@ function App() {
               // Use custom binary extractor for metadata + lyrics
               extractEmbeddedLyrics(file).then(result => {
                 if (result.title || result.artist) {
-                  setMetadata(prev => ({
-                    ...prev,
-                    title: result.title || prev.title,
-                    artist: result.artist || prev.artist,
-                  }));
+                  setMetadata(prev => {
+                    const updated = {
+                      ...prev,
+                      title: result.title || prev.title,
+                      artist: result.artist || prev.artist,
+                    };
+                    setPlaylist(list => list.map(item =>
+                      item.id === newItemId ? { ...item, metadata: updated } : item
+                    ));
+                    return updated;
+                  });
                 }
                 if (result.lyrics) applyEmbeddedLyrics(result.lyrics);
               }).catch(e => console.warn('[EmbeddedLyrics] Fallback failed:', e));
@@ -344,11 +370,15 @@ function App() {
       } else if (file.type.startsWith('video/')) {
         // If video, use it as background
         setIsBgVideoReady(false);
-        setMetadata({
+        const newMetadata: AudioMetadata = {
           ...fallbackMeta,
           coverUrl: url,
           backgroundType: 'video'
-        });
+        };
+        setMetadata(newMetadata);
+        setPlaylist(prev => prev.map(item =>
+          item.id === newItemId ? { ...item, metadata: newMetadata } : item
+        ));
       }
 
       // Reset play state
@@ -356,7 +386,12 @@ function App() {
       setLyricOffset(0);
       setIsPlaying(false);
       setCurrentTime(0);
-      setCurrentTrackIndex(-1);
+      
+      setPlaylist(prev => {
+        const appended = [...prev, newItem];
+        setCurrentTrackIndex(appended.length - 1);
+        return appended;
+      });
       setAudioElementKey(prev => prev + 1); // Fresh start for manually loaded audio too
       if (lyricsContainerRef.current) {
         lyricsContainerRef.current.scrollTop = 0;
@@ -407,6 +442,10 @@ function App() {
           toast.success(`${ext?.toUpperCase()} loaded with word-level timing! Karaoke mode enabled.`);
         }
         setLyrics(parsedLyrics);
+
+        setPlaylist(prev => prev.map((item, idx) => 
+          idx === currentTrackIndex ? { ...item, parsedLyrics, lyricFile: file } : item
+        ));
       } catch (err) {
         console.error("Failed to parse lyrics:", err);
         toast.error("Failed to parse lyric file.");
