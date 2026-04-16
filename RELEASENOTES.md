@@ -1,5 +1,17 @@
 # Release Notes
 
+# 2.3.16
+
+## What's New
+- **Unsynchronized Embedded Lyrics Fix** *(Bug Fix)*:
+  - **Root Cause**: Embedded lyrics without timestamps (e.g., `USLT` / Unsynchronized Lyrics Text) are parsed with `time: 0` for every line. The `currentLyricIndex` algorithm would always resolve to the **last line** (since all timestamps match `currentTime >= 0`), causing the preview to auto-scroll to the bottom and display incorrect active highlighting.
+  - **Smart Detection**: Introduced an `isUnsyncedLyrics` check that detects when all lyric lines share a zero timestamp (`time === 0` with no `endTime`). This correctly identifies plain-text embedded lyrics that lack any timing information.
+  - **Preview Fix (App.tsx)**: When unsynced lyrics are detected, `currentLyricIndex` returns `-1` instead of matching the last line. This prevents the auto-scroll from jumping to the end and keeps the lyrics view at the top for natural reading.
+  - **Playlist Editor Fix (PlaylistEditor.tsx)**: Two improvements for unsynced lyrics:
+    - **No False Highlighting**: The active lyric index is forced to `-1`, preventing the last lyric pill from being incorrectly highlighted as "active".
+    - **Hidden Timestamps**: The `[00:00.00]` timestamp badge is hidden for unsynced lyrics, showing only the lyric text — since the timestamp carries no meaningful information.
+
+
 # 2.3.15
 
 ## What's New

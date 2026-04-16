@@ -1416,8 +1416,12 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
                         const isSelected = idx === selectedIndex;
                         const lyrics = item.parsedLyrics || [];
 
+                        // Detect if lyrics are unsynced (all timestamps are 0)
+                        const isUnsynced = lyrics.length > 0 && lyrics.every(l => l.time === 0 && (l.endTime === undefined || l.endTime === 0));
+
                         // Determine active lyric index if this is the current track
-                        const activeLyricIndex = isCurrent ? lyrics.findIndex((l, i) => {
+                        // For unsynced lyrics, always return -1 (no active highlight)
+                        const activeLyricIndex = (isCurrent && !isUnsynced) ? lyrics.findIndex((l, i) => {
                             if (l.endTime !== undefined) {
                                 return currentTime >= l.time && currentTime < l.endTime;
                             }
@@ -1534,7 +1538,9 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
                                                             }
                                                         }}
                                                     >
-                                                        <span className={`font-mono text-[8px] ${isActive ? 'text-orange-200' : 'text-zinc-500'}`}>{formatLrcTimeDisplay(line.time)}</span>
+                                                        {!isUnsynced && (
+                                                            <span className={`font-mono text-[8px] ${isActive ? 'text-orange-200' : 'text-zinc-500'}`}>{formatLrcTimeDisplay(line.time)}</span>
+                                                        )}
                                                         <span className={`truncate max-w-[120px] ${isActive ? 'text-white font-medium' : 'text-zinc-400'}`}>{line.text || '♪'}</span>
                                                     </div>
                                                 )
