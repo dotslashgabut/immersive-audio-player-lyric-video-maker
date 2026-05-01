@@ -17,7 +17,8 @@
     "lucide-react": "^1.8.0",
     "mp4-muxer": "^5.2.2",
     "react": "^19.2.3",
-    "react-dom": "^19.2.3"
+    "react-dom": "^19.2.3",
+    "three": "^0.184.0"
   },
   "devDependencies": {
     "@types/jsmediatags": "^3.9.6",
