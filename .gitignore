@@ -24,4 +24,10 @@ dist-ssr
 *.sln
 *.sw?
 *.bat
+!run.bat
 .examples
+
+# Environment Variables
+.env
+.env.*
+!.env.example
