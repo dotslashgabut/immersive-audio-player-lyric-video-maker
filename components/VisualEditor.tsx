@@ -789,6 +789,7 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
 
     // 2. Move (Left/Right Arrow) - 0.01s Step
     if (selectedSlideIds.length > 0 && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
       e.preventDefault();
       e.stopPropagation(); // Stop bubbling to prevent audio seek
       const delta = e.key === 'ArrowRight' ? 0.01 : -0.01;

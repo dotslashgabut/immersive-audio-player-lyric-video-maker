@@ -123,6 +123,14 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
 
 
     const handleKeyDown = useCallback((e: KeyboardEvent) => {
+        const target = e.target as HTMLElement;
+        if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
+            return;
+        }
+
+        // Ignore modifier keys to avoid conflicts with browser/OS combinations
+        if (e.ctrlKey || e.metaKey || e.altKey) return;
+
         if (selectedIndex !== null && e.key === 'Delete') {
             e.preventDefault();
             e.stopPropagation();
@@ -335,9 +343,21 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
                 } else if (embeddedLyrics) {
                     itemParsedLyrics = parseLRC(embeddedLyrics);
                     if (itemParsedLyrics.length === 0 && embeddedLyrics.trim()) {
-                        itemParsedLyrics = embeddedLyrics.split('\n')
-                           .filter(l => l.trim())
-                           .map(l => ({ time: 0, text: l.trim() }));
+                        const lines = embeddedLyrics.split('\n').map(l => l.trim());
+                        const filteredLines: string[] = [];
+                        for (let i = 0; i < lines.length; i++) {
+                            if (lines[i] === '') {
+                                if (filteredLines.length > 0 && filteredLines[filteredLines.length - 1] !== '') {
+                                    filteredLines.push('');
+                                }
+                            } else {
+                                filteredLines.push(lines[i]);
+                            }
+                        }
+                        if (filteredLines.length > 0 && filteredLines[filteredLines.length - 1] === '') {
+                            filteredLines.pop();
+                        }
+                        itemParsedLyrics = filteredLines.map(l => ({ time: 0, text: l }));
                     }
                     itemLyricFile = new File([embeddedLyrics], `embedded.lrc`, { type: 'text/plain' });
                 }
@@ -1130,9 +1150,21 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
         const applyLyrics = (lyricsText: string) => {
             let parsed = parseLRC(lyricsText);
             if (parsed.length === 0 && lyricsText.trim()) {
-                parsed = lyricsText.split('\n')
-                    .filter((l: string) => l.trim())
-                    .map((l: string) => ({ time: 0, text: l.trim() }));
+                const lines = lyricsText.split('\n').map((l: string) => l.trim());
+                const filteredLines: string[] = [];
+                for (let i = 0; i < lines.length; i++) {
+                    if (lines[i] === '') {
+                        if (filteredLines.length > 0 && filteredLines[filteredLines.length - 1] !== '') {
+                            filteredLines.push('');
+                        }
+                    } else {
+                        filteredLines.push(lines[i]);
+                    }
+                }
+                if (filteredLines.length > 0 && filteredLines[filteredLines.length - 1] === '') {
+                    filteredLines.pop();
+                }
+                parsed = filteredLines.map((l: string) => ({ time: 0, text: l }));
             }
 
             if (parsed.length > 0) {

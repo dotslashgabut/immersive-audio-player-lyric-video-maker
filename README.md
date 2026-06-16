@@ -15,6 +15,7 @@
 ## Key Features
 
 ### 🎧 Advanced Audio Player & Playlist
+- **Workspace Drag & Drop**: Drag & drop files directly onto the main player workspace to load them instantly. Displays a beautiful visual backdrop overlay for supported formats during drag operations.
 - **Smart Playlist**: Drag & drop multiple files. Automatically groups audio/video files with matching lyric files (`.lrc`, `.srt`, `.vtt`, `.ttml`, `.xml`) based on filename.
 - **Broad Audio Format Support**: Handles **MP3**, **M4A/ALAC**, **FLAC**, **OGG Vorbis**, **OPUS**, **WAV**, and video files. Automatically extracts embedded metadata (title, artist, cover art) and **embedded lyrics** from all supported formats.
 - **Interactive Lyric Timeline**: Each playlist item shows a mini-timeline of lyrics. Click any line to play that specific track starting from that time.
@@ -46,7 +47,11 @@
     - **None**: Hides everything (Lyrics, Titles, and Metadata).
   - **Karaoke Styles**: **Neon**, **Glow**, **Bounce**, **Wave**, and **Color/Shape** highlights (Pill, Box, Rounded) with **customizable colors**. Extended with 20+ new word-level effects: **Scale**, **Underline**, **Outline**, **Shadow**, **Gradient**, **Glass**, **Neon Multi**, **Soft Glow**, **3D**, **Emboss**, **Chrome**, **Gold**, **Fire**, **Frozen**, **Rainbow**, **Mirror**, **VHS**, **Retro**, **Cyberpunk**, **Hologram**, **Comic**, **Glitch Text**, **Pulse**, **Breathe**, and **Float**.
   - **Text Animations**: Bounce, Pulse, Wave, Glitch, Shake, Typewriter, Heartbeat, Tada, Jello, and more.
-  - **Display Modes**: Control lyric visibility context and **Style Target** (Apply styles to Active Line only or All Lines).
+  - **Display Modes**: Control lyric visibility context and **Style Target** (Apply styles to Active Line only or All Lines). Extended with **Static & Unsynchronized display modes** for unsynced or plain text lyrics:
+  - **Static Full Text**: Displays all lines of lyrics statically, auto-scaling font size to fit within the viewport height.
+  - **Compact ( / line, // verse )**: Groups lyrics into paragraphs, joining lines with slashes.
+  - **Compact ( , line, . verse + newline )**: Joins lines with commas and groups verses on newlines.
+  - **Compact ( no symbol, . verse + newline )**: Joins lines with spaces and separates verses with newlines.
 - **AI Transcription**: Built-in integration with **Google Gemini** (supports **Gemini 2.5 Flash** and **3.0 Flash Preview**) for automatic high-accuracy audio transcription.
   - **Mixed-Language Support**: Expertly handles code-switching (e.g., K-Pop, J-Pop with English) and preserves native scripts (No forced transliteration).
   - **Line/Word**: Use **Line** for standard formats, and **Word** for precise karaoke highlighting (Enhanced).
@@ -111,6 +116,7 @@
   - **1:2** (Vertical - Split Screen)
 - **Rendering Scope**: Batch export the entire playlist or just the current song.
 - **Settings Management**:
+  - **Random Settings Generator**: Click "Randomize" in the Render Settings panel to instantly generate random styling combinations across backgrounds, typography, alignments, text effects, visualizations, transition effects, and layouts.
   - **JSON Import/Export**: Backup, share, or restore your exact render configurations (including custom fonts, colors, and layouts) with a single click.
   - **Reset to Defaults**: Improved reset functionality to verify and clear all custom font selections and return to factory defaults.
 - **Audio Visualization**:
@@ -172,8 +178,8 @@
 
 ## Related Tools
 Check out our other AI-powered tools for music and visuals:
-- **[LyricFlow](https://ai.studio/apps/drive/1M1VfxdBlNB_eOPQqQiHspvVwizaEs0aI?fullscreenApplet=true)**: Advanced lyric synchronization and flow.
-- **[LyricalVision](https://ai.studio/apps/drive/1WKA-bCxzIKD-DcI_pq0HzxN3m1_oNEkg?fullscreenApplet=true)**: AI-driven visual generation for your lyrics.
+- **[LyricsEditor](https://dotslashgabut.github.io/lyricseditor/)**: Premium lyrics editor for LRC, SRT, VTT, TTML & subtitle sync tool.
+- **[LyricalEditorPlus](https://dotslashgabut.github.io/lyricaleditorplus/)**: Universal lyrics/subtitle editor & AI-powered lyrics generator.
 - **[GeminiTranscription](https://ai.studio/apps/drive/1IQUhhLIAJ_dYYbcOLni-x8LLk7Py4SSX?fullscreenApplet=true)**: AI-powered transcription for your audio files.
 
 ## Keyboard Shortcuts
@@ -204,6 +210,11 @@ Check out our other AI-powered tools for music and visuals:
 | **X** | Toggle Highlight Effect On/Off |
 | **Z** | Cycle Next Highlight Effect |
 | **F** | Toggle Fullscreen |
+| **1** | Load Audio / Video File |
+| **2** | Load Lyrics / Subtitle File |
+| **3** | Load Font File |
+| **8** | Decrease UI Scale (Zoom UI) |
+| **9** | Increase UI Scale (Zoom UI) |
 | **Delete** | Remove selected Playlist Item or Visual Slide |
 | **Ctrl + Z / Y** | Undo / Redo (Editor) |
 | **Ctrl + C / X / V** | Copy / Cut / Paste (Editor) |
@@ -273,11 +284,11 @@ This application is built with React + Vite and requires **Node.js** to run.
 ### Fitur Utama Baru
 - **Tipografi Super Canggih**: Load **Google Fonts Individu** secara terpisah untuk Lirik, Info Lagu, dan Nama Channel. Termasuk kontrol granular untuk gaya (Bold/Italic) dan warna kustom tiap elemen.
 - **Rendering Kilat (WebCodecs)**: Engine baru memanfaatkan akselerasi hardware (GPU) untuk ekspor video hingga 5x lebih cepat. Tetap tersedia opsi **FFmpeg** untuk kualitas frame-by-frame.
-- **Manajemen Pengaturan Lengkap**: **Ekspor/Impor JSON** untuk menyimpan/membagikan konfigurasi render (termasuk font kustom). Tombol **Reset** yang disempurnakan.
-- **Playlist Pintar Terpadu**: File yang diupload dari menu utama kini otomatis langsung tersinkron dan masuk ke dalam Playlist. Masukkan banyak file sekaligus via Playlist untuk otomatis dipasangkan dengan lirik berdasarkan nama.
+- **Manajemen Pengaturan Lengkap**: **Ekspor/Impor JSON** untuk menyimpan/membagikan konfigurasi render. Dilengkapi dengan **Random Settings Generator** (tombol Randomize) untuk acak gaya visual instan, serta tombol **Reset** yang disempurnakan.
+- **Workspace Drag & Drop**: Tarik dan lepas (drag & drop) file audio/video, lirik, atau font langsung ke layar utama player untuk memuatnya secara instan dengan tampilan overlay visual yang informatif.
 - **Ekstraksi Lirik Tersemat**: Fitur canggih untuk membaca lirik yang tertanam langsung di dalam file audio (FLAC Vorbis Lyrics, MP4 Lyrics, ID3v2 USLT, dll) secara otomatis saat import.
 - **Timeline Lirik Interaktif**: Lihat cuplikan lirik di playlist. Klik baris mana saja untuk langsung memutar lagu itu.
-- **Format Luas**: Dukungan lirik `.lrc`, `.srt`, **`.vtt` (termasuk Karaoke/Word-Level)**, dan **`.ttml` / `.xml`**.
+- **Format & Tampilan Luas**: Dukungan lirik `.lrc`, `.srt`, **`.vtt` (termasuk Karaoke/Word-Level)**, dan **`.ttml` / `.xml`**. Mendukung **Mode Tampilan Statis / Unsynced** (Statis Full Text dan format compact baris/paragraf).
 - **Support Video**: Load file video (MP4, WebM) sebagai track audio + background otomatis.
 - **Karaoke Kustom**: Pilihan efek highlight baru (**Neon, Glow, Box, Pill**) dengan **Pewarnaan Kustom** (Text & Background Color).
 - **Visual Efek**: Fitur **Background Blur** (dengan **Slider Kekuatan Blur**), **Smart Gradient**, dan **Text Animation** (Bounce, Pulse, Glitch, dll).
@@ -285,7 +296,8 @@ This application is built with React + Vite and requires **Node.js** to run.
 - **AI Transkripsi**: Dukungan model **Gemini 2.5 Flash** dan **3.0 Flash Preview** untuk transkripsi audio otomatis yang presisi.
 - **Ekspor Lirik**: Simpan hasil transkripsi dalam format `.lrc`, `.srt`, `.vtt`, `.json`, atau `.txt`.
 - **Timeline Canggih**: Dukungan **Multi-Layer** (2 Visual + 2 Audio), **Undo/Redo**, **Cut/Copy/Paste**, **Drag Selection**, dan **Snapping** otomatis.
-- **Shortcut Baru**: Tekan **D** (Render Settings), **O** (Minimal Mode), **Y** (Info Shortcut), **N**/**B** (Next/Prev), **M** (Mute), **R** (Repeat), **L** (Playlist), **+/-** (Font), dan **Ctrl/Cmd+Shift+E** (Export).
+- **Kontrol Skala & Zoom UI**: Tombol `-` dan `+` di samping ikon eye pada control footer untuk memperbesar/memperkecil seluruh tampilan antarmuka (UI zoom) secara langsung, klik persentase untuk mereset skala ke 100%, atau gunakan shortcut tombol **8** (kecilkan) dan **9** (besarkan). Pintasan keyboard (hotkey) global juga dilindungi agar tidak memblokir shortcut bawaan browser/OS saat tombol modifier (`Ctrl`/`Cmd`/`Alt`) sedang ditekan.
+- **Shortcut Baru**: Tekan **1** (Muat Audio/Video), **2** (Muat Lirik), **3** (Muat Font), **D** (Render Settings), **O** (Minimal Mode), **Y** (Info Shortcut), **N**/**B** (Next/Prev), **M** (Mute), **R** (Repeat), **L** (Playlist), **8**/**9** (Skala UI - tanpa tombol modifier), **+/-** (Font - tanpa tombol modifier), dan **Ctrl/Cmd+Shift+E** (Export). Ditambah pencegahan bubbling pintasan saat mengetik di form input.
 
 ### Cara Install & Jalankan
 Aplikasi ini berbasis web modern (React + Vite).

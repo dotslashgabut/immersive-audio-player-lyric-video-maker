@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { X, Video, Settings, ImageIcon, Type, Layout, Palette, Music, FileText, Check, ListMusic, Bold, Italic, Underline, Strikethrough, AlignVerticalJustifyCenter, AlignVerticalJustifyStart, AlignVerticalJustifyEnd, Upload, Trash2, ChevronDown, Maximize, RotateCcw, Download, Keyboard as KeyboardIcon, Sparkles, Activity } from './Icons';
+import { X, Video, Settings, ImageIcon, Type, Layout, Palette, Music, FileText, Check, ListMusic, Bold, Italic, Underline, Strikethrough, AlignVerticalJustifyCenter, AlignVerticalJustifyStart, AlignVerticalJustifyEnd, Upload, Trash2, ChevronDown, Maximize, RotateCcw, Download, Keyboard as KeyboardIcon, Sparkles, Activity, Shuffle } from './Icons';
 import { RenderConfig, VideoPreset, RenderEngine, FFmpegCodec } from '../types';
 import { fontGroups, loadSingleGoogleFont } from '../utils/fonts';
 import { PRESET_DEFINITIONS, videoPresetGroups } from '../utils/presets';
@@ -497,6 +497,15 @@ export const lyricDisplayGroups = [
             { label: "Current & Next", value: "next-only" },
             { label: "Current Line Only", value: "active-only" }
         ]
+    },
+    {
+        label: "Unsynchronized / Static",
+        options: [
+            { label: "Static Full Text", value: "static-all" },
+            { label: "Compact ( / line, // verse )", value: "static-compact" },
+            { label: "Compact ( , line, . verse + newline )", value: "static-compact-comma" },
+            { label: "Compact ( no symbol, . verse + newline )", value: "static-compact-clean" }
+        ]
     }
 ];
 
@@ -966,6 +975,137 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
         e.target.value = '';
     };
 
+    const handleRandomSettings = () => {
+        // Helper: pick a random item from an array
+        const pick = <T,>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
+        // Helper: collect all option values from grouped option arrays
+        const allValues = (groups: { options: { value: string }[] }[]): string[] =>
+            groups.flatMap(g => g.options.map(o => o.value));
+        // Helper: random float between min/max, rounded to decimals
+        const randFloat = (min: number, max: number, decimals = 2) =>
+            Number((min + Math.random() * (max - min)).toFixed(decimals));
+        // Helper: random hex color
+        const randColor = () => '#' + Math.floor(Math.random() * 0xffffff).toString(16).padStart(6, '0');
+        // Helper: random gradient
+        const directions = ['to right', 'to left', 'to bottom', 'to top', 'to bottom right', 'to bottom left', 'to top right', 'to top left'];
+        const randGradient = () => `linear-gradient(${pick(directions)}, ${randColor()}, ${randColor()}, ${randColor()})`;
+
+        // Collect all option values from each group
+        const textEffects = allValues(textEffectGroups).filter(v => v !== 'preset');
+        const textAnimations = allValues(textAnimationGroups);
+        const transitions = allValues(transitionGroups);
+        const highlights = allValues(highlightEffectGroups);
+        const bgSources = ['custom', 'color', 'gradient', 'smart-gradient']; // Skip image/video/threejs/timeline (require uploads)
+        const displayModes = allValues(lyricDisplayGroups).filter(v => !v.startsWith('static-')); // Skip static modes
+        const infoStyles = allValues(infoStyleGroups);
+        const channelStyles = allValues(channelInfoStyleGroups);
+        const textCases: string[] = [...textCaseOptions];
+        const positions: ('top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'top-center' | 'bottom-center')[] = ['top-left', 'top-right', 'bottom-left', 'bottom-right', 'top-center', 'bottom-center'];
+        const contentPositions: ('top' | 'center' | 'bottom')[] = ['top', 'center', 'bottom'];
+        const textAligns: ('left' | 'center' | 'right')[] = ['left', 'center', 'right'];
+        const vizTypes = ['bars', 'wave', 'circular', 'particles', 'pulse-ring', 'waveform', 'spectrogram', 'spectrum', 'stereo-field'];
+        const vizColorModes = ['accent', 'gradient', 'custom', 'rainbow'];
+        const vizPositions = ['bottom', 'top', 'full', 'center'];
+
+        // Collect all built-in font values (skip custom/uploaded)
+        const fontValues = fullFontGroups.flatMap(g => g.options.map(o => o.value));
+
+        // Pick random highlight + derive colors
+        const randomHighlight = pick(highlights);
+        const derivedColors = deriveHighlightColors(randomHighlight);
+        const highlightColor = derivedColors?.color ?? randColor();
+        const highlightBg = derivedColors?.bg ?? randColor();
+
+        // Random background source
+        const randomBgSource = pick(bgSources);
+
+        // Random booleans
+        const randomBool = () => Math.random() > 0.5;
+
+        // Build the random config
+        const randomConfig: RenderConfig = {
+            ...DEFAULT_CONFIG,
+            // Background
+            backgroundSource: randomBgSource as RenderConfig['backgroundSource'],
+            backgroundColor: randColor(),
+            backgroundGradient: randGradient(),
+            backgroundBlurStrength: Math.random() > 0.6 ? Math.floor(Math.random() * 25) : 0,
+            enableGradientOverlay: randomBool(),
+            // Typography
+            fontFamily: pick(fontValues),
+            fontSizeScale: randFloat(0.6, 2.0),
+            fontColor: randColor(),
+            fontWeight: pick(['normal', 'bold']) as 'normal' | 'bold',
+            fontStyle: pick(['normal', 'italic']) as 'normal' | 'italic',
+            textDecoration: pick(['none', 'none', 'none', 'underline', 'line-through']) as 'none' | 'underline' | 'line-through', // bias towards 'none'
+            textCase: pick(textCases) as RenderConfig['textCase'],
+            lyricLineHeight: randFloat(1.0, 2.0),
+            lyricStyleTarget: pick(['active-only', 'all']) as 'active-only' | 'all',
+            // Layout
+            textAlign: pick(textAligns),
+            contentPosition: pick(contentPositions),
+            marginTopScale: randFloat(0.5, 2.5),
+            marginBottomScale: randFloat(0.5, 2.5),
+            lyricDisplayMode: pick(displayModes) as RenderConfig['lyricDisplayMode'],
+            // Effects
+            textEffect: pick(textEffects) as RenderConfig['textEffect'],
+            textAnimation: pick(textAnimations) as RenderConfig['textAnimation'],
+            transitionEffect: pick(transitions) as RenderConfig['transitionEffect'],
+            // Highlight
+            highlightEffect: randomHighlight as RenderConfig['highlightEffect'],
+            highlightColor: highlightColor,
+            highlightBackground: highlightBg,
+            useCustomHighlightColors: false,
+            // Song Info
+            showTitle: randomBool(),
+            showArtist: randomBool(),
+            showCover: randomBool(),
+            showIntro: randomBool(),
+            showLyrics: true, // always keep lyrics visible
+            infoPosition: pick(positions),
+            infoStyle: pick(infoStyles) as RenderConfig['infoStyle'],
+            infoMarginScale: randFloat(0.5, 2.0),
+            infoSizeScale: randFloat(0.6, 1.6),
+            infoFontFamily: pick(fontValues),
+            infoFontWeight: pick(['normal', 'bold']) as 'normal' | 'bold',
+            infoFontStyle: pick(['normal', 'italic']) as 'normal' | 'italic',
+            infoFontColor: randColor(),
+            // Channel / Watermark
+            showChannelInfo: Math.random() > 0.7, // 30% chance
+            channelInfoText: config.channelInfoText || 'Music Channel',
+            channelInfoPosition: pick(positions),
+            channelInfoStyle: pick(channelStyles) as RenderConfig['channelInfoStyle'],
+            channelInfoSizeScale: randFloat(0.6, 1.6),
+            channelInfoMarginScale: randFloat(0.5, 2.0),
+            channelInfoFontFamily: pick(fontValues),
+            channelInfoFontWeight: pick(['normal', 'bold']) as 'normal' | 'bold',
+            channelInfoFontStyle: pick(['normal', 'italic']) as 'normal' | 'italic',
+            channelInfoFontColor: randColor(),
+            // Visual Transition
+            visualTransitionType: pick(['none', 'crossfade', 'fade-to-black']) as RenderConfig['visualTransitionType'],
+            visualTransitionDuration: randFloat(0.5, 2.0),
+            // Visualization
+            showVisualization: Math.random() > 0.6, // 40% chance
+            visualizationType: pick(vizTypes) as RenderConfig['visualizationType'],
+            visualizationColorMode: pick(vizColorModes) as RenderConfig['visualizationColorMode'],
+            visualizationColor1: randColor(),
+            visualizationColor2: randColor(),
+            visualizationOpacity: randFloat(0.3, 1.0),
+            visualizationPosition: pick(vizPositions) as RenderConfig['visualizationPosition'],
+            visualizationSensitivity: randFloat(0.5, 3.0),
+            visualizationBarCount: Math.floor(16 + Math.random() * 112), // 16-128
+            // Keep render mode unchanged
+            renderMode: config.renderMode,
+            // Intro
+            introMode: pick(['auto', 'manual']) as 'auto' | 'manual',
+            introText: config.introText,
+        };
+
+        setConfig(randomConfig);
+        setPreset('custom');
+        toast.success('🎲 Random settings generated!');
+    };
+
     const handleReset = async () => {
         const confirmed = await confirm(
             'This will reset ALL settings to factory defaults:\n\n• Visual preset → Default\n• Background, fonts & colors\n• Text effects, animations & transitions\n• Song info, watermark & visualization\n• Output: 1080p, 30fps, MediaRecorder\n\nThis cannot be undone.',
@@ -1143,10 +1283,10 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
             link.click();
             link.remove();
             URL.revokeObjectURL(url);
-            toast.success(`Settings exported as render_settings_${timestamp}.json`);
+            toast.success(`Settings exported as render_settings_${timestamp}.json`, 3000);
         } catch (err) {
             console.error('Export failed:', err);
-            toast.error('Failed to export settings.');
+            toast.error('Failed to export settings.', 3000);
         }
     };
 
@@ -1316,16 +1456,16 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                     }
 
                     if (importedCustomFontName && importedCustomFontName !== customFontName) {
-                        toast.success(`Settings loaded. Note: Config used font "${importedCustomFontName}".`);
+                        toast.success(`Settings loaded. Note: Config used font "${importedCustomFontName}".`, 4000);
                     } else if (importedCustomChannelFontName || importedCustomInfoFontName) {
-                        toast.success(`Settings loaded. Custom fonts referenced: ${[importedCustomChannelFontName, importedCustomInfoFontName].filter(Boolean).join(', ')}`);
+                        toast.success(`Settings loaded. Custom fonts referenced: ${[importedCustomChannelFontName, importedCustomInfoFontName].filter(Boolean).join(', ')}`, 4000);
                     } else {
-                        toast.success('Settings loaded successfully!');
+                        toast.success('Settings loaded successfully!', 3000);
                     }
                 }
             } catch (err) {
                 console.error(err);
-                toast.error('Failed to parse settings file. Please ensure it is a valid JSON file.');
+                toast.error('Failed to parse settings file. Please ensure it is a valid JSON file.', 4000);
             }
         };
         reader.readAsText(file);
@@ -1446,6 +1586,20 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                                 title="Export current settings as a .json file"
                             >
                                 <Download size={13} /> Export
+                            </button>
+                        </div>
+                        {/* Random Settings row */}
+                        <div className="flex items-center gap-3 px-3 py-2.5 border-b border-white/5">
+                            <div className="flex-1 min-w-0">
+                                <p className="text-xs font-semibold text-zinc-200">Random Settings</p>
+                                <p className="text-[10px] text-zinc-500">Generate random visual settings</p>
+                            </div>
+                            <button
+                                onClick={handleRandomSettings}
+                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-600/20 hover:bg-purple-600/40 border border-purple-500/30 text-purple-300 hover:text-purple-100 text-xs font-semibold transition-all active:scale-95 shrink-0"
+                                title="Generate random visual settings"
+                            >
+                                <Shuffle size={13} /> Randomize
                             </button>
                         </div>
                         {/* Reset row */}
