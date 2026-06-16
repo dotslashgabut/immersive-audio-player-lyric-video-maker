@@ -215,6 +215,7 @@ Check out our other AI-powered tools for music and visuals:
 | **3** | Load Font File |
 | **8** | Decrease UI Scale (Zoom UI) |
 | **9** | Increase UI Scale (Zoom UI) |
+| **0** | Reset UI Scale to 100% |
 | **Delete** | Remove selected Playlist Item or Visual Slide |
 | **Ctrl + Z / Y** | Undo / Redo (Editor) |
 | **Ctrl + C / X / V** | Copy / Cut / Paste (Editor) |
