@@ -1264,7 +1264,7 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
 
     return (
         <div
-            className={`w-full max-w-[100vw] h-64 flex flex-col bg-zinc-900/95 backdrop-blur-md border-t border-white/10 z-20 shadow-xl overflow-hidden outline-none relative transition-colors ${isDragging ? 'bg-zinc-800 border-orange-500' : ''}`}
+            className={`w-full max-w-full h-64 flex flex-col bg-zinc-900/95 backdrop-blur-md border-t border-white/10 z-20 shadow-xl overflow-hidden outline-none relative transition-colors ${isDragging ? 'bg-zinc-800 border-orange-500' : ''}`}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
@@ -1289,7 +1289,7 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
             />
             {/* Header */}
             <div className="p-2 border-b border-white/10 flex items-center justify-between bg-zinc-900 z-30 shrink-0 h-12">
-                <div className="flex items-center gap-4 shrink-0">
+                <div className="flex items-center gap-4 flex-1 min-w-0 overflow-x-auto no-scrollbar pr-4">
                     <h2 className="text-sm font-bold flex items-center gap-2 text-zinc-300 whitespace-nowrap">
                         <ListMusic size={16} className="text-orange-400" />
                         Playlist
