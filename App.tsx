@@ -89,6 +89,10 @@ function App() {
 
   const [showRenderSettings, setShowRenderSettings] = useState(false);
   const [showShortcutInfo, setShowShortcutInfo] = useState(false);
+
+  // State: Drag and Drop
+  const [isDragging, setIsDragging] = useState(false);
+  const dragCounter = useRef(0);
   const [renderConfig, setRenderConfig] = useState<RenderConfig>({
     backgroundSource: 'custom',
     backgroundColor: '#581c87',
@@ -252,159 +256,189 @@ function App() {
 
   // --- Handlers ---
 
-  const handleAudioUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      // Cleanup old source
-      if (audioSrc && audioSrc.startsWith('blob:')) {
-        URL.revokeObjectURL(audioSrc);
+  const loadAudioFile = async (file: File, lyricFile?: File) => {
+    // Cleanup old source
+    if (audioSrc && audioSrc.startsWith('blob:')) {
+      URL.revokeObjectURL(audioSrc);
+    }
+
+    const url = URL.createObjectURL(file);
+    setAudioSrc(url);
+    setCurrentAudioFile(file);
+
+    // Initial Fallback Metadata
+    const fallbackMeta = {
+      title: file.name.replace(/\.[^/.]+$/, ""),
+      artist: 'Unknown Artist',
+      coverUrl: null,
+    };
+    setMetadata(fallbackMeta);
+
+    let parsedLyrics: LyricLine[] = [];
+    if (lyricFile) {
+      try {
+        const text = await lyricFile.text();
+        const ext = lyricFile.name.split('.').pop()?.toLowerCase();
+        if (ext === 'lrc') parsedLyrics = parseLRC(text);
+        else if (ext === 'srt') parsedLyrics = parseSRT(text);
+        else if (ext === 'ttml' || ext === 'xml') parsedLyrics = parseTTML(text);
+        else if (ext === 'vtt') parsedLyrics = parseVTT(text);
+      } catch (err) {
+        console.error("Failed to parse lyrics in loadAudioFile:", err);
       }
+    }
 
-      const url = URL.createObjectURL(file);
-      setAudioSrc(url);
-      setCurrentAudioFile(file);
+    const newItemId = Math.random().toString(36).substr(2, 9);
+    const newItem: PlaylistItem = {
+      id: newItemId,
+      audioFile: file,
+      lyricFile: lyricFile,
+      parsedLyrics: parsedLyrics,
+      metadata: fallbackMeta,
+      duration: 0
+    };
 
-      // Initial Fallback Metadata
-      const fallbackMeta = {
-        title: file.name.replace(/\.[^/.]+$/, ""),
-        artist: 'Unknown Artist',
-        coverUrl: null,
-      };
-      setMetadata(fallbackMeta);
-
-      const newItemId = Math.random().toString(36).substr(2, 9);
-      const newItem: PlaylistItem = {
-        id: newItemId,
-        audioFile: file,
-        lyricFile: undefined,
-        parsedLyrics: [],
-        metadata: fallbackMeta,
-        duration: 0
-      };
-
-      // Helper: apply embedded lyrics text to state
-      const applyEmbeddedLyrics = (lyricsText: string) => {
-        setLyrics((curr) => {
-          if (curr && curr.length > 0) return curr; // If already uploaded manually, do not override
-          let parsed = parseLRC(lyricsText);
-          if (parsed.length === 0 && lyricsText.trim()) {
-            parsed = lyricsText.split('\n')
-              .filter(l => l.trim())
-              .map(l => ({ time: 0, text: l.trim() }));
+    // Helper: apply embedded lyrics text to state
+    const applyEmbeddedLyrics = (lyricsText: string) => {
+      setLyrics((curr) => {
+        if (curr && curr.length > 0) return curr; // If already uploaded manually, do not override
+        let parsed = parseLRC(lyricsText);
+        if (parsed.length === 0 && lyricsText.trim()) {
+          const lines = lyricsText.split('\n').map(l => l.trim());
+          const filteredLines: string[] = [];
+          for (let i = 0; i < lines.length; i++) {
+            if (lines[i] === '') {
+              if (filteredLines.length > 0 && filteredLines[filteredLines.length - 1] !== '') {
+                filteredLines.push('');
+              }
+            } else {
+              filteredLines.push(lines[i]);
+            }
           }
-          
-          setPlaylist(prev => prev.map(item =>
-            item.id === newItemId ? { ...item, parsedLyrics: parsed, lyricFile: new File([lyricsText], 'embedded.lrc', { type: 'text/plain' }) } : item
-          ));
-          
-          return parsed;
-        });
-      };
+          if (filteredLines.length > 0 && filteredLines[filteredLines.length - 1] === '') {
+            filteredLines.pop();
+          }
+          parsed = filteredLines.map(l => ({ time: 0, text: l }));
+        }
+        
+        setPlaylist(prev => prev.map(item =>
+          item.id === newItemId ? { ...item, parsedLyrics: parsed, lyricFile: new File([lyricsText], 'embedded.lrc', { type: 'text/plain' }) } : item
+        ));
+        
+        return parsed;
+      });
+    };
 
-      // jsmediatags parsing — also handle files with no MIME type (e.g. .flac, .ogg)
-      if (!file.type.startsWith('video/')) {
-        // @ts-ignore
-        import('jsmediatags/dist/jsmediatags.min.js').then((jsmediatags) => {
-          jsmediatags.read(file, {
-            onSuccess: (tag: any) => {
-              const { title, artist, picture } = tag.tags;
-              let coverUrl = null;
-              if (picture) {
-                const { data, format } = picture;
-                let base64String = "";
-                for (let i = 0; i < data.length; i++) {
-                  base64String += String.fromCharCode(data[i]);
-                }
-                coverUrl = `data:${format};base64,${window.btoa(base64String)}`;
+    // jsmediatags parsing — also handle files with no MIME type (e.g. .flac, .ogg)
+    if (!file.type.startsWith('video/')) {
+      // @ts-ignore
+      import('jsmediatags/dist/jsmediatags.min.js').then((jsmediatags) => {
+        jsmediatags.read(file, {
+          onSuccess: (tag: any) => {
+            const { title, artist, picture } = tag.tags;
+            let coverUrl = null;
+            if (picture) {
+              const { data, format } = picture;
+              let base64String = "";
+              for (let i = 0; i < data.length; i++) {
+                base64String += String.fromCharCode(data[i]);
               }
+              coverUrl = `data:${format};base64,${window.btoa(base64String)}`;
+            }
 
-              const newMetadata = {
-                title: title || fallbackMeta.title,
-                artist: artist || fallbackMeta.artist,
-                coverUrl: coverUrl || null
-              };
+            const newMetadata = {
+              title: title || fallbackMeta.title,
+              artist: artist || fallbackMeta.artist,
+              coverUrl: coverUrl || null
+            };
 
-              setMetadata(newMetadata);
-              setPlaylist(prev => prev.map(item =>
-                item.id === newItemId ? { ...item, metadata: newMetadata } : item
-              ));
+            setMetadata(newMetadata);
+            setPlaylist(prev => prev.map(item =>
+              item.id === newItemId ? { ...item, metadata: newMetadata } : item
+            ));
 
-              const lyricsTag = tag.tags.lyrics || tag.tags.LYRICS || tag.tags.USLT || tag.tags.SYLT || tag.tags.unsyncedlyrics || tag.tags.SYNCEDLYRICS || tag.tags['©lyr'];
-              let embeddedLyrics = '';
-              if (lyricsTag) {
-                if (typeof lyricsTag === 'string') {
-                  embeddedLyrics = lyricsTag;
-                } else if (Array.isArray(lyricsTag)) {
-                  embeddedLyrics = lyricsTag.join('\n');
-                } else {
-                  embeddedLyrics = lyricsTag.lyrics || lyricsTag.data || lyricsTag.text || '';
-                }
-              }
-              if (embeddedLyrics) {
-                applyEmbeddedLyrics(embeddedLyrics);
+            const lyricsTag = tag.tags.lyrics || tag.tags.LYRICS || tag.tags.USLT || tag.tags.SYLT || tag.tags.unsyncedlyrics || tag.tags.SYNCEDLYRICS || tag.tags['©lyr'];
+            let embeddedLyrics = '';
+            if (lyricsTag) {
+              if (typeof lyricsTag === 'string') {
+                embeddedLyrics = lyricsTag;
+              } else if (Array.isArray(lyricsTag)) {
+                embeddedLyrics = lyricsTag.join('\n');
               } else {
-                // jsmediatags succeeded but found no lyrics — try custom binary extractor
-                // (e.g. FLAC: jsmediatags parses Vorbis Comments but skips the LYRICS field)
-                extractEmbeddedLyrics(file).then(result => {
-                  if (result.lyrics) applyEmbeddedLyrics(result.lyrics);
-                }).catch(e => console.warn('[EmbeddedLyrics] Fallback failed:', e));
+                embeddedLyrics = lyricsTag.lyrics || lyricsTag.data || lyricsTag.text || '';
               }
-            },
-            onError: (error: any) => {
-              console.log('jsmediatags has no reader for this format:', error);
-              // jsmediatags has no reader for OGG, OPUS, WAV, WMA, etc.
-              // Use custom binary extractor for metadata + lyrics
+            }
+            if (embeddedLyrics) {
+              applyEmbeddedLyrics(embeddedLyrics);
+            } else {
+              // jsmediatags succeeded but found no lyrics — try custom binary extractor
+              // (e.g. FLAC: jsmediatags parses Vorbis Comments but skips the LYRICS field)
               extractEmbeddedLyrics(file).then(result => {
-                if (result.title || result.artist) {
-                  setMetadata(prev => {
-                    const updated = {
-                      ...prev,
-                      title: result.title || prev.title,
-                      artist: result.artist || prev.artist,
-                    };
-                    setPlaylist(list => list.map(item =>
-                      item.id === newItemId ? { ...item, metadata: updated } : item
-                    ));
-                    return updated;
-                  });
-                }
                 if (result.lyrics) applyEmbeddedLyrics(result.lyrics);
               }).catch(e => console.warn('[EmbeddedLyrics] Fallback failed:', e));
             }
-          });
+          },
+          onError: (error: any) => {
+            console.log('jsmediatags has no reader for this format:', error);
+            // jsmediatags has no reader for OGG, OPUS, WAV, WMA, etc.
+            // Use custom binary extractor for metadata + lyrics
+            extractEmbeddedLyrics(file).then(result => {
+              if (result.title || result.artist) {
+                setMetadata(prev => {
+                  const updated = {
+                    ...prev,
+                    title: result.title || prev.title,
+                    artist: result.artist || prev.artist,
+                  };
+                  setPlaylist(list => list.map(item =>
+                    item.id === newItemId ? { ...item, metadata: updated } : item
+                  ));
+                  return updated;
+                });
+              }
+              if (result.lyrics) applyEmbeddedLyrics(result.lyrics);
+            }).catch(e => console.warn('[EmbeddedLyrics] Fallback failed:', e));
+          }
         });
-      } else if (file.type.startsWith('video/')) {
-        // If video, use it as background
-        setIsBgVideoReady(false);
-        const newMetadata: AudioMetadata = {
-          ...fallbackMeta,
-          coverUrl: url,
-          backgroundType: 'video'
-        };
-        setMetadata(newMetadata);
-        setPlaylist(prev => prev.map(item =>
-          item.id === newItemId ? { ...item, metadata: newMetadata } : item
-        ));
-      }
-
-      // Reset play state
-      setLyrics([]);
-      setLyricOffset(0);
-      setIsPlaying(false);
-      setCurrentTime(0);
-      
-      setPlaylist(prev => {
-        const appended = [...prev, newItem];
-        setCurrentTrackIndex(appended.length - 1);
-        return appended;
       });
-      setAudioElementKey(prev => prev + 1); // Fresh start for manually loaded audio too
-      if (lyricsContainerRef.current) {
-        lyricsContainerRef.current.scrollTop = 0;
-      }
-      if (audioRef.current) {
-        audioRef.current.load();
-      }
+    } else if (file.type.startsWith('video/')) {
+      // If video, use it as background
+      setIsBgVideoReady(false);
+      const newMetadata: AudioMetadata = {
+        ...fallbackMeta,
+        coverUrl: url,
+        backgroundType: 'video'
+      };
+      setMetadata(newMetadata);
+      setPlaylist(prev => prev.map(item =>
+        item.id === newItemId ? { ...item, metadata: newMetadata } : item
+      ));
+    }
+
+    // Reset play state
+    setLyrics(parsedLyrics);
+    setLyricOffset(0);
+    setIsPlaying(false);
+    setCurrentTime(0);
+    
+    setPlaylist(prev => {
+      const appended = [...prev, newItem];
+      setCurrentTrackIndex(appended.length - 1);
+      return appended;
+    });
+    setAudioElementKey(prev => prev + 1); // Fresh start for manually loaded audio too
+    if (lyricsContainerRef.current) {
+      lyricsContainerRef.current.scrollTop = 0;
+    }
+    if (audioRef.current) {
+      audioRef.current.load();
+    }
+  };
+
+  const handleAudioUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      loadAudioFile(file);
     }
     // Allow re-upload
     e.target.value = '';
@@ -423,39 +457,42 @@ function App() {
     e.target.value = '';
   };
 
+  const loadLyricsFile = async (file: File) => {
+    try {
+      const text = await file.text();
+      const ext = file.name.split('.').pop()?.toLowerCase();
+      let parsedLyrics: LyricLine[] = [];
+
+      if (ext === 'lrc') {
+        parsedLyrics = parseLRC(text);
+      } else if (ext === 'srt') {
+        parsedLyrics = parseSRT(text);
+      } else if (ext === 'ttml' || ext === 'xml') {
+        parsedLyrics = parseTTML(text);
+      } else if (ext === 'vtt') {
+        parsedLyrics = parseVTT(text);
+      }
+
+      // Auto-enable karaoke highlight if word-level data is detected
+      if (parsedLyrics.some(l => l.words && l.words.length > 0)) {
+        setRenderConfig(prev => ({ ...prev, highlightEffect: 'karaoke' }));
+        toast.success(`${ext?.toUpperCase()} loaded with word-level timing! Karaoke mode enabled.`);
+      }
+      setLyrics(parsedLyrics);
+
+      setPlaylist(prev => prev.map((item, idx) => 
+        idx === currentTrackIndex ? { ...item, parsedLyrics, lyricFile: file } : item
+      ));
+    } catch (err) {
+      console.error("Failed to parse lyrics:", err);
+      toast.error("Failed to parse lyric file.");
+    }
+  };
 
   const handleLyricsUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      try {
-        const text = await file.text();
-        const ext = file.name.split('.').pop()?.toLowerCase();
-        let parsedLyrics: LyricLine[] = [];
-
-        if (ext === 'lrc') {
-          parsedLyrics = parseLRC(text);
-        } else if (ext === 'srt') {
-          parsedLyrics = parseSRT(text);
-        } else if (ext === 'ttml' || ext === 'xml') {
-          parsedLyrics = parseTTML(text);
-        } else if (ext === 'vtt') {
-          parsedLyrics = parseVTT(text);
-        }
-
-        // Auto-enable karaoke highlight if word-level data is detected
-        if (parsedLyrics.some(l => l.words && l.words.length > 0)) {
-          setRenderConfig(prev => ({ ...prev, highlightEffect: 'karaoke' }));
-          toast.success(`${ext?.toUpperCase()} loaded with word-level timing! Karaoke mode enabled.`);
-        }
-        setLyrics(parsedLyrics);
-
-        setPlaylist(prev => prev.map((item, idx) => 
-          idx === currentTrackIndex ? { ...item, parsedLyrics, lyricFile: file } : item
-        ));
-      } catch (err) {
-        console.error("Failed to parse lyrics:", err);
-        toast.error("Failed to parse lyric file.");
-      }
+      await loadLyricsFile(file);
     }
     // Allow re-upload
     e.target.value = '';
@@ -471,40 +508,141 @@ function App() {
     }
   }, [playlist, currentTrackIndex]);
 
+  const loadFontFile = async (file: File) => {
+    if (!window.FontFace || !document.fonts) {
+      toast.error("Custom fonts are not supported in this browser.");
+      return;
+    }
+    try {
+      const url = URL.createObjectURL(file);
+
+      // Use filename as a proxy for font name (no dependency needed)
+      // Internal ID remains 'CustomFont' for consistent CSS usage
+      const fontLabel = file.name.replace(/\.[^/.]+$/, "");
+      const fontId = 'CustomFont';
+
+      const font = new FontFace(fontId, `url(${url})`);
+      await font.load();
+      document.fonts.add(font);
+
+      setCustomFontName(fontLabel);
+
+      // Automatically activate the font in settings
+      setRenderConfig(prev => ({ ...prev, fontFamily: fontId }));
+      // setPreset('custom'); // Disabled to allow customized base presets
+
+      toast.success(`Loaded font: ${fontLabel}`);
+    } catch (err) {
+      console.error("Failed to load font:", err);
+      toast.error("Failed to load font file.");
+    }
+  };
+
   const handleFontUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (!window.FontFace || !document.fonts) {
-        toast.error("Custom fonts are not supported in this browser.");
-        return;
-      }
-      try {
-        const url = URL.createObjectURL(file);
-
-        // Use filename as a proxy for font name (no dependency needed)
-        // Internal ID remains 'CustomFont' for consistent CSS usage
-        const fontLabel = file.name.replace(/\.[^/.]+$/, "");
-        const fontId = 'CustomFont';
-
-        const font = new FontFace(fontId, `url(${url})`);
-        await font.load();
-        document.fonts.add(font);
-
-        setCustomFontName(fontLabel);
-
-        // Automatically activate the font in settings
-        setRenderConfig(prev => ({ ...prev, fontFamily: fontId }));
-        // setPreset('custom'); // Disabled to allow customized base presets
-
-        toast.success(`Loaded font: ${fontLabel}`);
-      } catch (err) {
-        console.error("Failed to load font:", err);
-        toast.error("Failed to load font file.");
-      }
+      await loadFontFile(file);
     }
     // Allow re-upload
     e.target.value = '';
   };
+
+  // Drag and Drop Event Handlers
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (isPlaylistMode) return;
+    dragCounter.current++;
+    if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
+      setIsDragging(true);
+    }
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (isPlaylistMode) return;
+    dragCounter.current--;
+    if (dragCounter.current <= 0) {
+      setIsDragging(false);
+      dragCounter.current = 0;
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (isPlaylistMode) return;
+    setIsDragging(false);
+    dragCounter.current = 0;
+
+    const files = Array.from(e.dataTransfer.files) as File[];
+    if (files.length === 0) return;
+
+    // Group files by base name (ignoring extension) for audio/video + lyrics pairing
+    const fileGroups = new Map<string, { audio?: File; lyric?: File }>();
+    const fontFiles: File[] = [];
+    const unsupportedFiles: File[] = [];
+
+    const audioVideoExts = ['mp3', 'wav', 'flac', 'ogg', 'm4a', 'aac', 'wma', 'opus', 'mp4', 'mkv', 'webm', 'avi', 'mov', 'm4v', 'ogv'];
+    const lyricsExts = ['lrc', 'srt', 'vtt', 'ttml', 'xml'];
+    const fontExts = ['ttf', 'otf', 'woff', 'woff2'];
+
+    files.forEach(file => {
+      const ext = file.name.split('.').pop()?.toLowerCase() || '';
+      const mime = file.type;
+      const basename = file.name.replace(/\.[^/.]+$/, "");
+
+      if (audioVideoExts.includes(ext) || mime.startsWith('audio/') || mime.startsWith('video/')) {
+        if (!fileGroups.has(basename)) {
+          fileGroups.set(basename, {});
+        }
+        fileGroups.get(basename)!.audio = file;
+      } else if (lyricsExts.includes(ext)) {
+        if (!fileGroups.has(basename)) {
+          fileGroups.set(basename, {});
+        }
+        fileGroups.get(basename)!.lyric = file;
+      } else if (fontExts.includes(ext)) {
+        fontFiles.push(file);
+      } else {
+        unsupportedFiles.push(file);
+      }
+    });
+
+    // Process fonts first
+    if (fontFiles.length > 0) {
+      for (const file of fontFiles) {
+        await loadFontFile(file);
+      }
+    }
+
+    // Process the grouped files
+    for (const [basename, group] of fileGroups.entries()) {
+      if (group.audio) {
+        await loadAudioFile(group.audio, group.lyric);
+      } else if (group.lyric) {
+        await loadLyricsFile(group.lyric);
+      }
+    }
+
+    if (unsupportedFiles.length > 0) {
+      unsupportedFiles.forEach(file => {
+        toast.error(`Unsupported file type: ${file.name}`);
+      });
+    }
+  };
+
+  // Reset drag and drop state when playlist mode is opened or closed
+  useEffect(() => {
+    setIsDragging(false);
+    dragCounter.current = 0;
+  }, [isPlaylistMode]);
 
   const handleChannelFontUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -580,12 +718,17 @@ function App() {
     setAudioSrc(url);
     setCurrentAudioFile(track.audioFile);
 
+    const isVideo = track.audioFile.type.startsWith('video/') || track.metadata.backgroundType === 'video';
+    if (isVideo) {
+      setIsBgVideoReady(false);
+    }
+
     // Metadata - use cover art from track if available
     setMetadata({
       title: track.metadata.title,
       artist: track.metadata.artist,
-      coverUrl: track.metadata.coverUrl || null,
-      backgroundType: track.metadata.backgroundType || 'image'
+      coverUrl: isVideo ? url : (track.metadata.coverUrl || null),
+      backgroundType: isVideo ? 'video' : 'image'
     });
 
     // Reset Lyrics
@@ -1917,6 +2060,7 @@ function App() {
 
   // Scroll active lyric into view
   const scrollToActiveLyric = useCallback(() => {
+    if (renderConfig.lyricDisplayMode?.startsWith('static-')) return;
     if (lyricsContainerRef.current) {
       // Handle start of song (reset to top) for Loops/ Repeats
       // We use the Ref current time to avoid dependency loop or frequent re-renders
@@ -1955,7 +2099,7 @@ function App() {
         }
       }
     }
-  }, [currentLyricIndex, preset, renderConfig.contentPosition, renderConfig.marginTopScale, renderConfig.marginBottomScale]);
+  }, [currentLyricIndex, preset, renderConfig.contentPosition, renderConfig.marginTopScale, renderConfig.marginBottomScale, renderConfig.lyricDisplayMode]);
 
   // Trigger scroll on lyric change
   useEffect(() => {
@@ -2295,6 +2439,21 @@ function App() {
             exportVideoRef.current();
           }
           break;
+        case '1':
+          if (e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) break;
+          e.preventDefault();
+          document.getElementById('audio-file')?.click();
+          break;
+        case '2':
+          if (e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) break;
+          e.preventDefault();
+          document.getElementById('lyrics-file')?.click();
+          break;
+        case '3':
+          if (e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) break;
+          e.preventDefault();
+          document.getElementById('font-file')?.click();
+          break;
       }
     };
 
@@ -2457,8 +2616,55 @@ function App() {
       onMouseMove={handleMouseMove}
       onTouchStart={handleTouchStart}
       onDoubleClick={handleDisplayDoubleClick}
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
       className={`relative w-full h-[100dvh] bg-black overflow-hidden flex font-sans select-none ${isMouseIdle && !bypassAutoHide ? 'cursor-none' : ''}`}
     >
+      {/* Drag and Drop Overlay */}
+      {isDragging && (
+        <div className="absolute inset-0 z-[100] bg-black/80 backdrop-blur-md flex items-center justify-center p-8 transition-all duration-300 pointer-events-none">
+          <div className="border-2 border-dashed border-purple-500/50 bg-zinc-950/40 backdrop-blur-xl rounded-3xl p-10 max-w-2xl w-full flex flex-col items-center text-center space-y-8 animate-pulse shadow-[0_0_50px_rgba(168,85,247,0.15)] pointer-events-none">
+            <div className="p-5 bg-purple-500/10 rounded-full text-purple-400 ring-4 ring-purple-500/5 animate-bounce">
+              <Upload size={48} />
+            </div>
+            
+            <div className="space-y-3">
+              <h2 className="text-3xl font-extrabold text-white tracking-tight">Drop files to load</h2>
+              <p className="text-zinc-400 max-w-md text-sm leading-relaxed">
+                Release your files anywhere to instantly import them into the player and maker workspace.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-3 gap-6 w-full pt-4 border-t border-white/5">
+              <div className="flex flex-col items-center space-y-2 p-4 bg-white/5 rounded-2xl border border-white/5">
+                <div className="text-purple-400 bg-purple-500/10 p-3 rounded-xl">
+                  <Music size={24} />
+                </div>
+                <span className="text-xs font-bold text-zinc-200">Audio / Video</span>
+                <span className="text-[10px] text-zinc-500">MP3, WAV, FLAC, MP4...</span>
+              </div>
+
+              <div className="flex flex-col items-center space-y-2 p-4 bg-white/5 rounded-2xl border border-white/5">
+                <div className="text-emerald-400 bg-emerald-500/10 p-3 rounded-xl">
+                  <FileText size={24} />
+                </div>
+                <span className="text-xs font-bold text-zinc-200">Lyrics / Subtitles</span>
+                <span className="text-[10px] text-zinc-500">LRC, SRT, VTT, TTML...</span>
+              </div>
+
+              <div className="flex flex-col items-center space-y-2 p-4 bg-white/5 rounded-2xl border border-white/5">
+                <div className="text-pink-400 bg-pink-500/10 p-3 rounded-xl">
+                  <Type size={24} />
+                </div>
+                <span className="text-xs font-bold text-zinc-200">Custom Font</span>
+                <span className="text-[10px] text-zinc-500">TTF, OTF, WOFF, WOFF2...</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       <audio
         key={audioElementKey}
         ref={audioRef}
@@ -2938,31 +3144,22 @@ function App() {
                 </svg>
               </a>
               <a
-                href="https://ai.studio/apps/f72cc364-2af0-4d42-9e52-28ba3dff297c?fullscreenApplet=true"
+                href="https://dotslashgabut.github.io/lyricseditor/"
                 target="_blank"
                 rel="noopener noreferrer"
-                title="LyricalEditorPlus - Universal Lyrics/Subtitle Editor"
+                title="Premium Lyrics Editor - LRC, SRT, VTT, TTML & Subtitle Sync Tool"
+                className="px-3 py-2 rounded-full transition-colors bg-black/30 text-zinc-300 hover:bg-white/10 text-xs font-bold flex items-center"
+              >
+                LyricsEditor
+              </a>
+              <a
+                href="https://dotslashgabut.github.io/lyricaleditorplus/"
+                target="_blank"
+                rel="noopener noreferrer"
+                title="LyricalEditorPlus - Universal Lyrics/Subtitle Editor & Lyrics Generator"
                 className="px-3 py-2 rounded-full transition-colors bg-black/30 text-zinc-300 hover:bg-white/10 text-xs font-bold flex items-center"
               >
                 LyricalEditorPlus
-              </a>
-              <a
-                href="https://ai.studio/apps/drive/1M1VfxdBlNB_eOPQqQiHspvVwizaEs0aI?fullscreenApplet=true"
-                target="_blank"
-                rel="noopener noreferrer"
-                title="LyricFlow - Turn Audio into Subtitles"
-                className="px-3 py-2 rounded-full transition-colors bg-black/30 text-zinc-300 hover:bg-white/10 text-xs font-bold flex items-center"
-              >
-                LyricFlow
-              </a>
-              <a
-                href="https://ai.studio/apps/drive/1WKA-bCxzIKD-DcI_pq0HzxN3m1_oNEkg?fullscreenApplet=true"
-                target="_blank"
-                rel="noopener noreferrer"
-                title="LyricalVision - Visualize lyrics with Gemini AI"
-                className="px-3 py-2 rounded-full transition-colors bg-black/30 text-zinc-300 hover:bg-white/10 text-xs font-bold flex items-center"
-              >
-                LyricalVision
               </a>
               <button
                 onClick={() => setBypassAutoHide(!bypassAutoHide)}
@@ -3053,19 +3250,85 @@ function App() {
               }}
             >
               <div className={`transition-all duration-500 ${renderConfig.contentPosition === 'center' ? ((activeTab === TabView.EDITOR || isPlaylistMode) ? 'h-[25vh]' : (!isHeaderVisible && !isFooterVisible) ? 'h-[50vh]' : 'h-[40vh]') : 'h-0'}`}></div>
-              {adjustedLyrics.map((line, idx) => {
-                const isActive = idx === currentLyricIndex;
-                const isEditor = activeTab === TabView.EDITOR || isPlaylistMode;
-                const isPortraitPreview = ['9:16', '3:4', '1:1', '1:2', '2:3'].includes(aspectRatio);
+              {['static-compact', 'static-compact-comma', 'static-compact-clean'].includes(renderConfig.lyricDisplayMode) ? (
+                (() => {
+                  const mode = renderConfig.lyricDisplayMode;
+                  let previewText = '';
 
-                const isBigLayout = ['large', 'large_upper', 'big_center', 'metal', 'kids', 'sad', 'romantic', 'tech', 'gothic', 'testing', 'testing_up', 'one_line', 'one_line_up', 'custom'].includes(preset);
+                  // Group lyrics into paragraphs based on empty lines (verse breaks)
+                  const paragraphs: string[][] = [];
+                  let currentPara: string[] = [];
+                  for (let li = 0; li < adjustedLyrics.length; li++) {
+                    const lineText = adjustedLyrics[li].text.trim();
+                    if (lineText === '') {
+                      if (currentPara.length > 0) {
+                        paragraphs.push(currentPara);
+                        currentPara = [];
+                      }
+                    } else {
+                      currentPara.push(lineText);
+                    }
+                  }
+                  if (currentPara.length > 0) {
+                    paragraphs.push(currentPara);
+                  }
 
-                // --- Render Config Display Mode Filter ---
-                if (renderConfig.lyricDisplayMode !== 'all') {
-                  if (renderConfig.lyricDisplayMode === 'active-only' && idx !== currentLyricIndex) return <p key={idx} className="hidden" />;
-                  if (renderConfig.lyricDisplayMode === 'next-only' && (idx < currentLyricIndex || idx > currentLyricIndex + 1)) return <p key={idx} className="hidden" />;
-                  if (renderConfig.lyricDisplayMode === 'previous-next' && Math.abs(idx - currentLyricIndex) > 1) return <p key={idx} className="hidden" />;
-                } else {
+                  // Casing helper
+                  const casing = renderConfig?.textCase || 'none';
+                  const applyCasing = (txt: string) => {
+                    if (!txt) return txt;
+                    if (casing === 'upper') return txt.toUpperCase();
+                    if (casing === 'lower') return txt.toLowerCase();
+                    if (casing === 'title') return txt.replace(/\w\S*/g, (t) => t.charAt(0).toUpperCase() + t.substr(1).toLowerCase());
+                    if (casing === 'sentence') {
+                      const lower = txt.toLowerCase();
+                      return lower.charAt(0).toUpperCase() + lower.slice(1);
+                    }
+                    if (casing === 'invert') return txt.replace(/\w\S*/g, (t) => t.charAt(0).toLowerCase() + t.slice(1).toUpperCase());
+                    return txt;
+                  };
+
+                  if (mode === 'static-compact') {
+                    const casedParas = paragraphs.map(p => applyCasing(p.join(' / ')));
+                    previewText = casedParas.join(' // ');
+                  } else if (mode === 'static-compact-comma') {
+                    const casedParas = paragraphs.map(p => applyCasing(p.join(', ')) + '.');
+                    previewText = casedParas.join('\n');
+                  } else {
+                    const casedParas = paragraphs.map(p => applyCasing(p.join(' ')) + '.');
+                    previewText = casedParas.join('\n');
+                  }
+
+                  return (
+                    <div 
+                      className="w-full text-white opacity-90 text-center select-none whitespace-pre-wrap leading-relaxed px-4 md:px-8"
+                      style={{
+                        fontSize: `calc(1.35rem * var(--fs-scale))`,
+                        fontFamily: (renderConfig.fontFamily === 'CustomFont') ? 'CustomFont, sans-serif' : renderConfig.fontFamily,
+                        fontWeight: renderConfig.fontWeight || 'bold',
+                        fontStyle: renderConfig.fontStyle || 'normal',
+                        textAlign: renderConfig.textAlign || 'center',
+                      }}
+                    >
+                      {previewText}
+                    </div>
+                  );
+                })()
+              ) : (
+                adjustedLyrics.map((line, idx) => {
+                  const isActive = renderConfig.lyricDisplayMode === 'static-all' ? false : idx === currentLyricIndex;
+                  const isEditor = activeTab === TabView.EDITOR || isPlaylistMode;
+                  const isPortraitPreview = ['9:16', '3:4', '1:1', '1:2', '2:3'].includes(aspectRatio);
+
+                  const isBigLayout = ['large', 'large_upper', 'big_center', 'metal', 'kids', 'sad', 'romantic', 'tech', 'gothic', 'testing', 'testing_up', 'one_line', 'one_line_up', 'custom'].includes(preset);
+
+                  // --- Render Config Display Mode Filter ---
+                  if (renderConfig.lyricDisplayMode !== 'all') {
+                    if (renderConfig.lyricDisplayMode === 'static-all' && line.text.trim() === '') return <p key={idx} className="hidden" />;
+                    if (renderConfig.lyricDisplayMode === 'active-only' && idx !== currentLyricIndex) return <p key={idx} className="hidden" />;
+                    if (renderConfig.lyricDisplayMode === 'next-only' && (idx < currentLyricIndex || idx > currentLyricIndex + 1)) return <p key={idx} className="hidden" />;
+                    if (renderConfig.lyricDisplayMode === 'previous-next' && Math.abs(idx - currentLyricIndex) > 1) return <p key={idx} className="hidden" />;
+                  } else {
                   // Fallback to Preset Defaults
                   // If mode is 'all', we generally want to show everything.
                   // BUT we still respect 'none' or 'just_video' as "no lyric" presets generally, 
@@ -3301,7 +3564,14 @@ function App() {
                     ? (isEditor ? 'text-lg' : 'text-xl')
                     : (isEditor ? 'text-xl' : 'text-2xl');
                   activeClass = `${activeSize} font-bold text-white scale-105 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]`;
-                  inactiveClass = `${inactiveSize} text-zinc-500/60 hover:text-zinc-300 drop-shadow-sm`;
+                }
+
+                if (renderConfig.lyricDisplayMode === 'static-all') {
+                  const size = isPortraitPreview
+                    ? (isEditor ? 'text-base' : 'text-lg')
+                    : (isEditor ? 'text-lg' : 'text-xl');
+                  const alignClass = renderConfig.textAlign === 'center' ? 'text-center' : renderConfig.textAlign === 'right' ? 'text-right' : 'text-left';
+                  inactiveClass = `${size} font-semibold text-white/90 drop-shadow-sm ${alignClass}`;
                 }
 
                 // Dynamic Styles for Custom Preset options
@@ -3802,7 +4072,7 @@ function App() {
                   </p>
                 );
               })
-              }
+              )}
               <div className={`transition-all duration-500 ${renderConfig.contentPosition === 'center' ? ((activeTab === TabView.EDITOR || isPlaylistMode) ? 'h-[25vh]' : (!isHeaderVisible && !isFooterVisible) ? 'h-[50vh]' : 'h-[40vh]') : 'h-0'}`}></div>
             </div>
           ) : (
@@ -3810,8 +4080,8 @@ function App() {
               {!activeSlide && !audioSrc && playlist.length === 0 && preset !== 'none' && (
                 <div className="flex flex-col items-center gap-4 animate-pulse">
                   <Music size={64} className="opacity-20" />
-                  <p>Load audio & lyrics to start</p>
-                  <p className="text-xs opacity-50">Shortcuts: Space (Play), S (Stop), R (Repeat), H (Hold UI)</p>
+                  <p>Drag & drop files or load audio & lyrics to start</p>
+                  <p className="text-xs opacity-50">Shortcuts: 1 (Load Audio/Video), 2 (Load Lyrics), 3 (Load Font), Space (Play), S (Stop)</p>
                 </div>
               )}
             </div>
@@ -3898,12 +4168,12 @@ function App() {
               {/* Main Buttons */}
               <div className="flex flex-wrap lg:grid lg:grid-cols-[1fr_auto_1fr] items-center justify-center gap-4">
                 <div className="flex gap-1 justify-center lg:justify-start flex-wrap order-2 lg:order-none w-auto lg:w-full">
-                  <label className="p-2 rounded-lg hover:bg-white/10 text-zinc-400 hover:text-white cursor-pointer transition-colors" title="Load Audio or video">
+                  <label className="p-2 rounded-lg hover:bg-white/10 text-zinc-400 hover:text-white cursor-pointer transition-colors" title="Load Audio or video (1)">
                     <Music size={18} />
                     <input type="file" name="audio-file" id="audio-file" accept="audio/*,video/*" className="hidden" onChange={handleAudioUpload} disabled={isRendering} />
                   </label>
                   <div className="flex items-center gap-1">
-                    <label className={`p-2 rounded-lg hover:bg-white/10 cursor-pointer transition-colors ${lyrics.length > 0 ? 'text-purple-400' : 'text-zinc-400 hover:text-white'}`} title="Load Lyrics (.lrc, .srt, .vtt, .ttml)">
+                    <label className={`p-2 rounded-lg hover:bg-white/10 cursor-pointer transition-colors ${lyrics.length > 0 ? 'text-purple-400' : 'text-zinc-400 hover:text-white'}`} title="Load Lyrics (.lrc, .srt, .vtt, .ttml) (2)">
                       <FileText size={18} />
                       <input type="file" name="lyrics-file" id="lyrics-file" accept=".lrc,.srt,.ttml,.xml,.vtt" className="hidden" onChange={handleLyricsUpload} disabled={isRendering} />
                     </label>
@@ -3945,7 +4215,7 @@ function App() {
                   </div>
 
                   <div className="flex items-center gap-1">
-                    <label className={`p-2 rounded-lg hover:bg-white/10 cursor-pointer transition-colors ${customFontName ? 'text-purple-400' : 'text-zinc-400 hover:text-white'}`} title={customFontName ? `Custom Font: ${customFontName}` : "Load Custom Font (.ttf, .otf, .woff)"}>
+                    <label className={`p-2 rounded-lg hover:bg-white/10 cursor-pointer transition-colors ${customFontName ? 'text-purple-400' : 'text-zinc-400 hover:text-white'}`} title={customFontName ? `Custom Font: ${customFontName}` : "Load Custom Font (.ttf, .otf, .woff) (3)"}>
                       <Type size={18} />
                       <input type="file" name="font-file" id="font-file" accept=".ttf,.otf,.woff,.woff2" className="hidden" onChange={handleFontUpload} disabled={isRendering} />
                     </label>
@@ -4429,6 +4699,13 @@ function App() {
                     <div className="flex justify-between text-sm"><span className="text-zinc-300">Forward 5s</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">→</span></div>
                     <div className="flex justify-between text-sm"><span className="text-zinc-300">Repeat Mode</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">R</span></div>
                     <div className="flex justify-between text-sm"><span className="text-zinc-300">Mute</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">M</span></div>
+                  </div>
+
+                  <h3 className="text-sm font-bold text-zinc-500 uppercase tracking-wider mt-6">File Loading</h3>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm"><span className="text-zinc-300">Load Audio / Video</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">1</span></div>
+                    <div className="flex justify-between text-sm"><span className="text-zinc-300">Load Lyrics / Sub-file</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">2</span></div>
+                    <div className="flex justify-between text-sm"><span className="text-zinc-300">Load Font File</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">3</span></div>
                   </div>
 
                   <h3 className="text-sm font-bold text-zinc-500 uppercase tracking-wider mt-6">Interface</h3>

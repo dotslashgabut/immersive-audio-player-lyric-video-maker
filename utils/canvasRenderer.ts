@@ -1136,15 +1136,25 @@ export const drawCanvasFrame = (
 
     if (activePreset === 'just_video' || activePreset === 'none') return;
 
-    const activeIdx = lyrics.findIndex((line, index) => {
+    const rawActiveIdx = lyrics.findIndex((line, index) => {
         if (line.endTime !== undefined) return time >= line.time && time < line.endTime;
         const nextLine = lyrics[index + 1];
         return time >= line.time && (!nextLine || time < nextLine.time);
     });
 
+    // Detect unsynced lyrics (all timestamps are 0 — e.g. embedded USLT without timing)
+    const isUnsyncedLyrics = lyrics.length > 0 && lyrics.every(l => l.time === 0 && (l.endTime === undefined || l.endTime === 0));
+    const activeIdx = isUnsyncedLyrics ? -1 : rawActiveIdx;
+
+    // Check if static display mode is selected
+    const isStaticMode = renderConfig?.lyricDisplayMode === 'static-all' ||
+        renderConfig?.lyricDisplayMode === 'static-compact' ||
+        renderConfig?.lyricDisplayMode === 'static-compact-comma' ||
+        renderConfig?.lyricDisplayMode === 'static-compact-clean';
+
     // Find the next upcoming lyric for smoother scrolling during breaks
     let virtualActiveIdx = activeIdx;
-    if (virtualActiveIdx === -1 && lyrics.length > 0) {
+    if (!isStaticMode && virtualActiveIdx === -1 && lyrics.length > 0) {
         if (time < lyrics[0].time) {
             virtualActiveIdx = 0;
         } else {
@@ -1176,7 +1186,7 @@ export const drawCanvasFrame = (
 
     baseFontSize *= fontSizeScale; secondaryFontSize *= fontSizeScale; lineSpacing *= fontSizeScale;
 
-    if ((renderConfig?.showLyrics ?? true) && (activeIdx !== -1 || showIntroTitle || (renderConfig?.lyricDisplayMode === 'all' && lyrics.length > 0))) {
+    if ((renderConfig?.showLyrics ?? true) && (activeIdx !== -1 || showIntroTitle || (renderConfig?.lyricDisplayMode === 'all' && lyrics.length > 0) || (isStaticMode && lyrics.length > 0))) {
         // Vertical Position Logic
         let centerY = height / 2;
         if (renderConfig?.contentPosition === 'top') {
@@ -1197,6 +1207,175 @@ export const drawCanvasFrame = (
                 if (lines.length > 1) activeLineShift = ((lines.length - 1) * (baseFontSize * 1.2)) / 2;
             }
         }
+
+        // --- Static Display Modes (Unsynchronized / Static) ---
+        if (isStaticMode && lyrics.length > 0) {
+            const maxW = width * 0.85;
+            const padding = 40 * scale;
+
+            // Determine available vertical space
+            let availableHeight = height * 0.75;
+            if (renderConfig?.contentPosition === 'top') availableHeight = height * 0.6;
+            if (renderConfig?.contentPosition === 'bottom') availableHeight = height * 0.6;
+
+            ctx.textAlign = renderConfig?.textAlign || 'center';
+            ctx.textBaseline = 'middle';
+
+            const baseColorHex = renderConfig?.fontColor || '#ffffff';
+            ctx.fillStyle = baseColorHex;
+
+            let weight = renderConfig?.fontWeight || 'bold';
+            let style = renderConfig?.fontStyle || 'normal';
+            const decoration = renderConfig?.textDecoration || 'none';
+            const textEffect = renderConfig?.textEffect === 'preset' ? 'none' : (renderConfig?.textEffect || 'none');
+
+            const mode = renderConfig?.lyricDisplayMode;
+            if (mode === 'static-compact' || mode === 'static-compact-comma' || mode === 'static-compact-clean') {
+                let textToDraw = '';
+
+                // Group lyrics into paragraphs based on empty lines (verse breaks)
+                const paragraphs: string[][] = [];
+                let currentPara: string[] = [];
+                for (let li = 0; li < lyrics.length; li++) {
+                    const lineText = lyrics[li].text.trim();
+                    if (lineText === '') {
+                        if (currentPara.length > 0) {
+                            paragraphs.push(currentPara);
+                            currentPara = [];
+                        }
+                    } else {
+                        currentPara.push(lineText);
+                    }
+                }
+                if (currentPara.length > 0) {
+                    paragraphs.push(currentPara);
+                }
+
+                // Casing helper
+                const casing = renderConfig?.textCase || 'none';
+                const applyCasing = (txt: string) => {
+                    if (!txt) return txt;
+                    if (casing === 'upper') return txt.toUpperCase();
+                    if (casing === 'lower') return txt.toLowerCase();
+                    if (casing === 'title') return txt.replace(/\w\S*/g, (t) => t.charAt(0).toUpperCase() + t.substr(1).toLowerCase());
+                    if (casing === 'sentence') {
+                        const lower = txt.toLowerCase();
+                        return lower.charAt(0).toUpperCase() + lower.slice(1);
+                    }
+                    if (casing === 'invert') return txt.replace(/\w\S*/g, (t) => t.charAt(0).toLowerCase() + t.slice(1).toUpperCase());
+                    return txt;
+                };
+
+                if (mode === 'static-compact') {
+                    // Each paragraph is joined by ' / ', cased, and paragraphs are joined by ' // '
+                    const casedParas = paragraphs.map(p => applyCasing(p.join(' / ')));
+                    textToDraw = casedParas.join(' // ');
+                } else if (mode === 'static-compact-comma') {
+                    // Each paragraph is joined by ', ', cased, ended with '.', and paragraphs are joined by '\n'
+                    const casedParas = paragraphs.map(p => applyCasing(p.join(', ')) + '.');
+                    textToDraw = casedParas.join('\n');
+                } else {
+                    // Each paragraph is joined by ' ', cased, ended with '.', and paragraphs are joined by '\n'
+                    const casedParas = paragraphs.map(p => applyCasing(p.join(' ')) + '.');
+                    textToDraw = casedParas.join('\n');
+                }
+
+                // Auto-fit font size
+                let fontSize = baseFontSize * 0.6;
+                const minFontSize = 14 * scale;
+                const lineHeight = 1.5;
+
+                for (; fontSize >= minFontSize; fontSize -= 1 * scale) {
+                    ctx.font = `${style} ${weight} ${fontSize}px ${fontFamily}`;
+                    const lines = getWrappedLines(ctx, textToDraw, maxW);
+                    const totalH = lines.length * fontSize * lineHeight;
+                    if (totalH <= availableHeight) break;
+                }
+                fontSize = Math.max(fontSize, minFontSize);
+                ctx.font = `${style} ${weight} ${fontSize}px ${fontFamily}`;
+
+                const wrappedLines = getWrappedLines(ctx, textToDraw, maxW);
+                const lh = fontSize * lineHeight;
+                const totalH = wrappedLines.length * lh;
+                const startY = centerY - totalH / 2 + lh / 2;
+
+                let xPos = width / 2;
+                if (ctx.textAlign === 'left') xPos = padding;
+                else if (ctx.textAlign === 'right') xPos = width - padding;
+
+                wrappedLines.forEach((wLine, li) => {
+                    const ly = startY + li * lh;
+                    drawLineWithEffects(ctx, wLine, xPos, ly, textEffect, decoration);
+                });
+
+            } else {
+                // --- STATIC-ALL: Show all lines individually, auto-fit ---
+                // Filter out empty marker lines for display
+                const displayLyrics = lyrics.filter(l => l.text.trim() !== '');
+
+                // Auto-fit font size
+                let fontSize = secondaryFontSize;
+                const minFontSize = 12 * scale;
+                const gap = 8 * scale;
+
+                for (; fontSize >= minFontSize; fontSize -= 1 * scale) {
+                    ctx.font = `${style} ${weight} ${fontSize}px ${fontFamily}`;
+                    let totalH = 0;
+                    for (const line of displayLyrics) {
+                        let text = line.text;
+                        const casing = renderConfig?.textCase || 'none';
+                        if (casing === 'upper') text = text.toUpperCase();
+                        else if (casing === 'lower') text = text.toLowerCase();
+
+                        const wrapped = getWrappedLines(ctx, text, maxW);
+                        totalH += wrapped.length * fontSize * 1.3 + gap;
+                    }
+                    totalH -= gap; // Remove trailing gap
+                    if (totalH <= availableHeight) break;
+                }
+                fontSize = Math.max(fontSize, minFontSize);
+                ctx.font = `${style} ${weight} ${fontSize}px ${fontFamily}`;
+
+                // Measure final total height
+                let totalH = 0;
+                const lineBlocks: { text: string; wrappedLines: string[]; blockH: number }[] = [];
+                for (const line of displayLyrics) {
+                    let text = line.text;
+                    const casing = renderConfig?.textCase || 'none';
+                    if (casing === 'upper') text = text.toUpperCase();
+                    else if (casing === 'lower') text = text.toLowerCase();
+                    else if (casing === 'title') text = text.replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase());
+                    else if (casing === 'sentence') text = text.charAt(0).toUpperCase() + text.slice(1).toLowerCase();
+                    else if (casing === 'invert') text = text.replace(/\w\S*/g, (txt) => txt.charAt(0).toLowerCase() + txt.slice(1).toUpperCase());
+
+                    const wrapped = getWrappedLines(ctx, text, maxW);
+                    const blockH = wrapped.length * fontSize * 1.3;
+                    lineBlocks.push({ text, wrappedLines: wrapped, blockH });
+                    totalH += blockH + gap;
+                }
+                totalH -= gap;
+
+                let curY = centerY - totalH / 2;
+
+                let xPos = width / 2;
+                if (ctx.textAlign === 'left') xPos = padding;
+                else if (ctx.textAlign === 'right') xPos = width - padding;
+
+                for (const block of lineBlocks) {
+                    const lh = fontSize * 1.3;
+                    const blockStartY = curY + lh / 2; // Center of first line
+                    block.wrappedLines.forEach((wLine, wi) => {
+                        const ly = blockStartY + wi * lh;
+                        drawLineWithEffects(ctx, wLine, xPos, ly, textEffect, decoration);
+                    });
+                    curY += block.blockH + gap;
+                }
+            }
+
+            // Skip the normal lyric rendering below
+            ctx.restore?.();
+            // Draw info layer etc. after this block
+        } else {
 
         // Lyric Display Range Logic
         let startI = isBigLayout ? -1 : -2;
@@ -1548,6 +1727,7 @@ export const drawCanvasFrame = (
                 ctx.restore();
             }
         }
+        } // close else (non-static mode)
     }
 
     // Info Layer

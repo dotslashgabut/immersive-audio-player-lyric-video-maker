@@ -3,6 +3,29 @@
 # 2.3.16
 
 ## What's New
+- **Drag-and-Drop Workspace Loader** *(New Feature)*:
+  - **Seamless Import**: Added a beautiful full-screen drag-and-drop overlay to the main workspace. You can now drag and drop audio/video files, lyric/subtitle files, and custom fonts directly onto the application window to load them instantly.
+  - **Smart Grouping**: Automatically groups audio/video files with matching lyric files (by filename base) on import.
+  - **Broad Support**: Automatically handles `.ttf`, `.otf`, `.woff`, `.woff2` for fonts, and all supported audio, video, and lyrics/subtitle formats.
+
+- **Keyboard Dialog Shortcuts** *(New Feature)*:
+  - **File Loading Shortcuts**: Added new hotkeys `1` (Load Audio/Video), `2` (Load Lyrics/Sub-files), and `3` (Load Font file) to quickly open file picker dialogs from anywhere in the player interface.
+  - **Overlay Visibility**: Updated the keyboard shortcuts modal (accessible via `?` or `Y`) to include the new file loading key mappings.
+
+- **Random Settings Generator** *(New Feature)*:
+  - **Style Randomization**: Added a **Randomize** option under a new "Random Settings" row in the Render Settings panel. Generates randomized styling combinations across backgrounds, typography, alignments, layout scale parameters, karaoke text effects, visualizations, transition effects, and song/channel info displays for instant aesthetic inspiration.
+
+- **Static & Unsynchronized Lyric Display Modes** *(New Feature)*:
+  - **Static / Unsynced Layouts**: Added 4 new display modes under an "Unsynchronized / Static" section in the Lyric Display Mode dropdown:
+    - **Static Full Text**: Displays all lines of lyrics simultaneously, automatically adjusting the font size to fit the vertical space.
+    - **Compact ( / line, // verse )**: Groups lyrics into paragraphs and displays them as a continuous text block separated by slashes.
+    - **Compact ( , line, . verse + newline )**: Groups lyrics by comma/newline.
+    - **Compact ( no symbol, . verse + newline )**: Clean paragraph grouping without separators.
+  - **Export Support**: Fully integrated with the canvas renderer to support offline renders (WebCodecs/FFmpeg) in these static display layouts.
+
+- **Paragraph-Preserving Lyric Parsing** *(Improvement)*:
+  - **Verse Detection**: Preserves single consecutive blank lines (paragraph breaks) when importing unsynced text lyrics or extracting embedded lyrics, enabling structured verse grouping for compact/static display modes.
+
 - **Unsynchronized Embedded Lyrics Fix** *(Bug Fix)*:
   - **Root Cause**: Embedded lyrics without timestamps (e.g., `USLT` / Unsynchronized Lyrics Text) are parsed with `time: 0` for every line. The `currentLyricIndex` algorithm would always resolve to the **last line** (since all timestamps match `currentTime >= 0`), causing the preview to auto-scroll to the bottom and display incorrect active highlighting.
   - **Smart Detection**: Introduced an `isUnsyncedLyrics` check that detects when all lyric lines share a zero timestamp (`time === 0` with no `endTime`). This correctly identifies plain-text embedded lyrics that lack any timing information.
@@ -10,6 +33,10 @@
   - **Playlist Editor Fix (PlaylistEditor.tsx)**: Two improvements for unsynced lyrics:
     - **No False Highlighting**: The active lyric index is forced to `-1`, preventing the last lyric pill from being incorrectly highlighted as "active".
     - **Hidden Timestamps**: The `[00:00.00]` timestamp badge is hidden for unsynced lyrics, showing only the lyric text — since the timestamp carries no meaningful information.
+
+- **UI & Dependency Updates**:
+  - **Link Upgrades**: Updated the header links to point to the latest hosted versions: `LyricsEditor` (`https://dotslashgabut.github.io/lyricseditor/`) and `LyricalEditorPlus` (`https://dotslashgabut.github.io/lyricaleditorplus/`).
+  - **Vite Upgrade**: Upgraded Vite dev dependency to `^8.0.16`.
 
 
 # 2.3.15
