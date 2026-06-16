@@ -2167,7 +2167,7 @@ function App() {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Check if the key shoud trigger UI wake-up
       const key = e.key.toLowerCase();
-      const ignoredKeysForIdle = [' ', 'k', 's', 't', 'l', 'r', 'f', 'h', 'g', 'm', 'j', 'd', 'e', 'c', 'x', 'z', 'arrowleft', 'arrowright', 'arrowup', 'arrowdown', 'meta', 'control', 'shift', 'alt', 'printscreen', 'fn', '+', '-', '=', '8', '9'];
+      const ignoredKeysForIdle = [' ', 'k', 's', 't', 'l', 'r', 'f', 'h', 'g', 'm', 'j', 'd', 'e', 'c', 'x', 'z', 'arrowleft', 'arrowright', 'arrowup', 'arrowdown', 'meta', 'control', 'shift', 'alt', 'printscreen', 'fn', '+', '-', '=', '8', '9', '0'];
 
       if (!ignoredKeysForIdle.includes(key)) {
         resetIdleTimer();
@@ -2482,6 +2482,12 @@ function App() {
             toast.success(`UI Scale: ${Math.round(next * 100)}%`, { id: 'ui-scale' });
             return next;
           });
+          break;
+        case '0': // Reset UI Scale
+          if (e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) break;
+          e.preventDefault();
+          setUiScale(1.0);
+          toast.success("UI Scale: 100%", { id: 'ui-scale' });
           break;
       }
     };
@@ -2965,7 +2971,7 @@ function App() {
       </div>
 
       {/* --- Main Content Area --- */}
-      <div className="relative z-10 flex-1 flex flex-col transition-all duration-500">
+      <div className="relative z-10 flex-1 flex flex-col transition-all duration-500 min-w-0">
 
         {/* Channel Info Overlay */}
         {renderConfig.showChannelInfo && isMinimalMode && (
@@ -4562,7 +4568,7 @@ function App() {
         </div>
         {/* --- Bottom Timeline Editor or Playlist --- */}
         {isPlaylistMode ? (
-          <div className="no-minimal-mode-toggle animate-slide-up border-t border-white/10 z-30 shrink-0 w-full max-w-[100vw] overflow-hidden">
+          <div className="no-minimal-mode-toggle animate-slide-up border-t border-white/10 z-30 shrink-0 w-full max-w-full overflow-hidden">
             <PlaylistEditor
               playlist={playlist}
               setPlaylist={setPlaylist}
@@ -4607,7 +4613,7 @@ function App() {
           </div>
         ) : (
           activeTab === TabView.EDITOR && (
-            <div className="no-minimal-mode-toggle animate-slide-up border-t border-white/10 z-30 shrink-0 w-full max-w-[100vw] overflow-hidden">
+            <div className="no-minimal-mode-toggle animate-slide-up border-t border-white/10 z-30 shrink-0 w-full max-w-full overflow-hidden min-w-0">
               <VisualEditor
                 slides={visualSlides}
                 setSlides={setVisualSlides}
@@ -4774,7 +4780,7 @@ function App() {
                     <div className="flex justify-between text-sm"><span className="text-zinc-300">Toggle Header Info</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">I</span></div>
                     <div className="flex justify-between text-sm"><span className="text-zinc-300">Toggle Shortcut Info</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">Y</span></div>
                     <div className="flex justify-between text-sm"><span className="text-zinc-300">Toggle Player</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">P</span></div>
-                    <div className="flex justify-between text-sm"><span className="text-zinc-300">UI Scale (Zoom UI)</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">8 / 9</span></div>
+                    <div className="flex justify-between text-sm"><span className="text-zinc-300">UI Scale (Zoom / Reset)</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">8 / 9 / 0</span></div>
                   </div>
                 </div>
 
