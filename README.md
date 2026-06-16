@@ -213,6 +213,8 @@ Check out our other AI-powered tools for music and visuals:
 | **1** | Load Audio / Video File |
 | **2** | Load Lyrics / Subtitle File |
 | **3** | Load Font File |
+| **8** | Decrease UI Scale (Zoom UI) |
+| **9** | Increase UI Scale (Zoom UI) |
 | **Delete** | Remove selected Playlist Item or Visual Slide |
 | **Ctrl + Z / Y** | Undo / Redo (Editor) |
 | **Ctrl + C / X / V** | Copy / Cut / Paste (Editor) |
@@ -294,7 +296,8 @@ This application is built with React + Vite and requires **Node.js** to run.
 - **AI Transkripsi**: Dukungan model **Gemini 2.5 Flash** dan **3.0 Flash Preview** untuk transkripsi audio otomatis yang presisi.
 - **Ekspor Lirik**: Simpan hasil transkripsi dalam format `.lrc`, `.srt`, `.vtt`, `.json`, atau `.txt`.
 - **Timeline Canggih**: Dukungan **Multi-Layer** (2 Visual + 2 Audio), **Undo/Redo**, **Cut/Copy/Paste**, **Drag Selection**, dan **Snapping** otomatis.
-- **Shortcut Baru**: Tekan **1** (Muat Audio/Video), **2** (Muat Lirik), **3** (Muat Font), **D** (Render Settings), **O** (Minimal Mode), **Y** (Info Shortcut), **N**/**B** (Next/Prev), **M** (Mute), **R** (Repeat), **L** (Playlist), **+/-** (Font), dan **Ctrl/Cmd+Shift+E** (Export).
+- **Kontrol Skala & Zoom UI**: Tombol `-` dan `+` di samping ikon eye pada control footer untuk memperbesar/memperkecil seluruh tampilan antarmuka (UI zoom) secara langsung, klik persentase untuk mereset skala ke 100%, atau gunakan shortcut tombol **8** (kecilkan) dan **9** (besarkan). Pintasan keyboard (hotkey) global juga dilindungi agar tidak memblokir shortcut bawaan browser/OS saat tombol modifier (`Ctrl`/`Cmd`/`Alt`) sedang ditekan.
+- **Shortcut Baru**: Tekan **1** (Muat Audio/Video), **2** (Muat Lirik), **3** (Muat Font), **D** (Render Settings), **O** (Minimal Mode), **Y** (Info Shortcut), **N**/**B** (Next/Prev), **M** (Mute), **R** (Repeat), **L** (Playlist), **8**/**9** (Skala UI - tanpa tombol modifier), **+/-** (Font - tanpa tombol modifier), dan **Ctrl/Cmd+Shift+E** (Export). Ditambah pencegahan bubbling pintasan saat mengetik di form input.
 
 ### Cara Install & Jalankan
 Aplikasi ini berbasis web modern (React + Vite).

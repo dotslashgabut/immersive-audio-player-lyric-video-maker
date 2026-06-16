@@ -35,6 +35,11 @@
     - **Hidden Timestamps**: The `[00:00.00]` timestamp badge is hidden for unsynced lyrics, showing only the lyric text — since the timestamp carries no meaningful information.
 
 - **UI & Dependency Updates**:
+  - **UI Scale / Zoom Controls** *(New Feature)*: Added new `-` and `+` buttons next to the Bypass Auto-hide (eye) icon in the control footer. This allows users to decrease/increase the app's UI zoom/scale directly from the interface, with a reset option by clicking the percentage label. Also added keyboard shortcut support using the `8` (decrease) and `9` (increase) keys (without modifier keys).
+  - **Browser/OS Shortcut Conflict Fixes** *(Bug Fix)*:
+    - **Global Modifier Safeguard**: Updated the global keyboard listener in `App.tsx` to ignore all simple single-key shortcuts when modifier keys (`Ctrl`, `Meta`/Cmd, `Alt`) are active (except for `Ctrl/Cmd + Shift + E` video export). This prevents the app from hijacking standard browser/OS shortcuts like `Ctrl + T` (new tab), `Ctrl + L` (focus URL bar), `Ctrl + D` (bookmark), `Ctrl + R` (reload), or clipboard copy/paste (`Ctrl + C` / `Ctrl + V`).
+    - **Playlist Form Inputs Fix**: Resolved a critical issue in `PlaylistEditor.tsx` where typing in input fields (like the Gemini API Key input) bubbled to the parent container and triggered playlist hotkeys (like deleting songs on `Delete`/`Backspace` or changing track selection on arrow keys). Also added modifier key checks to prevent conflicts in playlist navigation.
+    - **Timeline Move Safeguard**: Updated `VisualEditor.tsx` to ignore timeline arrow keys when modifier keys are active, avoiding conflicts with text-editing or history navigation shortcuts.
   - **Link Upgrades**: Updated the header links to point to the latest hosted versions: `LyricsEditor` (`https://dotslashgabut.github.io/lyricseditor/`) and `LyricalEditorPlus` (`https://dotslashgabut.github.io/lyricaleditorplus/`).
   - **Vite Upgrade**: Upgraded Vite dev dependency to `^8.0.16`.
 

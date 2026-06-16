@@ -89,6 +89,7 @@ function App() {
 
   const [showRenderSettings, setShowRenderSettings] = useState(false);
   const [showShortcutInfo, setShowShortcutInfo] = useState(false);
+  const [uiScale, setUiScale] = useState(1.0);
 
   // State: Drag and Drop
   const [isDragging, setIsDragging] = useState(false);
@@ -2166,7 +2167,7 @@ function App() {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Check if the key shoud trigger UI wake-up
       const key = e.key.toLowerCase();
-      const ignoredKeysForIdle = [' ', 'k', 's', 't', 'l', 'r', 'f', 'h', 'g', 'm', 'j', 'd', 'e', 'c', 'x', 'z', 'arrowleft', 'arrowright', 'arrowup', 'arrowdown', 'meta', 'control', 'shift', 'alt', 'printscreen', 'fn', '+', '-', '='];
+      const ignoredKeysForIdle = [' ', 'k', 's', 't', 'l', 'r', 'f', 'h', 'g', 'm', 'j', 'd', 'e', 'c', 'x', 'z', 'arrowleft', 'arrowright', 'arrowup', 'arrowdown', 'meta', 'control', 'shift', 'alt', 'printscreen', 'fn', '+', '-', '=', '8', '9'];
 
       if (!ignoredKeysForIdle.includes(key)) {
         resetIdleTimer();
@@ -2174,6 +2175,14 @@ function App() {
 
       // Ignore if typing in an input
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
+      // If a modifier key is pressed (Ctrl/Meta/Alt), ignore all simple shortcuts.
+      // The only shortcut that allows modifiers is 'Ctrl/Cmd + Shift + E' for export.
+      if (e.ctrlKey || e.metaKey || e.altKey) {
+        if (!(key === 'e' && e.shiftKey)) {
+          return;
+        }
+      }
 
       if (isRendering) {
         if (key === 'escape') {
@@ -2418,6 +2427,7 @@ function App() {
           break;
         case '+':
         case '=': // For keyboards where + is Shift+=
+          if (e.ctrlKey || e.metaKey || e.altKey) break;
           e.preventDefault();
           const currentScaleUp = renderConfigRef.current.fontSizeScale;
           const newValUp = Math.min(currentScaleUp + 0.1, 3.0);
@@ -2426,6 +2436,7 @@ function App() {
           // setPresetCustom(); // Disabled to allow customized base presets
           break;
         case '-':
+          if (e.ctrlKey || e.metaKey || e.altKey) break;
           e.preventDefault();
           const currentScaleDown = renderConfigRef.current.fontSizeScale;
           const newValDown = Math.max(currentScaleDown - 0.1, 0.1);
@@ -2453,6 +2464,24 @@ function App() {
           if (e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) break;
           e.preventDefault();
           document.getElementById('font-file')?.click();
+          break;
+        case '8': // Decrease UI Scale
+          if (e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) break;
+          e.preventDefault();
+          setUiScale(prev => {
+            const next = Math.max(0.5, Math.round((prev - 0.05) * 100) / 100);
+            toast.success(`UI Scale: ${Math.round(next * 100)}%`, { id: 'ui-scale' });
+            return next;
+          });
+          break;
+        case '9': // Increase UI Scale
+          if (e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) break;
+          e.preventDefault();
+          setUiScale(prev => {
+            const next = Math.min(2.0, Math.round((prev + 0.05) * 100) / 100);
+            toast.success(`UI Scale: ${Math.round(next * 100)}%`, { id: 'ui-scale' });
+            return next;
+          });
           break;
       }
     };
@@ -2620,7 +2649,13 @@ function App() {
       onDragLeave={handleDragLeave}
       onDragOver={handleDragOver}
       onDrop={handleDrop}
-      className={`relative w-full h-[100dvh] bg-black overflow-hidden flex font-sans select-none ${isMouseIdle && !bypassAutoHide ? 'cursor-none' : ''}`}
+      className={`relative bg-black overflow-hidden flex font-sans select-none ${isMouseIdle && !bypassAutoHide ? 'cursor-none' : ''}`}
+      style={{
+        width: `${100 / uiScale}vw`,
+        height: `${100 / uiScale}dvh`,
+        transform: `scale(${uiScale})`,
+        transformOrigin: 'top left',
+      }}
     >
       {/* Drag and Drop Overlay */}
       {isDragging && (
@@ -3168,6 +3203,29 @@ function App() {
               >
                 {bypassAutoHide ? <Eye size={20} /> : <EyeOff size={20} />}
               </button>
+              <div className="flex items-center gap-1 bg-black/30 text-zinc-300 rounded-full px-2 py-1 text-xs font-bold border border-white/5 h-9">
+                <button
+                  onClick={() => setUiScale(prev => Math.max(0.5, Math.round((prev - 0.05) * 100) / 100))}
+                  className="w-5 h-5 rounded-full hover:bg-white/10 hover:text-white transition-colors flex items-center justify-center font-bold text-sm"
+                  title="Decrease UI Scale (8)"
+                >
+                  -
+                </button>
+                <button
+                  onClick={() => setUiScale(1.0)}
+                  className="px-1 font-bold text-[10px] hover:text-white select-none transition-colors text-center min-w-[28px]"
+                  title="Reset UI Scale to 100% (Click)"
+                >
+                  {Math.round(uiScale * 100)}%
+                </button>
+                <button
+                  onClick={() => setUiScale(prev => Math.min(2.0, Math.round((prev + 0.05) * 100) / 100))}
+                  className="w-5 h-5 rounded-full hover:bg-white/10 hover:text-white transition-colors flex items-center justify-center font-bold text-sm"
+                  title="Increase UI Scale (9)"
+                >
+                  +
+                </button>
+              </div>
               <button
                 onClick={() => setIsMinimalMode(!isMinimalMode)}
                 className={`p-2 rounded-full transition-colors ${isMinimalMode ? 'bg-purple-600 text-white' : 'bg-black/30 text-zinc-300 hover:bg-white/10'}`}
@@ -4716,6 +4774,7 @@ function App() {
                     <div className="flex justify-between text-sm"><span className="text-zinc-300">Toggle Header Info</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">I</span></div>
                     <div className="flex justify-between text-sm"><span className="text-zinc-300">Toggle Shortcut Info</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">Y</span></div>
                     <div className="flex justify-between text-sm"><span className="text-zinc-300">Toggle Player</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">P</span></div>
+                    <div className="flex justify-between text-sm"><span className="text-zinc-300">UI Scale (Zoom UI)</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">8 / 9</span></div>
                   </div>
                 </div>
 

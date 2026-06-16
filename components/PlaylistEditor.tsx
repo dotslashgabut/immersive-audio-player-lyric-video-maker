@@ -123,6 +123,14 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
 
 
     const handleKeyDown = useCallback((e: KeyboardEvent) => {
+        const target = e.target as HTMLElement;
+        if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
+            return;
+        }
+
+        // Ignore modifier keys to avoid conflicts with browser/OS combinations
+        if (e.ctrlKey || e.metaKey || e.altKey) return;
+
         if (selectedIndex !== null && e.key === 'Delete') {
             e.preventDefault();
             e.stopPropagation();
