@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { X, Video, Settings, ImageIcon, Type, Layout, Palette, Music, FileText, Check, ListMusic, Bold, Italic, Underline, Strikethrough, AlignVerticalJustifyCenter, AlignVerticalJustifyStart, AlignVerticalJustifyEnd, Upload, Trash2, ChevronDown, Maximize, RotateCcw, Download, Keyboard as KeyboardIcon, Sparkles, Activity, Shuffle } from './Icons';
+import { X, Video, Settings, ImageIcon, Type, Layout, Palette, Music, FileText, Check, ListMusic, Bold, Italic, Underline, Strikethrough, AlignVerticalJustifyCenter, AlignVerticalJustifyStart, AlignVerticalJustifyEnd, Upload, Trash2, ChevronDown, Maximize, RotateCcw, Download, Sparkles, Activity, Shuffle } from './Icons';
 import { RenderConfig, VideoPreset, RenderEngine, FFmpegCodec } from '../types';
 import { fontGroups, loadSingleGoogleFont } from '../utils/fonts';
 import { PRESET_DEFINITIONS, videoPresetGroups } from '../utils/presets';
@@ -66,6 +66,7 @@ const DEFAULT_CONFIG: RenderConfig = {
     textAnimation: 'none',
     transitionEffect: 'none',
     lyricDisplayMode: 'all',
+    lyricVisibilityMode: 'default',
     fontWeight: 'bold',
     fontStyle: 'normal',
     lyricStyleTarget: 'active-only',
@@ -847,7 +848,6 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
     const backgroundImageInputRef = useRef<HTMLInputElement>(null);
     const backgroundVideoInputRef = useRef<HTMLInputElement>(null);
     const settingsInputRef = useRef<HTMLInputElement>(null);
-    const [showShortcuts, setShowShortcuts] = useState(false);
     const [importedFileName, setImportedFileName] = useState<string | null>(null);
 
 
@@ -1047,6 +1047,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
             marginTopScale: randFloat(0.5, 2.5),
             marginBottomScale: randFloat(0.5, 2.5),
             lyricDisplayMode: pick(displayModes) as RenderConfig['lyricDisplayMode'],
+            lyricVisibilityMode: pick(['default', 'default', 'auto']) as RenderConfig['lyricVisibilityMode'],
             // Effects
             textEffect: pick(textEffects) as RenderConfig['textEffect'],
             textAnimation: pick(textAnimations) as RenderConfig['textAnimation'],
@@ -1108,7 +1109,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
 
     const handleReset = async () => {
         const confirmed = await confirm(
-            'This will reset ALL settings to factory defaults:\n\n• Visual preset → Default\n• Background, fonts & colors\n• Text effects, animations & transitions\n• Song info, watermark & visualization\n• Output: 1080p, 30fps, MediaRecorder\n\nThis cannot be undone.',
+            'This will reset ALL settings to factory defaults:\n\n• Visual preset → Default\n• Background, fonts & colors\n• Text effects, animations & transitions\n• Song info, watermark & visualization\n• Output: 1080p, 30fps, WebCodecs\n\nThis cannot be undone.',
             'Reset All Settings to Default'
         );
         if (confirmed) {
@@ -1119,7 +1120,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
             setRenderCodec('auto');
             setRenderFps(30);
             setRenderQuality('med');
-            setRenderEngine('mediarecorder');
+            setRenderEngine('webcodecs');
             setFfmpegCodec('h264');
 
             // Reset File Inputs
@@ -1409,6 +1410,10 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                     if (newConfig.marginBottomScale === undefined || isNaN(newConfig.marginBottomScale)) newConfig.marginBottomScale = 1.0;
                     else newConfig.marginBottomScale = Math.max(0, Math.min(5, newConfig.marginBottomScale));
                     if (newConfig.lyricDisplayMode && !isValidGroupOption(newConfig.lyricDisplayMode, lyricDisplayGroups)) newConfig.lyricDisplayMode = 'all';
+                    if (newConfig.lyricVisibilityMode && !['default', 'auto'].includes(newConfig.lyricVisibilityMode)) {
+                        newConfig.lyricVisibilityMode = 'default';
+                    }
+                    if (!newConfig.lyricVisibilityMode) newConfig.lyricVisibilityMode = 'default';
 
                     if (!['normal', 'bold'].includes(newConfig.fontWeight)) newConfig.fontWeight = 'bold';
                     if (!['normal', 'italic'].includes(newConfig.fontStyle)) newConfig.fontStyle = 'normal';
@@ -2246,6 +2251,38 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                         onChange={(val) => handleChange('lyricDisplayMode', val)}
                         groups={lyricDisplayGroups}
                     />
+                </section>
+
+                {/* Lyric Visibility */}
+                <section className="space-y-3">
+                    <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-2">
+                        <FileText size={14} /> Lyric Visibility
+                    </h3>
+                    <div className="flex bg-zinc-800 p-1 rounded-lg border border-white/5">
+                        <button
+                            onClick={() => handleChange('lyricVisibilityMode', 'default')}
+                            className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-all ${(config.lyricVisibilityMode ?? 'default') === 'default'
+                                ? 'bg-zinc-600 text-white shadow-sm'
+                                : 'text-zinc-400 hover:text-zinc-200 hover:bg-white/5'
+                                }`}
+                        >
+                            Default
+                        </button>
+                        <button
+                            onClick={() => handleChange('lyricVisibilityMode', 'auto')}
+                            className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-all ${config.lyricVisibilityMode === 'auto'
+                                ? 'bg-purple-600 text-white shadow-sm'
+                                : 'text-zinc-400 hover:text-zinc-200 hover:bg-white/5'
+                                }`}
+                        >
+                            Auto
+                        </button>
+                    </div>
+                    {config.lyricVisibilityMode === 'auto' && (
+                        <p className="text-[10px] text-zinc-500 leading-relaxed px-1">
+                            TTML/SRT: hides lyrics when the gap between line end and the next cue exceeds 3 seconds (short gaps keep the previous line). LRC/eLRC: estimates line duration from word timing or word count, then hides during long gaps; final line also hides near the end of long outros.
+                        </p>
+                    )}
                 </section>
 
                 {/* Highlight Effect */}
@@ -3392,99 +3429,12 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
 
                     </div>
 
-                    <div className="pt-2 border-t border-white/5 space-y-2">
+                    <div className="pt-2 border-t border-white/5">
                         <p className="text-[10px] text-zinc-500 italic leading-relaxed">
                             <span className="text-purple-400 font-bold">*Tip:</span> You can backup your current configuration using the <span className="text-zinc-300">Export</span> button above.
                         </p>
-                        <button
-                            onClick={() => setShowShortcuts(true)}
-                            className="w-full flex items-center justify-center gap-2 bg-zinc-800/30 border border-white/5 hover:bg-zinc-800 hover:border-white/20 text-xs text-zinc-400 hover:text-white py-2 rounded-lg transition-all"
-                        >
-                            <KeyboardIcon size={14} /> View Keyboard Shortcuts
-                        </button>
                     </div>
                 </section>
-
-                {
-                    showShortcuts && (
-                        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in cursor-default" onClick={() => setShowShortcuts(false)}>
-                            <div className="no-minimal-mode-toggle bg-zinc-900 border border-white/10 rounded-xl shadow-2xl w-[480px] max-w-[90vw] overflow-hidden flex flex-col max-h-[85vh] animate-in slide-in-from-bottom-5" onClick={(e) => e.stopPropagation()}>
-                                <div className="flex items-center justify-between p-4 border-b border-white/10 bg-zinc-800/50">
-                                    <h3 className="font-bold text-white flex items-center gap-2">
-                                        <KeyboardIcon size={18} className="text-purple-400" />
-                                        Keyboard Shortcuts
-                                    </h3>
-                                    <button
-                                        onClick={() => setShowShortcuts(false)}
-                                        className="p-1.5 hover:bg-white/10 rounded-full text-zinc-400 hover:text-white transition-colors"
-                                    >
-                                        <X size={18} />
-                                    </button>
-                                </div>
-                                <div className="p-4 overflow-y-auto space-y-6 custom-scrollbar">
-                                    <div className="space-y-3">
-                                        <h4 className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Media Controls</h4>
-                                        <div className="grid grid-cols-2 gap-2 text-sm">
-                                            <div className="flex justify-between items-center"><span className="text-zinc-300">Play / Pause</span> <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 font-mono text-[10px] border border-white/10">Space</kbd></div>
-                                            <div className="flex justify-between items-center"><span className="text-zinc-300">Stop</span> <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 font-mono text-[10px] border border-white/10">S</kbd></div>
-                                            <div className="flex justify-between items-center"><span className="text-zinc-300">Next Song</span> <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 font-mono text-[10px] border border-white/10">N</kbd></div>
-                                            <div className="flex justify-between items-center"><span className="text-zinc-300">Prev Song</span> <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 font-mono text-[10px] border border-white/10">B</kbd></div>
-                                            <div className="flex justify-between items-center"><span className="text-zinc-300">Repeat Mode</span> <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 font-mono text-[10px] border border-white/10">R</kbd></div>
-                                            <div className="flex justify-between items-center"><span className="text-zinc-300">Mute / Unmute</span> <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 font-mono text-[10px] border border-white/10">M</kbd></div>
-                                        </div>
-                                    </div>
-
-                                    <div className="space-y-3">
-                                        <h4 className="text-xs font-bold text-zinc-500 uppercase tracking-wider">View & Appearance</h4>
-                                        <div className="grid grid-cols-2 gap-2 text-sm">
-                                            <div className="flex justify-between items-center"><span className="text-zinc-300">Fullscreen</span> <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 font-mono text-[10px] border border-white/10">F</kbd></div>
-                                            <div className="flex justify-between items-center"><span className="text-zinc-300">Playlist Mode</span> <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 font-mono text-[10px] border border-white/10">L</kbd></div>
-                                            <div className="flex justify-between items-center"><span className="text-zinc-300">Timeline / Edit</span> <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 font-mono text-[10px] border border-white/10">T</kbd></div>
-                                            <div className="flex justify-between items-center"><span className="text-zinc-300">Toggle Info</span> <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 font-mono text-[10px] border border-white/10">I</kbd></div>
-                                            <div className="flex justify-between items-center"><span className="text-zinc-300">Toggle Player</span> <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 font-mono text-[10px] border border-white/10">P</kbd></div>
-                                            <div className="flex justify-between items-center"><span className="text-zinc-300">Auto-Hide HUD</span> <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 font-mono text-[10px] border border-white/10">H</kbd></div>
-                                            <div className="flex justify-between items-center"><span className="text-zinc-300">Minimal Mode</span> <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 font-mono text-[10px] border border-white/10">O</kbd></div>
-                                            <div className="flex justify-between items-center"><span className="text-zinc-300">Lyric Display Mode</span> <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 font-mono text-[10px] border border-white/10">G</kbd></div>
-                                            <div className="flex justify-between items-center"><span className="text-zinc-300">Text Case</span> <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 font-mono text-[10px] border border-white/10">C</kbd></div>
-                                            <div className="flex justify-between items-center"><span className="text-zinc-300">Render Settings</span> <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 font-mono text-[10px] border border-white/10">D</kbd></div>
-                                        </div>
-                                    </div>
-
-                                    <div className="space-y-3">
-                                        <h4 className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Visual Effects</h4>
-                                        <div className="grid grid-cols-2 gap-2 text-sm">
-                                            <div className="flex justify-between items-center"><span className="text-zinc-300">Toggle Highlight On/Off</span> <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 font-mono text-[10px] border border-white/10">X</kbd></div>
-                                            <div className="flex justify-between items-center"><span className="text-zinc-300">Cycle Next Highlight Effect</span> <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 font-mono text-[10px] border border-white/10">Z</kbd></div>
-                                        </div>
-                                    </div>
-
-                                    <div className="space-y-3">
-                                        <h4 className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Adjustment & Export</h4>
-                                        <div className="grid grid-cols-2 gap-2 text-sm">
-                                            <div className="flex justify-between items-center"><span className="text-zinc-300">Cycle Presets</span> <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 font-mono text-[10px] border border-white/10">J</kbd></div>
-                                            <div className="flex justify-between items-center"><span className="text-zinc-300">Font Size</span> <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 font-mono text-[10px] border border-white/10">+ / -</kbd></div>
-                                            <div className="flex justify-between items-center"><span className="text-zinc-300">Seek +/- 5s</span> <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 font-mono text-[10px] border border-white/10">Arrows</kbd></div>
-                                            <div className="flex justify-between items-center"><span className="text-zinc-300">Scroll Lyrics</span> <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400 font-mono text-[10px] border border-white/10">Up/Down</kbd></div>
-                                            <div className="flex justify-between col-span-2 items-center bg-purple-900/20 p-2 rounded-lg border border-purple-500/20">
-                                                <span className="text-purple-300 font-medium">Quick Export</span>
-                                                <div className="flex gap-1 items-center">
-                                                    <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-300 font-mono text-[10px] border border-white/10">Ctrl</kbd>
-                                                    <span className="text-zinc-500 text-[10px]">+</span>
-                                                    <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-300 font-mono text-[10px] border border-white/10">Shift</kbd>
-                                                    <span className="text-zinc-500 text-[10px]">+</span>
-                                                    <kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-300 font-mono text-[10px] border border-white/10">E</kbd>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="p-4 border-t border-white/10 bg-zinc-900/50 text-center">
-                                    <p className="text-[10px] text-zinc-500">Press <kbd className="font-mono text-zinc-400">Esc</kbd> to close</p>
-                                </div>
-                            </div>
-                        </div>
-                    )
-                }
 
             </div>
 
