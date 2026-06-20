@@ -104,6 +104,7 @@ export interface RenderConfig {
   textAnimation: 'none' | 'bounce' | 'pulse' | 'wave' | 'glitch' | 'shake' | 'typewriter' | 'wobble' | 'breathe' | 'rotate' | 'sway' | 'flicker' | 'jello' | 'heartbeat' | 'float' | 'swing' | 'rubberband' | 'flash' | 'tada' | 'spin';
   transitionEffect: 'none' | 'fade' | 'slide' | 'zoom' | 'blur' | 'float' | 'drop' | 'flip' | 'bounce' | 'spiral' | 'shatter' | 'elastic' | 'swing' | 'roll' | 'lightspeed' | 'rotate-in' | 'scale-rotate' | 'typewriter';
   lyricDisplayMode: 'all' | 'previous-next' | 'next-only' | 'active-only' | 'static-all' | 'static-compact' | 'static-compact-comma' | 'static-compact-clean';
+  lyricVisibilityMode?: 'default' | 'auto';
   fontWeight: 'normal' | 'bold';
   fontStyle: 'normal' | 'italic';
   lyricStyleTarget: 'active-only' | 'all';

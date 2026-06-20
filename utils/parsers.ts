@@ -1,4 +1,5 @@
 import { LyricLine } from '../types';
+import { LAST_WORD_MAX_DURATION_SEC } from './lyricVisibility';
 
 
 
@@ -30,6 +31,39 @@ export const parseTimestamp = (timeStr: string): number => {
   }
 
   return isNaN(seconds) ? 0 : seconds;
+};
+
+/** Extend inferred last-word durations (Enhanced LRC) up to 3s or next line start. */
+export function normalizeLyricWordEndTimes(lyrics: LyricLine[]): LyricLine[] {
+  if (lyrics.length === 0) return lyrics;
+
+  return lyrics.map((line, idx) => {
+    if (!line.words || line.words.length === 0) return line;
+
+    let nextContentTime: number | undefined;
+    for (let j = idx + 1; j < lyrics.length; j++) {
+      if (lyrics[j].text.trim() !== '') {
+        nextContentTime = lyrics[j].time;
+        break;
+      }
+    }
+
+    const words = line.words.map((word, wi) => {
+      if (wi < line.words!.length - 1) return word;
+
+      const inferredShort = word.endTime - word.startTime <= 0.51;
+      if (!inferredShort) return word;
+
+      let endTime = word.startTime + LAST_WORD_MAX_DURATION_SEC;
+      if (nextContentTime !== undefined) {
+        endTime = Math.min(endTime, nextContentTime);
+      }
+      endTime = Math.max(endTime, word.startTime + 0.05);
+      return { ...word, endTime };
+    });
+
+    return { ...line, words };
+  });
 };
 
 export const formatTime = (seconds: number): string => {
@@ -138,11 +172,10 @@ export const parseLRC = (lrcContent: string): LyricLine[] => {
     }
   });
 
-  return lyrics.sort((a, b) => a.time - b.time);
+  return normalizeLyricWordEndTimes(lyrics.sort((a, b) => a.time - b.time));
 };
 
 export const parseSRT = (srtContent: string): LyricLine[] => {
-
   const content = srtContent.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
   const blocks = content.split('\n\n');
   const lyrics: LyricLine[] = [];
@@ -300,7 +333,7 @@ export const parseJSON = (jsonContent: string): LyricLine[] => {
         typeof item.text === 'string'
       );
       if (isValid) {
-        return parsed as LyricLine[];
+        return normalizeLyricWordEndTimes(parsed as LyricLine[]);
       }
     }
   } catch (e) {
@@ -460,5 +493,5 @@ export const parseVTT = (vttContent: string): LyricLine[] => {
     i++;
   }
 
-  return lyrics;
+  return normalizeLyricWordEndTimes(lyrics);
 };

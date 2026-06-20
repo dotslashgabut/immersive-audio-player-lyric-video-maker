@@ -14,6 +14,7 @@ import AudioVisualizer, { disconnectVisualizerAudio } from './components/AudioVi
 import { getSharedAudioContext, getOrCreateMediaElementSource } from './utils/audioContext';
 import ThreeBackground from './components/ThreeBackground';
 import { drawCanvasFrame } from './utils/canvasRenderer';
+import { resolveAutoLyricVisibility, getContentIndexAtOffset, isEmptyLyricLine } from './utils/lyricVisibility';
 import { loadGoogleFonts } from './utils/fonts';
 import { PRESET_CYCLE_LIST, PRESET_DEFINITIONS, videoPresetGroups } from './utils/presets';
 import { useUI } from './contexts/UIContext';
@@ -83,7 +84,7 @@ function App() {
   const [renderQuality, setRenderQuality] = useState<'low' | 'med' | 'high'>('med');
 
   // FFmpeg WASM render engine options
-  const [renderEngine, setRenderEngine] = useState<RenderEngine>('mediarecorder');
+  const [renderEngine, setRenderEngine] = useState<RenderEngine>('webcodecs');
   const [ffmpegCodec, setFfmpegCodec] = useState<FFmpegCodec>('h264');
   const [ffmpegRenderStage, setFfmpegRenderStage] = useState<string>('');
 
@@ -108,6 +109,7 @@ function App() {
     textAnimation: 'none',
     transitionEffect: 'none',
     lyricDisplayMode: 'all',
+    lyricVisibilityMode: 'default',
     fontWeight: 'bold',
     fontStyle: 'normal',
     lyricStyleTarget: 'active-only',
@@ -254,6 +256,70 @@ function App() {
     const nextLine = adjustedLyrics[index + 1];
     return currentTime >= line.time && (!nextLine || currentTime < nextLine.time);
   });
+
+  const isStaticLyricMode = ['static-all', 'static-compact', 'static-compact-comma', 'static-compact-clean'].includes(renderConfig.lyricDisplayMode);
+
+  const autoLyricVisibility = useMemo(() => {
+    if (
+      renderConfig.lyricVisibilityMode !== 'auto' ||
+      isUnsyncedLyrics ||
+      adjustedLyrics.length === 0 ||
+      isStaticLyricMode
+    ) {
+      return null;
+    }
+    return resolveAutoLyricVisibility(adjustedLyrics, currentTime, duration);
+  }, [renderConfig.lyricVisibilityMode, isUnsyncedLyrics, adjustedLyrics, currentTime, duration, isStaticLyricMode]);
+
+  const autoHideLyricsPreview = autoLyricVisibility?.autoHideLyrics ?? false;
+  const displayLyricIndex = autoHideLyricsPreview
+    ? -1
+    : (autoLyricVisibility?.displayIdx ?? currentLyricIndex);
+  const virtualLyricIndex = autoLyricVisibility?.virtualActiveIdx
+    ?? (currentLyricIndex >= 0 ? currentLyricIndex : 0);
+
+  const isLyricLineVisible = useCallback((idx: number) => {
+    if (isEmptyLyricLine(adjustedLyrics[idx])) return false;
+    if (displayLyricIndex === -1) return false;
+
+    const mode = renderConfig.lyricDisplayMode;
+    const useAutoOffsets = renderConfig.lyricVisibilityMode === 'auto' && autoLyricVisibility !== null;
+
+    if (mode === 'all') return true;
+    if (mode === 'static-all') return adjustedLyrics[idx].text.trim() !== '';
+
+    if (mode === 'active-only') {
+      const target = useAutoOffsets
+        ? getContentIndexAtOffset(adjustedLyrics, virtualLyricIndex, 0)
+        : displayLyricIndex;
+      return idx === target;
+    }
+
+    if (mode === 'next-only') {
+      const cur = useAutoOffsets
+        ? getContentIndexAtOffset(adjustedLyrics, virtualLyricIndex, 0)
+        : displayLyricIndex;
+      const next = useAutoOffsets
+        ? getContentIndexAtOffset(adjustedLyrics, virtualLyricIndex, 1)
+        : displayLyricIndex + 1;
+      return idx === cur || (next !== -1 && idx === next);
+    }
+
+    if (mode === 'previous-next') {
+      const prev = useAutoOffsets
+        ? getContentIndexAtOffset(adjustedLyrics, virtualLyricIndex, -1)
+        : displayLyricIndex - 1;
+      const cur = useAutoOffsets
+        ? getContentIndexAtOffset(adjustedLyrics, virtualLyricIndex, 0)
+        : displayLyricIndex;
+      const next = useAutoOffsets
+        ? getContentIndexAtOffset(adjustedLyrics, virtualLyricIndex, 1)
+        : displayLyricIndex + 1;
+      return idx === prev || idx === cur || (next !== -1 && idx === next);
+    }
+
+    return true;
+  }, [adjustedLyrics, displayLyricIndex, virtualLyricIndex, renderConfig.lyricDisplayMode, renderConfig.lyricVisibilityMode, autoLyricVisibility]);
 
   // --- Handlers ---
 
@@ -2167,7 +2233,7 @@ function App() {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Check if the key shoud trigger UI wake-up
       const key = e.key.toLowerCase();
-      const ignoredKeysForIdle = [' ', 'k', 's', 't', 'l', 'r', 'f', 'h', 'g', 'm', 'j', 'd', 'e', 'c', 'x', 'z', 'arrowleft', 'arrowright', 'arrowup', 'arrowdown', 'meta', 'control', 'shift', 'alt', 'printscreen', 'fn', '+', '-', '=', '8', '9', '0'];
+      const ignoredKeysForIdle = [' ', 'k', 's', 'v', 'n', 'b', 't', 'l', 'r', 'f', 'h', 'g', 'm', 'j', 'd', 'e', 'c', 'x', 'z', 'arrowleft', 'arrowright', 'arrowup', 'arrowdown', 'meta', 'control', 'shift', 'alt', 'printscreen', 'fn', '+', '-', '=', '8', '9', '0'];
 
       if (!ignoredKeysForIdle.includes(key)) {
         resetIdleTimer();
@@ -2201,6 +2267,7 @@ function App() {
           toast.success(isPlaying ? "Paused" : "Playing", { id: 'play-pause' });
           break;
         case 's':
+        case 'v':
           e.preventDefault();
           stopPlayback();
           toast.success("Stopped", { id: 'stop' });
@@ -3303,7 +3370,7 @@ function App() {
             <div
               ref={lyricsContainerRef}
               className={`w-full max-w-5xl max-h-full overflow-y-auto no-scrollbar px-4 md:px-6 space-y-4 md:space-y-6 transition-all duration-500 lyrics-root ${renderConfig.textAlign === 'left' ? 'text-left' : renderConfig.textAlign === 'right' ? 'text-right' : 'text-center'
-                } ${!renderConfig.showLyrics ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
+                } ${!renderConfig.showLyrics || autoHideLyricsPreview ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
               style={{
                 maskImage: (isHeaderVisible || isFooterVisible) && preset !== 'subtitle'
                   ? 'linear-gradient(to bottom, transparent, black 10%, black 90%, transparent)'
@@ -3380,7 +3447,9 @@ function App() {
                 })()
               ) : (
                 adjustedLyrics.map((line, idx) => {
-                  const isActive = renderConfig.lyricDisplayMode === 'static-all' ? false : idx === currentLyricIndex;
+                  const isActive = renderConfig.lyricDisplayMode === 'static-all'
+                    ? false
+                    : idx === (displayLyricIndex >= 0 ? displayLyricIndex : currentLyricIndex);
                   const isEditor = activeTab === TabView.EDITOR || isPlaylistMode;
                   const isPortraitPreview = ['9:16', '3:4', '1:1', '1:2', '2:3'].includes(aspectRatio);
 
@@ -3388,10 +3457,11 @@ function App() {
 
                   // --- Render Config Display Mode Filter ---
                   if (renderConfig.lyricDisplayMode !== 'all') {
+                    if (displayLyricIndex === -1 && ['active-only', 'next-only', 'previous-next'].includes(renderConfig.lyricDisplayMode)) {
+                      return <p key={idx} className="hidden" />;
+                    }
                     if (renderConfig.lyricDisplayMode === 'static-all' && line.text.trim() === '') return <p key={idx} className="hidden" />;
-                    if (renderConfig.lyricDisplayMode === 'active-only' && idx !== currentLyricIndex) return <p key={idx} className="hidden" />;
-                    if (renderConfig.lyricDisplayMode === 'next-only' && (idx < currentLyricIndex || idx > currentLyricIndex + 1)) return <p key={idx} className="hidden" />;
-                    if (renderConfig.lyricDisplayMode === 'previous-next' && Math.abs(idx - currentLyricIndex) > 1) return <p key={idx} className="hidden" />;
+                    if (!isLyricLineVisible(idx)) return <p key={idx} className="hidden" />;
                   } else {
                   // Fallback to Preset Defaults
                   // If mode is 'all', we generally want to show everything.
@@ -4145,7 +4215,7 @@ function App() {
                 <div className="flex flex-col items-center gap-4 animate-pulse">
                   <Music size={64} className="opacity-20" />
                   <p>Drag & drop files or load audio & lyrics to start</p>
-                  <p className="text-xs opacity-50">Shortcuts: 1 (Load Audio/Video), 2 (Load Lyrics), 3 (Load Font), Space (Play), S (Stop)</p>
+                  <p className="text-xs opacity-50">Shortcuts: 1 (Load Audio/Video), 2 (Load Lyrics), 3 (Load Font), Space (Play), S / V (Stop)</p>
                 </div>
               )}
             </div>
@@ -4441,6 +4511,18 @@ function App() {
                 <div className="flex items-center gap-1 justify-center lg:justify-end group flex-wrap order-3 lg:order-none w-auto lg:w-full">
 
                   <div className="flex items-center gap-1">
+                    {/* Lyric Visibility Toggle */}
+                    <button
+                      onClick={() => setRenderConfig(prev => ({
+                        ...prev,
+                        lyricVisibilityMode: (prev.lyricVisibilityMode ?? 'default') === 'auto' ? 'default' : 'auto',
+                      }))}
+                      className={`bg-zinc-800/50 border border-white/5 text-[10px] font-mono rounded-lg px-2 h-9 transition-colors disabled:opacity-30 ${(renderConfig.lyricVisibilityMode ?? 'default') === 'auto' ? 'text-purple-400 border-purple-500/50' : 'text-zinc-300 hover:text-white'}`}
+                      title={`Lyric Visibility: ${(renderConfig.lyricVisibilityMode ?? 'default') === 'auto' ? 'Auto' : 'Default'}`}
+                      disabled={isRendering}
+                    >
+                      {(renderConfig.lyricVisibilityMode ?? 'default') === 'auto' ? 'AUTO' : 'DEFAULT'}
+                    </button>
                     {/* Background Blur Toggle */}
                     <button
                       onClick={() => setRenderConfig(prev => ({ ...prev, backgroundBlurStrength: prev.backgroundBlurStrength > 0 ? 0 : 12 }))}
@@ -4528,27 +4610,6 @@ function App() {
                       <svg className="fill-current h-3 w-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" /></svg>
                     </div>
                   </div> */}
-
-                  {/* Quality/Bitrate Selection */}
-                  <div className="relative group">
-                    <select
-                      value={renderQuality}
-                      onChange={(e) => setRenderQuality(e.target.value as any)}
-                      className="appearance-none bg-zinc-800/50 border border-white/5 text-zinc-300 text-xs rounded-lg px-3 pr-8 w-18 h-9 focus:outline-none focus:border-purple-500 cursor-pointer"
-                      disabled={isRendering}
-                      title="Select Quality (Bitrate)"
-                      name="quality"
-                      id="quality-select"
-                      aria-label="Render Quality"
-                    >
-                      <option value="low" className="bg-zinc-900">Low</option>
-                      <option value="med" className="bg-zinc-900">Med</option>
-                      <option value="high" className="bg-zinc-900">High</option>
-                    </select>
-                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-1 text-zinc-500">
-                      <svg className="fill-current h-3 w-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" /></svg>
-                    </div>
-                  </div>
 
                   {/* Export Button */}
                   <button
@@ -4758,7 +4819,9 @@ function App() {
                   <h3 className="text-sm font-bold text-zinc-500 uppercase tracking-wider">Playback</h3>
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm"><span className="text-zinc-300">Play / Pause</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">Space</span></div>
-                    <div className="flex justify-between text-sm"><span className="text-zinc-300">Stop</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">S</span></div>
+                    <div className="flex justify-between text-sm"><span className="text-zinc-300">Stop</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">S / V</span></div>
+                    <div className="flex justify-between text-sm"><span className="text-zinc-300">Previous Song</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">B</span></div>
+                    <div className="flex justify-between text-sm"><span className="text-zinc-300">Next Song</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">N</span></div>
                     <div className="flex justify-between text-sm"><span className="text-zinc-300">Rewind 5s</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">←</span></div>
                     <div className="flex justify-between text-sm"><span className="text-zinc-300">Forward 5s</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">→</span></div>
                     <div className="flex justify-between text-sm"><span className="text-zinc-300">Repeat Mode</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">R</span></div>

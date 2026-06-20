@@ -1,5 +1,22 @@
 # Release Notes
 
+# 2.3.17
+
+## What's New
+- **Auto Lyric Visibility & Auto-Hide Gaps** *(New Feature)*:
+  - **Dynamic Visibility**: Added a new `lyricVisibilityMode` (toggled between **Default** and **Auto**). When set to **Auto**, the player and video exporter automatically hide lyrics during instrumental sections, intros, and outros to prevent static text lingering on screen.
+  - **Smart Gap Detection**: For subtitle/timed files (e.g., TTML, SRT), it hides lyrics if the gap between lines exceeds 3 seconds. For LRC/eLRC files, it estimates line duration from word timing or word count, hiding lyrics during long gaps, and automatically hiding the final line during long outros (near the end of the track).
+  - **Interactive Controls**: Added a direct visibility toggle button in the player footer control bar (`DEFAULT` / `AUTO` state) and a dedicated section under the Render Settings panel.
+
+- **Enhanced LRC Word-Level End-Time Normalization** *(Improvement)*:
+  - **Karaoke Flow**: Automatically extends short inferred word durations (Enhanced LRC) up to 3 seconds or the start of the next line. This ensures karaoke word highlighting transitions smoothly and does not end prematurely.
+
+- **Playback Hotkey Extensions & UI Adjustments** *(Improvement)*:
+  - **Alternative Stop Keys**: Added `V` as an alternative hotkey for stopping playback (`S / V` now stops playback).
+  - **UI Cleanup**: Removed the redundant quality/bitrate dropdown from the footer control bar to keep the interface minimal, with quality settings now fully managed in the main settings sidebar.
+  - **Shortcut Overlays**: Updated keyboard shortcut helpers and menus to reflect the new key assignments.
+
+
 # 2.3.16
 
 ## What's New

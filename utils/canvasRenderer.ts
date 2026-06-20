@@ -1,6 +1,7 @@
 import { LyricLine, VideoPreset, VisualSlide, AudioMetadata, RenderConfig, LyricWord } from '../types';
 import { drawVisualization, getVizParams } from './visualizationRenderer';
 import { renderThreeFrame } from './threeRenderer';
+import { findActiveLyricIndex, resolveAutoLyricVisibility, getContentIndexAtOffset, isEmptyLyricLine } from './lyricVisibility';
 
 export const drawCanvasFrame = (
     ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D,
@@ -1136,15 +1137,13 @@ export const drawCanvasFrame = (
 
     if (activePreset === 'just_video' || activePreset === 'none') return;
 
-    const rawActiveIdx = lyrics.findIndex((line, index) => {
-        if (line.endTime !== undefined) return time >= line.time && time < line.endTime;
-        const nextLine = lyrics[index + 1];
-        return time >= line.time && (!nextLine || time < nextLine.time);
-    });
+    const rawActiveIdx = findActiveLyricIndex(lyrics, time);
 
     // Detect unsynced lyrics (all timestamps are 0 — e.g. embedded USLT without timing)
     const isUnsyncedLyrics = lyrics.length > 0 && lyrics.every(l => l.time === 0 && (l.endTime === undefined || l.endTime === 0));
-    const activeIdx = isUnsyncedLyrics ? -1 : rawActiveIdx;
+    const isAutoVisibility = renderConfig?.lyricVisibilityMode === 'auto';
+    let autoHideLyrics = false;
+    let activeIdx = isUnsyncedLyrics ? -1 : rawActiveIdx;
 
     // Check if static display mode is selected
     const isStaticMode = renderConfig?.lyricDisplayMode === 'static-all' ||
@@ -1154,7 +1153,17 @@ export const drawCanvasFrame = (
 
     // Find the next upcoming lyric for smoother scrolling during breaks
     let virtualActiveIdx = activeIdx;
-    if (!isStaticMode && virtualActiveIdx === -1 && lyrics.length > 0) {
+    if (isAutoVisibility && !isUnsyncedLyrics && !isStaticMode && lyrics.length > 0) {
+        const autoState = resolveAutoLyricVisibility(lyrics, time, duration);
+        autoHideLyrics = autoState.autoHideLyrics;
+        if (!autoHideLyrics) {
+            activeIdx = autoState.displayIdx;
+            virtualActiveIdx = autoState.virtualActiveIdx;
+        } else {
+            activeIdx = -1;
+            virtualActiveIdx = autoState.virtualActiveIdx;
+        }
+    } else if (!isStaticMode && virtualActiveIdx === -1 && lyrics.length > 0) {
         if (time < lyrics[0].time) {
             virtualActiveIdx = 0;
         } else {
@@ -1186,7 +1195,7 @@ export const drawCanvasFrame = (
 
     baseFontSize *= fontSizeScale; secondaryFontSize *= fontSizeScale; lineSpacing *= fontSizeScale;
 
-    if ((renderConfig?.showLyrics ?? true) && (activeIdx !== -1 || showIntroTitle || (renderConfig?.lyricDisplayMode === 'all' && lyrics.length > 0) || (isStaticMode && lyrics.length > 0))) {
+    if ((renderConfig?.showLyrics ?? true) && !autoHideLyrics && (activeIdx !== -1 || showIntroTitle || (renderConfig?.lyricDisplayMode === 'all' && lyrics.length > 0) || (isStaticMode && lyrics.length > 0))) {
         // Vertical Position Logic
         let centerY = height / 2;
         if (renderConfig?.contentPosition === 'top') {
@@ -1381,6 +1390,11 @@ export const drawCanvasFrame = (
         let startI = isBigLayout ? -1 : -2;
         let endI = isBigLayout ? 1 : 2;
 
+        const resolveLyricIdx = (offset: number) =>
+            isAutoVisibility
+                ? getContentIndexAtOffset(lyrics, virtualActiveIdx, offset)
+                : virtualActiveIdx + offset;
+
         if (renderConfig?.lyricDisplayMode === 'active-only') {
             startI = 0; endI = 0;
         } else if (renderConfig?.lyricDisplayMode === 'next-only') {
@@ -1413,9 +1427,10 @@ export const drawCanvasFrame = (
                     h = titleLH + (hasArtist ? artistLH : 0);
                     isCurr = true; // Intro is "current"
                 } else {
-                    const idx = virtualActiveIdx + i;
+                    const idx = resolveLyricIdx(i);
                     if (idx >= 0 && idx < lyrics.length) {
                         const line = lyrics[idx];
+                        if (isEmptyLyricLine(line)) continue;
                         isCurr = (idx === activeIdx);
 
                         const fs = isCurr ? baseFontSize : secondaryFontSize;
@@ -1485,10 +1500,13 @@ export const drawCanvasFrame = (
                     isCurrent = true;
                 }
             } else {
-                const idx = virtualActiveIdx + i;
+                const idx = resolveLyricIdx(i);
                 if (idx >= 0 && idx < lyrics.length) {
-                    line = lyrics[idx];
-                    isCurrent = (idx === activeIdx);
+                    const candidate = lyrics[idx];
+                    if (!isEmptyLyricLine(candidate)) {
+                        line = candidate;
+                        isCurrent = (idx === activeIdx);
+                    }
                 }
             }
 
