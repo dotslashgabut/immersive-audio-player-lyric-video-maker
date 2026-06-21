@@ -133,6 +133,44 @@ function App() {
     channelInfoFontStyle: 'normal',
     infoFontWeight: 'bold',
     infoFontStyle: 'normal',
+    showFloatingNotes: false,
+    floatingNotesLayout: 'text-only',
+    floatingNotesMedia: undefined,
+    floatingNotesMediaType: 'image',
+    floatingNotesText: 'Floating Notes',
+    floatingNotesPosition: 'bottom-left',
+    floatingNotesShape: 'rounded',
+    floatingNotesFillColor: '#000000',
+    floatingNotesOutlineColor: '#ffffff',
+    floatingNotesOutlineSize: 1,
+    floatingNotesOpacity: 0.8,
+    floatingNotesMarginScale: 1.0,
+    floatingNotesWidth: 300,
+    floatingNotesHeight: 150,
+    floatingNotesFontFamily: 'ui-sans-serif, system-ui, sans-serif',
+    floatingNotesFontStyle: 'normal',
+    floatingNotesFontWeight: 'normal',
+    floatingNotesFontColor: '#ffffff',
+    floatingNotesTextAlign: 'left',
+    randomizePreset: true,
+    randomizeRenderScope: true,
+    randomizeBackgroundSource: true,
+    randomizeBackgroundEffects: true,
+    randomizeAudioVisualizer: true,
+    randomizeLyricDisplayMode: true,
+    randomizeLyricVisibility: true,
+    randomizeHighlightEffect: true,
+    randomizeVisibleElements: true,
+    randomizeIntroSettings: true,
+    randomizeTypographyStyle: true,
+    randomizeTextEffect: true,
+    randomizeTextAnimation: true,
+    randomizeTransitionEffect: true,
+    randomizeVisualTransition: true,
+    randomizeChannelInfo: true,
+    randomizeFloatingNotes: true,
+    randomizeSongInfoDesign: true,
+    randomizeOutputSettings: true,
   });
 
   // Ref to access latest config in event handlers without triggering re-renders
@@ -1203,6 +1241,15 @@ function App() {
       loadPromises.push(loadVid('__custom_bg_video__', renderConfig.backgroundVideo));
     }
 
+    // Load Floating Notes Media
+    if (renderConfig.showFloatingNotes && renderConfig.floatingNotesMedia) {
+      if (renderConfig.floatingNotesMediaType === 'video') {
+        loadPromises.push(loadVid('__floating_notes_media__', renderConfig.floatingNotesMedia));
+      } else {
+        loadPromises.push(loadImg('__floating_notes_media__', renderConfig.floatingNotesMedia));
+      }
+    }
+
     await Promise.all(loadPromises);
 
     if (currentAbortSignal.aborted) {
@@ -1723,6 +1770,15 @@ function App() {
       loadPromises.push(loadImg('__channel_info__', renderConfig.channelInfoImage));
     }
 
+    // Load Floating Notes Media
+    if (renderConfig.showFloatingNotes && renderConfig.floatingNotesMedia) {
+      if (renderConfig.floatingNotesMediaType === 'video') {
+        loadPromises.push(loadVid('__floating_notes_media__', renderConfig.floatingNotesMedia));
+      } else {
+        loadPromises.push(loadImg('__floating_notes_media__', renderConfig.floatingNotesMedia));
+      }
+    }
+
     await Promise.all(loadPromises);
 
     if (currentAbortSignal.aborted) {
@@ -1975,6 +2031,15 @@ function App() {
 
     if (renderConfig.showChannelInfo && renderConfig.channelInfoImage) {
       loadPromises.push(loadImg('__channel_info__', renderConfig.channelInfoImage));
+    }
+
+    // Load Floating Notes Media
+    if (renderConfig.showFloatingNotes && renderConfig.floatingNotesMedia) {
+      if (renderConfig.floatingNotesMediaType === 'video') {
+        loadPromises.push(loadVid('__floating_notes_media__', renderConfig.floatingNotesMedia));
+      } else {
+        loadPromises.push(loadImg('__floating_notes_media__', renderConfig.floatingNotesMedia));
+      }
     }
 
     await Promise.all(loadPromises);
@@ -3049,19 +3114,26 @@ function App() {
               ${renderConfig.channelInfoPosition === 'top-left' ? 'top-0 left-0 items-start text-left' :
                 renderConfig.channelInfoPosition === 'top-right' ? 'top-0 right-0 items-end text-right' :
                   renderConfig.channelInfoPosition === 'top-center' ? 'top-0 left-1/2 items-center text-center' :
-                    renderConfig.channelInfoPosition === 'bottom-left' ? 'bottom-0 left-0 items-start text-left' :
-                      renderConfig.channelInfoPosition === 'bottom-center' ? 'bottom-0 left-1/2 items-center text-center' :
-                        'bottom-0 right-0 items-end text-right'}
+                    renderConfig.channelInfoPosition === 'left-middle' ? 'top-1/2 left-0 items-start text-left' :
+                      renderConfig.channelInfoPosition === 'center-middle' ? 'top-1/2 left-1/2 items-center text-center' :
+                        renderConfig.channelInfoPosition === 'right-middle' ? 'top-1/2 right-0 items-end text-right' :
+                          renderConfig.channelInfoPosition === 'bottom-left' ? 'bottom-0 left-0 items-start text-left' :
+                            renderConfig.channelInfoPosition === 'bottom-center' ? 'bottom-0 left-1/2 items-center text-center' :
+                              'bottom-0 right-0 items-end text-right'}
             `}
             style={{
-              transform: `${renderConfig.channelInfoPosition?.includes('center') ? 'translateX(-50%)' : ''} scale(${renderConfig.channelInfoSizeScale ?? 1})`,
+              transform: `${renderConfig.channelInfoPosition?.includes('center') ? 'translateX(-50%)' : ''} ${renderConfig.channelInfoPosition?.includes('middle') ? 'translateY(-50%)' : ''} scale(${renderConfig.channelInfoSizeScale ?? 1})`,
               transformOrigin: renderConfig.channelInfoPosition?.includes('top')
                 ? (renderConfig.channelInfoPosition?.includes('center') ? 'top center' : renderConfig.channelInfoPosition?.includes('left') ? 'top left' : 'top right')
-                : (renderConfig.channelInfoPosition?.includes('center') ? 'bottom center' : renderConfig.channelInfoPosition?.includes('left') ? 'bottom left' : 'bottom right'),
+                : renderConfig.channelInfoPosition?.includes('middle')
+                  ? (renderConfig.channelInfoPosition?.includes('center') ? 'center center' : renderConfig.channelInfoPosition?.includes('left') ? 'center left' : 'center right')
+                  : (renderConfig.channelInfoPosition?.includes('center') ? 'bottom center' : renderConfig.channelInfoPosition?.includes('left') ? 'bottom left' : 'bottom right'),
               // Smart Margin: If center (future proof), only vertical. If corner, all sides.
-              ...(renderConfig.channelInfoPosition?.includes('center')
-                ? (renderConfig.channelInfoPosition?.includes('top') ? { marginTop: `${(renderConfig.channelInfoMarginScale ?? 1) * 1.5}rem` } : { marginBottom: `${(renderConfig.channelInfoMarginScale ?? 1) * 1.5}rem` })
-                : { margin: `${(renderConfig.channelInfoMarginScale ?? 1) * 1.5}rem` })
+              ...(renderConfig.channelInfoPosition?.includes('middle')
+                ? (renderConfig.channelInfoPosition?.includes('left') ? { marginLeft: `${(renderConfig.channelInfoMarginScale ?? 1) * 1.5}rem` } : renderConfig.channelInfoPosition?.includes('right') ? { marginRight: `${(renderConfig.channelInfoMarginScale ?? 1) * 1.5}rem` } : {})
+                : renderConfig.channelInfoPosition?.includes('center')
+                  ? (renderConfig.channelInfoPosition?.includes('top') ? { marginTop: `${(renderConfig.channelInfoMarginScale ?? 1) * 1.5}rem` } : { marginBottom: `${(renderConfig.channelInfoMarginScale ?? 1) * 1.5}rem` })
+                  : { margin: `${(renderConfig.channelInfoMarginScale ?? 1) * 1.5}rem` })
             }}
           >
             {renderConfig.channelInfoImage && renderConfig.channelInfoStyle !== 'minimal' && (
@@ -3111,6 +3183,87 @@ function App() {
           </div>
         )}
 
+        {/* Floating Notes Overlay */}
+        {renderConfig.showFloatingNotes && isMinimalMode && (
+          <div
+            className={`absolute z-[55] flex p-4 pointer-events-none transition-all duration-500 overflow-hidden
+              ${renderConfig.floatingNotesLayout === 'media-left-text' ? 'flex-row items-center gap-4' :
+                renderConfig.floatingNotesLayout === 'media-right-text' ? 'flex-row-reverse items-center gap-4' :
+                  renderConfig.floatingNotesLayout === 'media-top-text' ? 'flex-col items-center gap-4' :
+                    renderConfig.floatingNotesLayout === 'media-bottom-text' ? 'flex-col-reverse items-center gap-4' :
+                      `flex-col justify-center ${
+                        renderConfig.floatingNotesTextAlign === 'center' ? 'items-center' :
+                        renderConfig.floatingNotesTextAlign === 'right' ? 'items-end' : 'items-start'
+                      }`}
+              ${renderConfig.floatingNotesPosition === 'top-left' ? 'top-0 left-0 text-left' :
+                renderConfig.floatingNotesPosition === 'top-right' ? 'top-0 right-0 text-right' :
+                  renderConfig.floatingNotesPosition === 'top-center' ? 'top-0 left-1/2 text-center' :
+                    renderConfig.floatingNotesPosition === 'left-middle' ? 'top-1/2 left-0 text-left' :
+                      renderConfig.floatingNotesPosition === 'center-middle' ? 'top-1/2 left-1/2 text-center' :
+                        renderConfig.floatingNotesPosition === 'right-middle' ? 'top-1/2 right-0 text-right' :
+                          renderConfig.floatingNotesPosition === 'bottom-left' ? 'bottom-0 left-0 text-left' :
+                            renderConfig.floatingNotesPosition === 'bottom-center' ? 'bottom-0 left-1/2 text-center' :
+                              'bottom-0 right-0 text-right'}
+            `}
+            style={{
+              width: `${renderConfig.floatingNotesWidth || 300}px`,
+              height: `${renderConfig.floatingNotesHeight || 150}px`,
+              backgroundColor: renderConfig.floatingNotesShape !== 'none' ? (renderConfig.floatingNotesFillColor || '#000000') : 'transparent',
+              opacity: renderConfig.floatingNotesOpacity ?? 0.8,
+              border: renderConfig.floatingNotesShape !== 'none' ? `${renderConfig.floatingNotesOutlineSize ?? 1}px solid ${renderConfig.floatingNotesOutlineColor || '#ffffff'}` : 'none',
+              borderRadius: renderConfig.floatingNotesShape === 'rounded' ? '12px' : '0px',
+              transform: `${renderConfig.floatingNotesPosition?.includes('center') ? 'translateX(-50%)' : ''} ${renderConfig.floatingNotesPosition?.includes('middle') ? 'translateY(-50%)' : ''}`,
+              transformOrigin: renderConfig.floatingNotesPosition?.includes('top')
+                ? (renderConfig.floatingNotesPosition?.includes('center') ? 'top center' : renderConfig.floatingNotesPosition?.includes('left') ? 'top left' : 'top right')
+                : renderConfig.floatingNotesPosition?.includes('middle')
+                  ? (renderConfig.floatingNotesPosition?.includes('center') ? 'center center' : renderConfig.floatingNotesPosition?.includes('left') ? 'center left' : 'center right')
+                  : (renderConfig.floatingNotesPosition?.includes('center') ? 'bottom center' : renderConfig.floatingNotesPosition?.includes('left') ? 'bottom left' : 'bottom right'),
+              ...(renderConfig.floatingNotesPosition?.includes('middle')
+                ? (renderConfig.floatingNotesPosition?.includes('left') ? { marginLeft: `${(renderConfig.floatingNotesMarginScale ?? 1) * 1.5}rem` } : renderConfig.floatingNotesPosition?.includes('right') ? { marginRight: `${(renderConfig.floatingNotesMarginScale ?? 1) * 1.5}rem` } : {})
+                : renderConfig.floatingNotesPosition?.includes('center')
+                  ? (renderConfig.floatingNotesPosition?.includes('top') ? { marginTop: `${(renderConfig.floatingNotesMarginScale ?? 1) * 1.5}rem` } : { marginBottom: `${(renderConfig.floatingNotesMarginScale ?? 1) * 1.5}rem` })
+                  : { margin: `${(renderConfig.floatingNotesMarginScale ?? 1) * 1.5}rem` })
+            }}
+          >
+            {/* Media rendering */}
+            {renderConfig.floatingNotesLayout !== 'text-only' && renderConfig.floatingNotesMedia && (
+              <div className="w-1/2 h-full flex items-center justify-center overflow-hidden shrink-0">
+                {renderConfig.floatingNotesMediaType === 'video' ? (
+                  <video
+                    src={renderConfig.floatingNotesMedia}
+                    className="w-full h-full object-contain"
+                    muted
+                    loop
+                    autoPlay
+                    playsInline
+                  />
+                ) : (
+                  <img
+                    src={renderConfig.floatingNotesMedia}
+                    alt="Notes media"
+                    className="w-full h-full object-contain"
+                  />
+                )}
+              </div>
+            )}
+            {/* Text rendering */}
+            {renderConfig.floatingNotesLayout !== 'media-only' && renderConfig.floatingNotesText && (
+              <div
+                className="flex-1 overflow-y-auto text-xs whitespace-pre-wrap w-full"
+                style={{
+                  fontFamily: renderConfig.floatingNotesFontFamily,
+                  color: renderConfig.floatingNotesFontColor || 'white',
+                  fontWeight: renderConfig.floatingNotesFontWeight || 'normal',
+                  fontStyle: renderConfig.floatingNotesFontStyle || 'normal',
+                  textAlign: renderConfig.floatingNotesTextAlign || 'left'
+                }}
+              >
+                {renderConfig.floatingNotesText}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Minimal Mode Song Info Overlay */}
         {isMinimalMode && (
           <div
@@ -3119,22 +3272,29 @@ function App() {
               ${renderConfig.infoPosition === 'top-left' ? 'top-0 left-0 items-start text-left' :
                 renderConfig.infoPosition === 'top-right' ? 'top-0 right-0 items-end text-right' :
                   renderConfig.infoPosition === 'top-center' ? 'top-0 left-1/2 items-center text-center' :
-                    renderConfig.infoPosition === 'bottom-left' ? 'bottom-0 left-0 items-start text-left' :
-                      renderConfig.infoPosition === 'bottom-right' ? 'bottom-0 right-0 items-end text-right' :
-                        renderConfig.infoPosition === 'bottom-center' ? 'bottom-0 left-1/2 items-center text-center' :
-                          'top-0 left-0 items-start text-left'}
+                    renderConfig.infoPosition === 'left-middle' ? 'top-1/2 left-0 items-start text-left' :
+                      renderConfig.infoPosition === 'center-middle' ? 'top-1/2 left-1/2 items-center text-center' :
+                        renderConfig.infoPosition === 'right-middle' ? 'top-1/2 right-0 items-end text-right' :
+                          renderConfig.infoPosition === 'bottom-left' ? 'bottom-0 left-0 items-start text-left' :
+                            renderConfig.infoPosition === 'bottom-right' ? 'bottom-0 right-0 items-end text-right' :
+                              renderConfig.infoPosition === 'bottom-center' ? 'bottom-0 left-1/2 items-center text-center' :
+                                'top-0 left-0 items-start text-left'}
             `}
             style={{
-              transform: `${renderConfig.infoPosition?.includes('center') ? 'translateX(-50%)' : ''} scale(${renderConfig.infoSizeScale ?? 1})`,
+              transform: `${renderConfig.infoPosition?.includes('center') ? 'translateX(-50%)' : ''} ${renderConfig.infoPosition?.includes('middle') ? 'translateY(-50%)' : ''} scale(${renderConfig.infoSizeScale ?? 1})`,
               transformOrigin: renderConfig.infoPosition?.includes('top')
                 ? (renderConfig.infoPosition?.includes('center') ? 'top center' : renderConfig.infoPosition?.includes('right') ? 'top right' : 'top left')
-                : (renderConfig.infoPosition?.includes('center') ? 'bottom center' : renderConfig.infoPosition?.includes('right') ? 'bottom right' : 'bottom left'),
+                : renderConfig.infoPosition?.includes('middle')
+                  ? (renderConfig.infoPosition?.includes('center') ? 'center center' : renderConfig.infoPosition?.includes('right') ? 'center right' : 'center left')
+                  : (renderConfig.infoPosition?.includes('center') ? 'bottom center' : renderConfig.infoPosition?.includes('right') ? 'bottom right' : 'bottom left'),
               // Smart Margin for Minimal Mode:
               // For Center positions, we only want to push from the top/bottom edge, not shift horizontally (which standard margin does if not careful)
               // For Corner positions, margin on all sides acts as inset padding nicely.
-              ...(renderConfig.infoPosition?.includes('center')
-                ? (renderConfig.infoPosition?.includes('top') ? { marginTop: `${(renderConfig.infoMarginScale ?? 1) * 1.5}rem` } : { marginBottom: `${(renderConfig.infoMarginScale ?? 1) * 1.5}rem` })
-                : { margin: `${(renderConfig.infoMarginScale ?? 1) * 1.5}rem` })
+              ...(renderConfig.infoPosition?.includes('middle')
+                ? (renderConfig.infoPosition?.includes('left') ? { marginLeft: `${(renderConfig.infoMarginScale ?? 1) * 1.5}rem` } : renderConfig.infoPosition?.includes('right') ? { marginRight: `${(renderConfig.infoMarginScale ?? 1) * 1.5}rem` } : {})
+                : renderConfig.infoPosition?.includes('center')
+                  ? (renderConfig.infoPosition?.includes('top') ? { marginTop: `${(renderConfig.infoMarginScale ?? 1) * 1.5}rem` } : { marginBottom: `${(renderConfig.infoMarginScale ?? 1) * 1.5}rem` })
+                  : { margin: `${(renderConfig.infoMarginScale ?? 1) * 1.5}rem` })
             }}
           >
             {/* Inner Content Wrapper to handle layout styles */}

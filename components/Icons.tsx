@@ -66,7 +66,8 @@ import {
   Split,
   Search,
   Folder,
-  Activity
+  Activity,
+  Sliders
 } from 'lucide-react';
 
 export {
@@ -138,5 +139,6 @@ export {
   Split,
   Search,
   Folder,
-  Activity
+  Activity,
+  Sliders
 };

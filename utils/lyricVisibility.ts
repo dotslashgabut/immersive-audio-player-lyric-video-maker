@@ -82,7 +82,12 @@ export function getLrcLineDisplayEnd(lyrics: LyricLine[], lineIdx: number): numb
         Math.max(AUTO_LRC_MIN_LINE_DISPLAY_SEC, wordCount * AUTO_LRC_SEC_PER_WORD);
 
     if (nextTime !== undefined) {
-        return Math.min(predicted, nextTime);
+        const gap = nextTime - line.time;
+        if (gap <= 10) {
+            return nextTime;
+        } else {
+            return Math.min(Math.max(predicted, line.time + 10), nextTime);
+        }
     }
     return predicted;
 }
