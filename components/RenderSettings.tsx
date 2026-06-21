@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { X, Video, Settings, ImageIcon, Type, Layout, Palette, Music, FileText, Check, ListMusic, Bold, Italic, Underline, Strikethrough, AlignVerticalJustifyCenter, AlignVerticalJustifyStart, AlignVerticalJustifyEnd, Upload, Trash2, ChevronDown, Maximize, RotateCcw, Download, Sparkles, Activity, Shuffle } from './Icons';
+import { X, Video, Settings, ImageIcon, Type, Layout, Palette, Music, FileText, Check, ListMusic, Bold, Italic, Underline, Strikethrough, AlignVerticalJustifyCenter, AlignVerticalJustifyStart, AlignVerticalJustifyEnd, Upload, Trash2, ChevronDown, Maximize, RotateCcw, Download, Sparkles, Activity, Shuffle, Sliders } from './Icons';
 import { RenderConfig, VideoPreset, RenderEngine, FFmpegCodec } from '../types';
 import { fontGroups, loadSingleGoogleFont } from '../utils/fonts';
 import { PRESET_DEFINITIONS, videoPresetGroups } from '../utils/presets';
@@ -119,6 +119,25 @@ const DEFAULT_CONFIG: RenderConfig = {
     visualizationPosition: 'bottom',
     visualizationSensitivity: 1.5,
     visualizationBarCount: 48,
+    showFloatingNotes: false,
+    floatingNotesLayout: 'text-only',
+    floatingNotesMedia: undefined,
+    floatingNotesMediaType: 'image',
+    floatingNotesText: 'Floating Notes',
+    floatingNotesPosition: 'bottom-left',
+    floatingNotesShape: 'rounded',
+    floatingNotesFillColor: '#000000',
+    floatingNotesOutlineColor: '#ffffff',
+    floatingNotesOutlineSize: 1,
+    floatingNotesOpacity: 0.8,
+    floatingNotesMarginScale: 1.0,
+    floatingNotesWidth: 300,
+    floatingNotesHeight: 150,
+    floatingNotesFontFamily: 'ui-sans-serif, system-ui, sans-serif',
+    floatingNotesFontStyle: 'normal',
+    floatingNotesFontWeight: 'normal',
+    floatingNotesFontColor: '#ffffff',
+    floatingNotesTextAlign: 'left',
 };
 
 
@@ -847,6 +866,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
     const channelImageInputRef = useRef<HTMLInputElement>(null);
     const backgroundImageInputRef = useRef<HTMLInputElement>(null);
     const backgroundVideoInputRef = useRef<HTMLInputElement>(null);
+    const floatingNotesMediaInputRef = useRef<HTMLInputElement>(null);
     const settingsInputRef = useRef<HTMLInputElement>(null);
     const [importedFileName, setImportedFileName] = useState<string | null>(null);
 
@@ -928,6 +948,27 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
             reader.onload = (event) => {
                 if (event.target?.result) {
                     handleChange('channelInfoImage', event.target.result as string);
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+        e.target.value = '';
+    };
+
+    const handleFloatingNotesMediaUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            const isVideo = file.type.startsWith('video/');
+            const isImage = file.type.startsWith('image/');
+            if (!isVideo && !isImage) {
+                toast.error('Please upload a valid image or video file.');
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                if (event.target?.result) {
+                    handleChange('floatingNotesMedia', event.target.result as string);
+                    handleChange('floatingNotesMediaType', isVideo ? 'video' : 'image');
                 }
             };
             reader.readAsDataURL(file);
@@ -1023,84 +1064,139 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
         const randomBool = () => Math.random() > 0.5;
 
         // Build the random config
+        // Build the random config
         const randomConfig: RenderConfig = {
-            ...DEFAULT_CONFIG,
-            // Background
-            backgroundSource: randomBgSource as RenderConfig['backgroundSource'],
-            backgroundColor: randColor(),
-            backgroundGradient: randGradient(),
-            backgroundBlurStrength: Math.random() > 0.6 ? Math.floor(Math.random() * 25) : 0,
-            enableGradientOverlay: randomBool(),
-            // Typography
-            fontFamily: pick(fontValues),
-            fontSizeScale: randFloat(0.6, 2.0),
-            fontColor: randColor(),
-            fontWeight: pick(['normal', 'bold']) as 'normal' | 'bold',
-            fontStyle: pick(['normal', 'italic']) as 'normal' | 'italic',
-            textDecoration: pick(['none', 'none', 'none', 'underline', 'line-through']) as 'none' | 'underline' | 'line-through', // bias towards 'none'
-            textCase: pick(textCases) as RenderConfig['textCase'],
-            lyricLineHeight: randFloat(1.0, 2.0),
-            lyricStyleTarget: pick(['active-only', 'all']) as 'active-only' | 'all',
-            // Layout
-            textAlign: pick(textAligns),
-            contentPosition: pick(contentPositions),
-            marginTopScale: randFloat(0.5, 2.5),
-            marginBottomScale: randFloat(0.5, 2.5),
-            lyricDisplayMode: pick(displayModes) as RenderConfig['lyricDisplayMode'],
-            lyricVisibilityMode: pick(['default', 'default', 'auto']) as RenderConfig['lyricVisibilityMode'],
-            // Effects
-            textEffect: pick(textEffects) as RenderConfig['textEffect'],
-            textAnimation: pick(textAnimations) as RenderConfig['textAnimation'],
-            transitionEffect: pick(transitions) as RenderConfig['transitionEffect'],
-            // Highlight
-            highlightEffect: randomHighlight as RenderConfig['highlightEffect'],
-            highlightColor: highlightColor,
-            highlightBackground: highlightBg,
-            useCustomHighlightColors: false,
-            // Song Info
-            showTitle: randomBool(),
-            showArtist: randomBool(),
-            showCover: randomBool(),
-            showIntro: randomBool(),
-            showLyrics: true, // always keep lyrics visible
-            infoPosition: pick(positions),
-            infoStyle: pick(infoStyles) as RenderConfig['infoStyle'],
-            infoMarginScale: randFloat(0.5, 2.0),
-            infoSizeScale: randFloat(0.6, 1.6),
-            infoFontFamily: pick(fontValues),
-            infoFontWeight: pick(['normal', 'bold']) as 'normal' | 'bold',
-            infoFontStyle: pick(['normal', 'italic']) as 'normal' | 'italic',
-            infoFontColor: randColor(),
-            // Channel / Watermark
-            showChannelInfo: Math.random() > 0.7, // 30% chance
-            channelInfoText: config.channelInfoText || 'Music Channel',
-            channelInfoPosition: pick(positions),
-            channelInfoStyle: pick(channelStyles) as RenderConfig['channelInfoStyle'],
-            channelInfoSizeScale: randFloat(0.6, 1.6),
-            channelInfoMarginScale: randFloat(0.5, 2.0),
-            channelInfoFontFamily: pick(fontValues),
-            channelInfoFontWeight: pick(['normal', 'bold']) as 'normal' | 'bold',
-            channelInfoFontStyle: pick(['normal', 'italic']) as 'normal' | 'italic',
-            channelInfoFontColor: randColor(),
-            // Visual Transition
-            visualTransitionType: pick(['none', 'crossfade', 'fade-to-black']) as RenderConfig['visualTransitionType'],
-            visualTransitionDuration: randFloat(0.5, 2.0),
-            // Visualization
-            showVisualization: Math.random() > 0.6, // 40% chance
-            visualizationType: pick(vizTypes) as RenderConfig['visualizationType'],
-            visualizationColorMode: pick(vizColorModes) as RenderConfig['visualizationColorMode'],
-            visualizationColor1: randColor(),
-            visualizationColor2: randColor(),
-            visualizationOpacity: randFloat(0.3, 1.0),
-            visualizationPosition: pick(vizPositions) as RenderConfig['visualizationPosition'],
-            visualizationSensitivity: randFloat(0.5, 3.0),
-            visualizationBarCount: Math.floor(16 + Math.random() * 112), // 16-128
-            // Keep render mode unchanged
-            renderMode: config.renderMode,
-            // Intro
-            introMode: pick(['auto', 'manual']) as 'auto' | 'manual',
-            introText: config.introText,
+            ...config,
         };
+
+        // Background
+        if (config.randomizeBackgroundSource !== false) {
+            randomConfig.backgroundSource = randomBgSource as RenderConfig['backgroundSource'];
+            randomConfig.backgroundColor = randColor();
+            randomConfig.backgroundGradient = randGradient();
+        }
+        if (config.randomizeBackgroundEffects !== false) {
+            randomConfig.backgroundBlurStrength = Math.random() > 0.6 ? Math.floor(Math.random() * 25) : 0;
+            randomConfig.enableGradientOverlay = randomBool();
+        }
+        // Typography
+        if (config.randomizeTypographyStyle !== false) {
+            randomConfig.fontFamily = pick(fontValues);
+            randomConfig.fontSizeScale = randFloat(0.6, 2.0);
+            randomConfig.fontColor = randColor();
+            randomConfig.fontWeight = pick(['normal', 'bold']) as 'normal' | 'bold';
+            randomConfig.fontStyle = pick(['normal', 'italic']) as 'normal' | 'italic';
+            randomConfig.textDecoration = pick(['none', 'none', 'none', 'underline', 'line-through']) as 'none' | 'underline' | 'line-through';
+            randomConfig.textCase = pick(textCases) as RenderConfig['textCase'];
+            randomConfig.lyricLineHeight = randFloat(1.0, 2.0);
+            randomConfig.lyricStyleTarget = pick(['active-only', 'all']) as 'active-only' | 'all';
+            randomConfig.textAlign = pick(textAligns);
+            randomConfig.contentPosition = pick(contentPositions);
+            randomConfig.marginTopScale = randFloat(0.5, 2.5);
+            randomConfig.marginBottomScale = randFloat(0.5, 2.5);
+        }
+        // Lyric Display Mode
+        if (config.randomizeLyricDisplayMode !== false) {
+            randomConfig.lyricDisplayMode = pick(displayModes) as RenderConfig['lyricDisplayMode'];
+        }
+        if (config.randomizeLyricVisibility !== false) {
+            randomConfig.lyricVisibilityMode = pick(['default', 'default', 'auto']) as RenderConfig['lyricVisibilityMode'];
+        }
+        // Text Effect
+        if (config.randomizeTextEffect !== false) {
+            randomConfig.textEffect = pick(textEffects) as RenderConfig['textEffect'];
+        }
+        // Text Animation
+        if (config.randomizeTextAnimation !== false) {
+            randomConfig.textAnimation = pick(textAnimations) as RenderConfig['textAnimation'];
+        }
+        // Transition
+        if (config.randomizeTransitionEffect !== false) {
+            randomConfig.transitionEffect = pick(transitions) as RenderConfig['transitionEffect'];
+        }
+        // Highlight Effect
+        if (config.randomizeHighlightEffect !== false) {
+            randomConfig.highlightEffect = randomHighlight as RenderConfig['highlightEffect'];
+            randomConfig.highlightColor = highlightColor;
+            randomConfig.highlightBackground = highlightBg;
+            randomConfig.useCustomHighlightColors = false;
+        }
+        // Visible Elements
+        if (config.randomizeVisibleElements !== false) {
+            randomConfig.showTitle = randomBool();
+            randomConfig.showArtist = randomBool();
+            randomConfig.showCover = randomBool();
+            randomConfig.showIntro = randomBool();
+            randomConfig.showLyrics = true;
+        }
+        // Intro Settings
+        if (config.randomizeIntroSettings !== false) {
+            randomConfig.introMode = pick(['auto', 'manual']) as 'auto' | 'manual';
+        }
+        // Channel / Watermark
+        if (config.randomizeChannelInfo !== false) {
+            randomConfig.showChannelInfo = Math.random() > 0.7; // 30% chance
+            randomConfig.channelInfoPosition = pick(positions);
+            randomConfig.channelInfoStyle = pick(channelStyles) as RenderConfig['channelInfoStyle'];
+            randomConfig.channelInfoSizeScale = randFloat(0.6, 1.6);
+            randomConfig.channelInfoMarginScale = randFloat(0.5, 2.0);
+            randomConfig.channelInfoFontFamily = pick(fontValues);
+            randomConfig.channelInfoFontWeight = pick(['normal', 'bold']) as 'normal' | 'bold';
+            randomConfig.channelInfoFontStyle = pick(['normal', 'italic']) as 'normal' | 'italic';
+            randomConfig.channelInfoFontColor = randColor();
+        }
+        // Floating Notes / Media
+        if (config.randomizeFloatingNotes !== false) {
+            randomConfig.showFloatingNotes = Math.random() > 0.7; // 30% chance
+            randomConfig.floatingNotesLayout = pick(['text-only', 'media-only', 'media-left-text', 'media-right-text', 'media-top-text', 'media-bottom-text']) as any;
+            randomConfig.floatingNotesPosition = pick(positions) as any;
+            randomConfig.floatingNotesShape = pick(['none', 'sharp', 'rounded']) as any;
+            randomConfig.floatingNotesFillColor = randColor();
+            randomConfig.floatingNotesOutlineColor = randColor();
+            randomConfig.floatingNotesOutlineSize = Math.floor(Math.random() * 5);
+            randomConfig.floatingNotesOpacity = randFloat(0.3, 1.0);
+            randomConfig.floatingNotesMarginScale = randFloat(0.5, 2.0);
+            randomConfig.floatingNotesWidth = Math.floor(150 + Math.random() * 300);
+            randomConfig.floatingNotesHeight = Math.floor(100 + Math.random() * 200);
+            randomConfig.floatingNotesFontFamily = pick(fontValues);
+            randomConfig.floatingNotesFontStyle = pick(['normal', 'italic']) as any;
+            randomConfig.floatingNotesFontWeight = pick(['normal', 'bold']) as any;
+            randomConfig.floatingNotesFontColor = randColor();
+            randomConfig.floatingNotesTextAlign = pick(['left', 'center', 'right']) as any;
+        }
+        // Song Info Design
+        if (config.randomizeSongInfoDesign !== false) {
+            randomConfig.infoPosition = pick(positions);
+            randomConfig.infoStyle = pick(infoStyles) as RenderConfig['infoStyle'];
+            randomConfig.infoMarginScale = randFloat(0.5, 2.0);
+            randomConfig.infoSizeScale = randFloat(0.6, 1.6);
+            randomConfig.infoFontFamily = pick(fontValues);
+            randomConfig.infoFontWeight = pick(['normal', 'bold']) as 'normal' | 'bold';
+            randomConfig.infoFontStyle = pick(['normal', 'italic']) as 'normal' | 'italic';
+            randomConfig.infoFontColor = randColor();
+        }
+        // Visual Transition
+        if (config.randomizeVisualTransition !== false) {
+            randomConfig.visualTransitionType = pick(['none', 'crossfade', 'fade-to-black']) as RenderConfig['visualTransitionType'];
+            randomConfig.visualTransitionDuration = randFloat(0.5, 2.0);
+        }
+        // Audio Visualizer
+        if (config.randomizeAudioVisualizer !== false) {
+            randomConfig.showVisualization = Math.random() > 0.6; // 40% chance
+            randomConfig.visualizationType = pick(vizTypes) as RenderConfig['visualizationType'];
+            randomConfig.visualizationColorMode = pick(vizColorModes) as RenderConfig['visualizationColorMode'];
+            randomConfig.visualizationColor1 = randColor();
+            randomConfig.visualizationColor2 = randColor();
+            randomConfig.visualizationOpacity = randFloat(0.3, 1.0);
+            randomConfig.visualizationPosition = pick(vizPositions) as RenderConfig['visualizationPosition'];
+            randomConfig.visualizationSensitivity = randFloat(0.5, 3.0);
+            randomConfig.visualizationBarCount = Math.floor(16 + Math.random() * 112); // 16-128
+        }
+        // Keep render mode unchanged
+        randomConfig.renderMode = config.renderMode;
+        // Intro
+        randomConfig.introText = config.introText;
+        randomConfig.introMode = config.introMode;
 
         setConfig(randomConfig);
         setPreset('custom');
@@ -1423,13 +1519,25 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                     if (newConfig.lyricStyleTarget && !['active-only', 'all'].includes(newConfig.lyricStyleTarget)) newConfig.lyricStyleTarget = 'active-only';
 
                     // Validate Info & Channel
-                    const validPositions = ['top-left', 'top-right', 'bottom-left', 'bottom-right', 'top-center', 'bottom-center'];
+                    const validPositions = ['top-left', 'top-right', 'bottom-left', 'bottom-right', 'top-center', 'bottom-center', 'left-middle', 'center-middle', 'right-middle'];
 
                     if (newConfig.infoPosition && !validPositions.includes(newConfig.infoPosition)) newConfig.infoPosition = 'top-left';
                     if (newConfig.infoStyle && !isValidGroupOption(newConfig.infoStyle, infoStyleGroups)) newConfig.infoStyle = 'classic';
 
                     if (newConfig.channelInfoPosition && !validPositions.includes(newConfig.channelInfoPosition)) newConfig.channelInfoPosition = 'bottom-right';
                     if (newConfig.channelInfoStyle && !isValidGroupOption(newConfig.channelInfoStyle, channelInfoStyleGroups)) newConfig.channelInfoStyle = 'classic';
+
+                    // Validate Floating Notes
+                    if (newConfig.floatingNotesPosition && !validPositions.includes(newConfig.floatingNotesPosition)) newConfig.floatingNotesPosition = 'bottom-left';
+                    if (newConfig.floatingNotesLayout && !['text-only', 'media-only', 'media-left-text', 'media-right-text', 'media-top-text', 'media-bottom-text'].includes(newConfig.floatingNotesLayout)) {
+                        newConfig.floatingNotesLayout = 'text-only';
+                    }
+                    if (newConfig.floatingNotesShape && !['none', 'sharp', 'rounded'].includes(newConfig.floatingNotesShape)) {
+                        newConfig.floatingNotesShape = 'rounded';
+                    }
+                    if (newConfig.floatingNotesTextAlign && !['left', 'center', 'right'].includes(newConfig.floatingNotesTextAlign)) {
+                        newConfig.floatingNotesTextAlign = 'left';
+                    }
 
                     // Validate Visualization Settings
                     const validVizTypes = ['bars', 'wave', 'circular', 'particles', 'pulse-ring', 'waveform', 'spectrogram', 'spectrum', 'stereo-field'];
@@ -1626,9 +1734,20 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
 
                 {/* Visual Preset */}
                 <section className="space-y-3">
-                    <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-2">
-                        <Sparkles size={14} /> Visual Preset
-                    </h3>
+                    <div className="flex items-center justify-between">
+                        <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-2">
+                            <Sparkles size={14} /> Visual Preset
+                        </h3>
+                        <label className="flex items-center gap-1.5 text-[10px] text-zinc-400 hover:text-zinc-200 cursor-pointer select-none">
+                            <input
+                                type="checkbox"
+                                checked={config.randomizePreset !== false}
+                                onChange={(e) => handleChange('randomizePreset', e.target.checked)}
+                                className="w-3 h-3 rounded border-white/10 bg-zinc-800 text-purple-600 focus:ring-0 cursor-pointer"
+                            />
+                            <span>Random</span>
+                        </label>
+                    </div>
                     <GroupedSelection
                         value={preset}
                         onChange={(val) => handlePresetSelect(val as VideoPreset)}
@@ -1638,9 +1757,20 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
 
                 {/* Render Mode */}
                 <section className="space-y-3">
-                    <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-2">
-                        <Video size={14} /> Render Scope
-                    </h3>
+                    <div className="flex items-center justify-between">
+                        <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-2">
+                            <Video size={14} /> Render Scope
+                        </h3>
+                        <label className="flex items-center gap-1.5 text-[10px] text-zinc-400 hover:text-zinc-200 cursor-pointer select-none">
+                            <input
+                                type="checkbox"
+                                checked={config.randomizeRenderScope !== false}
+                                onChange={(e) => handleChange('randomizeRenderScope', e.target.checked)}
+                                className="w-3 h-3 rounded border-white/10 bg-zinc-800 text-purple-600 focus:ring-0 cursor-pointer"
+                            />
+                            <span>Random</span>
+                        </label>
+                    </div>
                     <div className="grid grid-cols-2 gap-2">
                         <button
                             onClick={() => handleChange('renderMode', 'current')}
@@ -1666,9 +1796,20 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
 
                 {/* Background Source */}
                 <section className="space-y-3">
-                    <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-2">
-                        <ImageIcon size={14} /> Background Source
-                    </h3>
+                    <div className="flex items-center justify-between">
+                        <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-2">
+                            <ImageIcon size={14} /> Background Source
+                        </h3>
+                        <label className="flex items-center gap-1.5 text-[10px] text-zinc-400 hover:text-zinc-200 cursor-pointer select-none">
+                            <input
+                                type="checkbox"
+                                checked={config.randomizeBackgroundSource !== false}
+                                onChange={(e) => handleChange('randomizeBackgroundSource', e.target.checked)}
+                                className="w-3 h-3 rounded border-white/10 bg-zinc-800 text-purple-600 focus:ring-0 cursor-pointer"
+                            />
+                            <span>Random</span>
+                        </label>
+                    </div>
                     <GroupedSelection
                         value={config.backgroundSource}
                         onChange={(newSource) => {
@@ -1949,9 +2090,20 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
 
                 {/* Background Blur */}
                 <section className="space-y-3">
-                    <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-2">
-                        <Palette size={14} /> Background Effects
-                    </h3>
+                    <div className="flex items-center justify-between">
+                        <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-2">
+                            <Palette size={14} /> Background Effects
+                        </h3>
+                        <label className="flex items-center gap-1.5 text-[10px] text-zinc-400 hover:text-zinc-200 cursor-pointer select-none">
+                            <input
+                                type="checkbox"
+                                checked={config.randomizeBackgroundEffects !== false}
+                                onChange={(e) => handleChange('randomizeBackgroundEffects', e.target.checked)}
+                                className="w-3 h-3 rounded border-white/10 bg-zinc-800 text-purple-600 focus:ring-0 cursor-pointer"
+                            />
+                            <span>Random</span>
+                        </label>
+                    </div>
                     <div className="space-y-3">
                         <div className="flex bg-zinc-800 p-1 rounded-lg border border-white/5">
                             <button
@@ -2044,7 +2196,15 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                         <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-2">
                             <Activity size={14} /> Audio Visualizer
                         </h3>
-
+                        <label className="flex items-center gap-1.5 text-[10px] text-zinc-400 hover:text-zinc-200 cursor-pointer select-none">
+                            <input
+                                type="checkbox"
+                                checked={config.randomizeAudioVisualizer !== false}
+                                onChange={(e) => handleChange('randomizeAudioVisualizer', e.target.checked)}
+                                className="w-3 h-3 rounded border-white/10 bg-zinc-800 text-purple-600 focus:ring-0 cursor-pointer"
+                            />
+                            <span>Random</span>
+                        </label>
                     </div>
 
                     {/* Enable Toggle */}
@@ -2243,9 +2403,20 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
 
                 {/* Lyric Display Mode */}
                 <section className="space-y-3">
-                    <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-2">
-                        <FileText size={14} /> Lyric Display Mode
-                    </h3>
+                    <div className="flex items-center justify-between">
+                        <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-2">
+                            <FileText size={14} /> Lyric Display Mode
+                        </h3>
+                        <label className="flex items-center gap-1.5 text-[10px] text-zinc-400 hover:text-zinc-200 cursor-pointer select-none">
+                            <input
+                                type="checkbox"
+                                checked={config.randomizeLyricDisplayMode !== false}
+                                onChange={(e) => handleChange('randomizeLyricDisplayMode', e.target.checked)}
+                                className="w-3 h-3 rounded border-white/10 bg-zinc-800 text-purple-600 focus:ring-0 cursor-pointer"
+                            />
+                            <span>Random</span>
+                        </label>
+                    </div>
                     <GroupedSelection
                         value={config.lyricDisplayMode}
                         onChange={(val) => handleChange('lyricDisplayMode', val)}
@@ -2255,9 +2426,20 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
 
                 {/* Lyric Visibility */}
                 <section className="space-y-3">
-                    <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-2">
-                        <FileText size={14} /> Lyric Visibility
-                    </h3>
+                    <div className="flex items-center justify-between">
+                        <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-2">
+                            <FileText size={14} /> Lyric Visibility
+                        </h3>
+                        <label className="flex items-center gap-1.5 text-[10px] text-zinc-400 hover:text-zinc-200 cursor-pointer select-none">
+                            <input
+                                type="checkbox"
+                                checked={config.randomizeLyricVisibility !== false}
+                                onChange={(e) => handleChange('randomizeLyricVisibility', e.target.checked)}
+                                className="w-3 h-3 rounded border-white/10 bg-zinc-800 text-purple-600 focus:ring-0 cursor-pointer"
+                            />
+                            <span>Random</span>
+                        </label>
+                    </div>
                     <div className="flex bg-zinc-800 p-1 rounded-lg border border-white/5">
                         <button
                             onClick={() => handleChange('lyricVisibilityMode', 'default')}
@@ -2287,9 +2469,20 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
 
                 {/* Highlight Effect */}
                 <section className="space-y-3">
-                    <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-2">
-                        <Sparkles size={14} /> Highlight Effect
-                    </h3>
+                    <div className="flex items-center justify-between">
+                        <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-2">
+                            <Sparkles size={14} /> Highlight Effect
+                        </h3>
+                        <label className="flex items-center gap-1.5 text-[10px] text-zinc-400 hover:text-zinc-200 cursor-pointer select-none">
+                            <input
+                                type="checkbox"
+                                checked={config.randomizeHighlightEffect !== false}
+                                onChange={(e) => handleChange('randomizeHighlightEffect', e.target.checked)}
+                                className="w-3 h-3 rounded border-white/10 bg-zinc-800 text-purple-600 focus:ring-0 cursor-pointer"
+                            />
+                            <span>Random</span>
+                        </label>
+                    </div>
                     <GroupedSelection
                         value={config.highlightEffect || 'none'}
                         onChange={(val) => {
@@ -2371,9 +2564,20 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
 
                 {/* Elements Visibility */}
                 <section className="space-y-3">
-                    <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-2">
-                        <Layout size={14} /> Visible Elements
-                    </h3>
+                    <div className="flex items-center justify-between">
+                        <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-2">
+                            <Layout size={14} /> Visible Elements
+                        </h3>
+                        <label className="flex items-center gap-1.5 text-[10px] text-zinc-400 hover:text-zinc-200 cursor-pointer select-none">
+                            <input
+                                type="checkbox"
+                                checked={config.randomizeVisibleElements !== false}
+                                onChange={(e) => handleChange('randomizeVisibleElements', e.target.checked)}
+                                className="w-3 h-3 rounded border-white/10 bg-zinc-800 text-purple-600 focus:ring-0 cursor-pointer"
+                            />
+                            <span>Random</span>
+                        </label>
+                    </div>
                     <div className="space-y-2">
                         {[
                             { label: 'Lyrics / Subtitles', key: 'showLyrics' },
@@ -2403,9 +2607,20 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
 
                 {/* Intro Settings */}
                 <section className="space-y-3">
-                    <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-2">
-                        <Type size={14} /> Intro Settings
-                    </h3>
+                    <div className="flex items-center justify-between">
+                        <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-2">
+                            <Type size={14} /> Intro Settings
+                        </h3>
+                        <label className="flex items-center gap-1.5 text-[10px] text-zinc-400 hover:text-zinc-200 cursor-pointer select-none">
+                            <input
+                                type="checkbox"
+                                checked={config.randomizeIntroSettings !== false}
+                                onChange={(e) => handleChange('randomizeIntroSettings', e.target.checked)}
+                                className="w-3 h-3 rounded border-white/10 bg-zinc-800 text-purple-600 focus:ring-0 cursor-pointer"
+                            />
+                            <span>Random</span>
+                        </label>
+                    </div>
 
                     {/* Intro Settings */}
                     <div className="bg-zinc-800/30 border border-white/5 rounded-lg p-3 space-y-3">
@@ -2447,9 +2662,20 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
 
                 {/* Channel Info / Watermark */}
                 <section className="space-y-3">
-                    <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-2">
-                        <ImageIcon size={14} /> Channel Info / Watermark
-                    </h3>
+                    <div className="flex items-center justify-between">
+                        <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-2">
+                            <ImageIcon size={14} /> Channel Info / Watermark
+                        </h3>
+                        <label className="flex items-center gap-1.5 text-[10px] text-zinc-400 hover:text-zinc-200 cursor-pointer select-none">
+                            <input
+                                type="checkbox"
+                                checked={config.randomizeChannelInfo !== false}
+                                onChange={(e) => handleChange('randomizeChannelInfo', e.target.checked)}
+                                className="w-3 h-3 rounded border-white/10 bg-zinc-800 text-purple-600 focus:ring-0 cursor-pointer"
+                            />
+                            <span>Random</span>
+                        </label>
+                    </div>
                     <div className="bg-zinc-800/30 border border-white/5 rounded-lg p-3 space-y-3">
                         <div className="flex items-center justify-between cursor-pointer">
                             <label htmlFor="show-channel-info" className="text-xs text-zinc-300 font-medium cursor-pointer">Show Channel Info</label>
@@ -2673,7 +2899,6 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                                             type="color"
                                             name="channel-font-color"
                                             aria-label="Channel Font Color"
-                                            value={config.channelInfoFontColor || '#ffffff'}
                                             onChange={(e) => handleChange('channelInfoFontColor', e.target.value)}
                                             className="w-6 h-6 rounded cursor-pointer bg-transparent border-none shrink-0"
                                         />
@@ -2683,207 +2908,26 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                             </div>
                         )}
                     </div>
-
-                </section>
-
-                {/* Song Info Design */}
-                <section className="space-y-3">
-                    <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-2">
-                        <Music size={14} /> Song Info Design
-                    </h3>
-
-                    <div className="space-y-3">
-                        <div className="space-y-1.5">
-                            <span className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Position</span>
-                            <div className="grid grid-cols-3 gap-2">
-                                {/* Top Row */}
-                                <button
-                                    onClick={() => handleChange('infoPosition', 'top-left')}
-                                    className={`h-8 rounded-md border flex items-start justify-start p-1 transition-all ${config.infoPosition === 'top-left' ? 'bg-purple-600 border-purple-500 text-white' : 'bg-zinc-800 border-white/5 text-zinc-500 hover:border-white/20'}`}
-                                >
-                                    <div className="w-2 h-2 bg-current rounded-sm" />
-                                </button>
-                                <button
-                                    onClick={() => handleChange('infoPosition', 'top-center')}
-                                    className={`h-8 rounded-md border flex items-start justify-center p-1 transition-all ${config.infoPosition === 'top-center' ? 'bg-purple-600 border-purple-500 text-white' : 'bg-zinc-800 border-white/5 text-zinc-500 hover:border-white/20'}`}
-                                >
-                                    <div className="w-2 h-2 bg-current rounded-sm" />
-                                </button>
-                                <button
-                                    onClick={() => handleChange('infoPosition', 'top-right')}
-                                    className={`h-8 rounded-md border flex items-start justify-end p-1 transition-all ${config.infoPosition === 'top-right' ? 'bg-purple-600 border-purple-500 text-white' : 'bg-zinc-800 border-white/5 text-zinc-500 hover:border-white/20'}`}
-                                >
-                                    <div className="w-2 h-2 bg-current rounded-sm" />
-                                </button>
-
-                                {/* Bottom Row */}
-                                <button
-                                    onClick={() => handleChange('infoPosition', 'bottom-left')}
-                                    className={`h-8 rounded-md border flex items-end justify-start p-1 transition-all ${config.infoPosition === 'bottom-left' ? 'bg-purple-600 border-purple-500 text-white' : 'bg-zinc-800 border-white/5 text-zinc-500 hover:border-white/20'}`}
-                                >
-                                    <div className="w-2 h-2 bg-current rounded-sm" />
-                                </button>
-                                <button
-                                    onClick={() => handleChange('infoPosition', 'bottom-center')}
-                                    className={`h-8 rounded-md border flex items-end justify-center p-1 transition-all ${config.infoPosition === 'bottom-center' ? 'bg-purple-600 border-purple-500 text-white' : 'bg-zinc-800 border-white/5 text-zinc-500 hover:border-white/20'}`}
-                                >
-                                    <div className="w-2 h-2 bg-current rounded-sm" />
-                                </button>
-                                <button
-                                    onClick={() => handleChange('infoPosition', 'bottom-right')}
-                                    className={`h-8 rounded-md border flex items-end justify-end p-1 transition-all ${config.infoPosition === 'bottom-right' ? 'bg-purple-600 border-purple-500 text-white' : 'bg-zinc-800 border-white/5 text-zinc-500 hover:border-white/20'}`}
-                                >
-                                    <div className="w-2 h-2 bg-current rounded-sm" />
-                                </button>
-                            </div>
-                        </div>
-
-                        <div className="space-y-1.5">
-                            <span className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Style</span>
-                            <GroupedSelection
-                                value={config.infoStyle || 'classic'}
-                                onChange={(val) => handleChange('infoStyle', val)}
-                                groups={infoStyleGroups}
-                            />
-                        </div>
-
-                        <div className="space-y-1.5">
-                            <div className="flex justify-between items-center">
-                                <span className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Edge Margin</span>
-                                <span className="text-[10px] text-zinc-400 font-mono">{(config.infoMarginScale ?? 1).toFixed(1)}x</span>
-                            </div>
-                            <div className="flex items-center gap-2 bg-zinc-800 border border-white/10 rounded-lg px-2 py-1.5">
-                                <span className="text-zinc-500"><Maximize size={12} /></span>
-                                <input
-                                    type="range"
-                                    name="info-margin"
-                                    aria-label="Song Info Margin"
-                                    min="0.0"
-                                    max="5.0"
-                                    step="0.1"
-                                    value={config.infoMarginScale ?? 1.0}
-                                    onChange={(e) => handleChange('infoMarginScale', parseFloat(e.target.value))}
-                                    className="w-full h-1 bg-zinc-600 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full hover:[&::-webkit-slider-thumb]:bg-purple-400 transition-all"
-                                />
-                            </div>
-                        </div>
-
-                        <div className="space-y-1.5">
-                            <div className="flex justify-between items-center">
-                                <span className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Info Size</span>
-                                <span className="text-[10px] text-zinc-400 font-mono">{(config.infoSizeScale ?? 1).toFixed(1)}x</span>
-                            </div>
-                            <div className="flex items-center gap-2 bg-zinc-800 border border-white/10 rounded-lg px-2 py-1.5">
-                                <span className="text-zinc-500"><Type size={12} /></span>
-                                <input
-                                    type="range"
-                                    name="info-size"
-                                    aria-label="Song Info Size"
-                                    min="0.5"
-                                    max="3.0"
-                                    step="0.1"
-                                    value={config.infoSizeScale ?? 1.0}
-                                    onChange={(e) => handleChange('infoSizeScale', parseFloat(e.target.value))}
-                                    className="w-full h-1 bg-zinc-600 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full hover:[&::-webkit-slider-thumb]:bg-purple-400 transition-all"
-                                />
-                            </div>
-                        </div>
-
-
-                        {/* Custom Font for Song Info */}
-                        <div className="space-y-1.5">
-                            <span className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Font Family</span>
-                            <FontSelector
-                                value={config.infoFontFamily || 'sans-serif'}
-                                onChange={(val) => handleChange('infoFontFamily', val)}
-                                customFontName={customInfoFontName || null}
-                                groups={dynamicFontGroups}
-                            />
-                            <GoogleFontLoader
-                                onApply={(name) => handleGoogleFontApply(name, 'infoFontFamily')}
-                                placeholder="Info Font (e.g. Roboto)"
-                            />
-                            <input
-                                aria-label="Upload Info Font"
-                                ref={infoFontInputRef}
-                                type="file"
-                                name="info-font-upload"
-                                id="info-font-upload"
-                                accept=".ttf,.otf,.woff,.woff2"
-                                onChange={onInfoFontUpload}
-                                className="hidden"
-                            />
-                            {customInfoFontName ? (
-                                <div className="flex items-center gap-2 bg-zinc-800/50 border border-purple-500/30 rounded-lg px-2 py-1.5 mt-1">
-                                    <span className="text-[10px] text-purple-300 font-medium truncate flex-1">{customInfoFontName}</span>
-                                    <button
-                                        onClick={() => handleChange('infoFontFamily', 'InfoFont')}
-                                        className={`text-[10px] px-2 py-0.5 rounded transition-colors ${config.infoFontFamily === 'InfoFont' ? 'bg-purple-600 text-white' : 'bg-zinc-700 text-zinc-300 hover:bg-zinc-600'}`}
-                                    >
-                                        Use
-                                    </button>
-                                    <button onClick={onClearInfoCustomFont} className="text-zinc-500 hover:text-red-400"><Trash2 size={12} /></button>
-                                </div>
-                            ) : (
-                                <button
-                                    onClick={() => infoFontInputRef.current?.click()}
-                                    className="w-full flex items-center justify-center gap-2 bg-zinc-800/30 border border-dashed border-white/10 hover:border-purple-500/50 rounded-lg px-2 py-1.5 text-zinc-500 hover:text-purple-300 transition-colors mt-1"
-                                >
-                                    <Upload size={10} />
-                                    <span className="text-[10px]">Upload Font</span>
-                                </button>
-                            )}
-                        </div>
-
-                        {/* Song Info Font Style (Bold/Italic) */}
-                        <div className="space-y-1.5">
-                            <span className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Font Style</span>
-                            <div className="flex bg-zinc-800 rounded-lg p-1 gap-1">
-                                <button
-                                    onClick={() => handleChange('infoFontWeight', config.infoFontWeight === 'bold' ? 'normal' : 'bold')}
-                                    className={`flex-1 py-1.5 rounded-md flex items-center justify-center transition-all ${config.infoFontWeight === 'bold' ? 'bg-zinc-600 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}
-                                    title="Bold"
-                                >
-                                    <Bold size={14} />
-                                </button>
-                                <button
-                                    onClick={() => handleChange('infoFontStyle', config.infoFontStyle === 'italic' ? 'normal' : 'italic')}
-                                    className={`flex-1 py-1.5 rounded-md flex items-center justify-center transition-all ${config.infoFontStyle === 'italic' ? 'bg-zinc-600 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}
-                                    title="Italic"
-                                >
-                                    <Italic size={14} />
-                                </button>
-                            </div>
-                        </div>
-
-                        {/* Song Info Color */}
-                        <div className="space-y-1.5">
-                            <span className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Text Color</span>
-                            <div className="flex items-center gap-3 bg-zinc-800/30 p-2 rounded-lg border border-white/5">
-                                <input
-                                    id="info-font-color"
-                                    type="color"
-                                    name="info-font-color"
-                                    aria-label="Song Info Text Color"
-                                    value={config.infoFontColor || '#ffffff'}
-                                    onChange={(e) => handleChange('infoFontColor', e.target.value)}
-                                    className="w-6 h-6 rounded cursor-pointer bg-transparent border-none shrink-0"
-                                />
-                                <span className="text-[10px] text-zinc-400 font-mono uppercase">{config.infoFontColor || '#ffffff'}</span>
-                            </div>
-                        </div>
-                    </div>
                 </section>
 
                 {/* Text Presets & Styling */}
                 <section className="space-y-3">
-                    <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-2">
-                        <Type size={14} /> Typography & Style
-                    </h3>
+                    <div className="flex items-center justify-between">
+                        <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-2">
+                            <Type size={14} /> Typography & Style
+                        </h3>
+                        <label className="flex items-center gap-1.5 text-[10px] text-zinc-400 hover:text-zinc-200 cursor-pointer select-none">
+                            <input
+                                type="checkbox"
+                                checked={config.randomizeTypographyStyle !== false}
+                                onChange={(e) => handleChange('randomizeTypographyStyle', e.target.checked)}
+                                className="w-3 h-3 rounded border-white/10 bg-zinc-800 text-purple-600 focus:ring-0 cursor-pointer"
+                            />
+                            <span>Random</span>
+                        </label>
+                    </div>
 
                     <div className="space-y-4 pt-1">
-
-
                         <div className="space-y-1.5">
                             <span className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Alignment</span>
                             <div className="flex bg-zinc-800 rounded-lg p-1">
@@ -3197,7 +3241,18 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                         </div>
 
                         <div className="space-y-1.5">
-                            <span className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Text Effect</span>
+                            <div className="flex items-center justify-between">
+                                <span className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Text Effect</span>
+                                <label className="flex items-center gap-1 text-[10px] text-zinc-400 hover:text-zinc-200 cursor-pointer select-none">
+                                    <input
+                                        type="checkbox"
+                                        checked={config.randomizeTextEffect !== false}
+                                        onChange={(e) => handleChange('randomizeTextEffect', e.target.checked)}
+                                        className="w-3 h-3 rounded border-white/10 bg-zinc-800 text-purple-600 focus:ring-0 cursor-pointer"
+                                    />
+                                    <span>Random</span>
+                                </label>
+                            </div>
                             <GroupedSelection
                                 value={config.textEffect}
                                 onChange={(val) => handleChange('textEffect', val)}
@@ -3205,9 +3260,19 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                             />
                         </div>
 
-
                         <div className="space-y-1.5">
-                            <span className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Text Animation</span>
+                            <div className="flex items-center justify-between">
+                                <span className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Text Animation</span>
+                                <label className="flex items-center gap-1 text-[10px] text-zinc-400 hover:text-zinc-200 cursor-pointer select-none">
+                                    <input
+                                        type="checkbox"
+                                        checked={config.randomizeTextAnimation !== false}
+                                        onChange={(e) => handleChange('randomizeTextAnimation', e.target.checked)}
+                                        className="w-3 h-3 rounded border-white/10 bg-zinc-800 text-purple-600 focus:ring-0 cursor-pointer"
+                                    />
+                                    <span>Random</span>
+                                </label>
+                            </div>
                             <GroupedSelection
                                 value={config.textAnimation}
                                 onChange={(val) => handleChange('textAnimation', val)}
@@ -3218,7 +3283,18 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                     </div>
 
                     <div className="space-y-1.5">
-                        <span className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Transition</span>
+                        <div className="flex items-center justify-between">
+                            <span className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Transition</span>
+                            <label className="flex items-center gap-1 text-[10px] text-zinc-400 hover:text-zinc-200 cursor-pointer select-none">
+                                <input
+                                    type="checkbox"
+                                    checked={config.randomizeTransitionEffect !== false}
+                                    onChange={(e) => handleChange('randomizeTransitionEffect', e.target.checked)}
+                                    className="w-3 h-3 rounded border-white/10 bg-zinc-800 text-purple-600 focus:ring-0 cursor-pointer"
+                                />
+                                <span>Random</span>
+                            </label>
+                        </div>
                         <GroupedSelection
                             value={config.transitionEffect}
                             onChange={(val) => handleChange('transitionEffect', val)}
@@ -3230,9 +3306,20 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                     <div className="space-y-1.5 pt-2 border-t border-white/5">
                         <div className="flex justify-between items-center">
                             <span className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Visual Transition (Images/Video)</span>
-                            {config.visualTransitionDuration && (
-                                <span className="text-[10px] text-zinc-400 font-mono">{config.visualTransitionDuration.toFixed(1)}s</span>
-                            )}
+                            <div className="flex items-center gap-3">
+                                {config.visualTransitionDuration && (
+                                    <span className="text-[10px] text-zinc-400 font-mono">{config.visualTransitionDuration.toFixed(1)}s</span>
+                                )}
+                                <label className="flex items-center gap-1 text-[10px] text-zinc-400 hover:text-zinc-200 cursor-pointer select-none">
+                                    <input
+                                        type="checkbox"
+                                        checked={config.randomizeVisualTransition !== false}
+                                        onChange={(e) => handleChange('randomizeVisualTransition', e.target.checked)}
+                                        className="w-3 h-3 rounded border-white/10 bg-zinc-800 text-purple-600 focus:ring-0 cursor-pointer"
+                                    />
+                                    <span>Random</span>
+                                </label>
+                            </div>
                         </div>
                         <div className="flex gap-2">
                             <div className="flex-1">
@@ -3259,12 +3346,596 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                             )}
                         </div>
                     </div>
+                </section>
 
+                {/* Additional Notes/Media */}
+                <section className="space-y-3">
+                    <div className="flex items-center justify-between">
+                        <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-2">
+                            <ImageIcon size={14} /> Floating Notes / Media
+                        </h3>
+                        <label className="flex items-center gap-1.5 text-[10px] text-zinc-400 hover:text-zinc-200 cursor-pointer select-none">
+                            <input
+                                type="checkbox"
+                                checked={config.randomizeFloatingNotes !== false}
+                                onChange={(e) => handleChange('randomizeFloatingNotes', e.target.checked)}
+                                className="w-3 h-3 rounded border-white/10 bg-zinc-800 text-purple-600 focus:ring-0 cursor-pointer"
+                            />
+                            <span>Random</span>
+                        </label>
+                    </div>
+
+                    <div className="bg-zinc-800/30 border border-white/5 rounded-lg p-3 space-y-3">
+                        <div className="flex items-center justify-between cursor-pointer">
+                            <label htmlFor="show-floating-notes" className="text-xs text-zinc-300 font-medium cursor-pointer">Show Floating Notes</label>
+                            <div className="relative inline-flex items-center cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    id="show-floating-notes"
+                                    name="show-floating-notes"
+                                    aria-label="Show Floating Notes"
+                                    checked={config.showFloatingNotes ?? false}
+                                    onChange={(e) => handleChange('showFloatingNotes', e.target.checked)}
+                                    className="sr-only peer"
+                                />
+                                <label htmlFor="show-floating-notes" className="w-8 h-4 bg-zinc-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-purple-600 block cursor-pointer"></label>
+                            </div>
+                        </div>
+
+                        {config.showFloatingNotes && (
+                            <div className="space-y-3 animate-in slide-in-from-top duration-200">
+                                {/* Layout */}
+                                <div className="space-y-1.5">
+                                    <span className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Layout</span>
+                                    <select
+                                        id="floating-notes-layout"
+                                        name="floating-notes-layout"
+                                        value={config.floatingNotesLayout || 'text-only'}
+                                        onChange={(e) => handleChange('floatingNotesLayout', e.target.value)}
+                                        className="w-full bg-zinc-900 border border-white/10 rounded-md px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                                    >
+                                        <option value="text-only">Text Only</option>
+                                        <option value="media-only">Media Only</option>
+                                        <option value="media-left-text">Media (Left) + Text</option>
+                                        <option value="media-right-text">Media (Right) + Text</option>
+                                        <option value="media-top-text">Media (Top) + Text</option>
+                                        <option value="media-bottom-text">Media (Bottom) + Text</option>
+                                    </select>
+                                </div>
+
+                                {/* Media Upload */}
+                                {config.floatingNotesLayout !== 'text-only' && (
+                                    <div className="space-y-1.5">
+                                        <span className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Upload Media (Image/Video)</span>
+                                        <input
+                                            ref={floatingNotesMediaInputRef}
+                                            type="file"
+                                            accept="image/*,video/*"
+                                            onChange={handleFloatingNotesMediaUpload}
+                                            className="hidden"
+                                        />
+                                        {config.floatingNotesMedia ? (
+                                            <div className="flex items-center gap-3 bg-zinc-800 p-2 rounded-lg border border-white/10">
+                                                <div className="w-10 h-10 rounded bg-zinc-700/50 flex items-center justify-center overflow-hidden border border-white/5">
+                                                    {config.floatingNotesMediaType === 'video' ? (
+                                                        <video src={config.floatingNotesMedia} className="w-full h-full object-cover" muted />
+                                                    ) : (
+                                                        <img src={config.floatingNotesMedia} alt="Notes Media" className="w-full h-full object-cover" />
+                                                    )}
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-xs text-zinc-300 truncate">Media Loaded</p>
+                                                    <button
+                                                        onClick={() => handleChange('floatingNotesMedia', undefined)}
+                                                        className="text-[10px] text-red-400 hover:text-red-300"
+                                                    >
+                                                        Remove
+                                                    </button>
+                                                </div>
+                                                <button
+                                                    onClick={() => floatingNotesMediaInputRef.current?.click()}
+                                                    className="p-1.5 hover:bg-white/10 rounded-md text-zinc-400 hover:text-white"
+                                                >
+                                                    <Settings size={14} />
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <button
+                                                onClick={() => floatingNotesMediaInputRef.current?.click()}
+                                                className="w-full flex items-center justify-center gap-2 bg-zinc-800/50 border border-dashed border-white/10 hover:border-purple-500/50 rounded-lg px-3 py-3 text-zinc-400 hover:text-purple-300 transition-colors"
+                                            >
+                                                <Upload size={14} />
+                                                <span className="text-xs">Upload Media</span>
+                                            </button>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* Text Input */}
+                                {config.floatingNotesLayout !== 'media-only' && (
+                                    <div className="space-y-1.5">
+                                        <label htmlFor="floating-notes-text" className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Notes Text</label>
+                                        <textarea
+                                            id="floating-notes-text"
+                                            value={config.floatingNotesText ?? ''}
+                                            onChange={(e) => handleChange('floatingNotesText', e.target.value)}
+                                            placeholder="Enter note details..."
+                                            className="w-full bg-zinc-900 border border-white/10 rounded-md px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:ring-1 focus:ring-purple-500 min-h-[60px] resize-y"
+                                            rows={3}
+                                        />
+                                    </div>
+                                )}
+
+                                {/* Position (3x3 grid selector) */}
+                                <div className="space-y-1.5">
+                                    <span className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Position</span>
+                                    <div className="grid grid-cols-3 gap-2">
+                                        <button onClick={() => handleChange('floatingNotesPosition', 'top-left')} className={`h-8 rounded-md border flex items-start justify-start p-1 transition-all ${config.floatingNotesPosition === 'top-left' ? 'bg-purple-600 border-purple-500 text-white' : 'bg-zinc-800 border-white/5 text-zinc-500 hover:border-white/20'}`} title="Top Left"><div className="w-2 h-2 bg-current rounded-sm" /></button>
+                                        <button onClick={() => handleChange('floatingNotesPosition', 'top-center')} className={`h-8 rounded-md border flex items-start justify-center p-1 transition-all ${config.floatingNotesPosition === 'top-center' ? 'bg-purple-600 border-purple-500 text-white' : 'bg-zinc-800 border-white/5 text-zinc-500 hover:border-white/20'}`} title="Top Center"><div className="w-2 h-2 bg-current rounded-sm" /></button>
+                                        <button onClick={() => handleChange('floatingNotesPosition', 'top-right')} className={`h-8 rounded-md border flex items-start justify-end p-1 transition-all ${config.floatingNotesPosition === 'top-right' ? 'bg-purple-600 border-purple-500 text-white' : 'bg-zinc-800 border-white/5 text-zinc-500 hover:border-white/20'}`} title="Top Right"><div className="w-2 h-2 bg-current rounded-sm" /></button>
+
+                                        <button onClick={() => handleChange('floatingNotesPosition', 'left-middle')} className={`h-8 rounded-md border flex items-center justify-start p-1 transition-all ${config.floatingNotesPosition === 'left-middle' ? 'bg-purple-600 border-purple-500 text-white' : 'bg-zinc-800 border-white/5 text-zinc-500 hover:border-white/20'}`} title="Left Middle"><div className="w-2 h-2 bg-current rounded-sm" /></button>
+                                        <button onClick={() => handleChange('floatingNotesPosition', 'center-middle')} className={`h-8 rounded-md border flex items-center justify-center p-1 transition-all ${config.floatingNotesPosition === 'center-middle' ? 'bg-purple-600 border-purple-500 text-white' : 'bg-zinc-800 border-white/5 text-zinc-500 hover:border-white/20'}`} title="Center Middle"><div className="w-2 h-2 bg-current rounded-sm" /></button>
+                                        <button onClick={() => handleChange('floatingNotesPosition', 'right-middle')} className={`h-8 rounded-md border flex items-center justify-end p-1 transition-all ${config.floatingNotesPosition === 'right-middle' ? 'bg-purple-600 border-purple-500 text-white' : 'bg-zinc-800 border-white/5 text-zinc-500 hover:border-white/20'}`} title="Right Middle"><div className="w-2 h-2 bg-current rounded-sm" /></button>
+
+                                        <button onClick={() => handleChange('floatingNotesPosition', 'bottom-left')} className={`h-8 rounded-md border flex items-end justify-start p-1 transition-all ${config.floatingNotesPosition === 'bottom-left' ? 'bg-purple-600 border-purple-500 text-white' : 'bg-zinc-800 border-white/5 text-zinc-500 hover:border-white/20'}`} title="Bottom Left"><div className="w-2 h-2 bg-current rounded-sm" /></button>
+                                        <button onClick={() => handleChange('floatingNotesPosition', 'bottom-center')} className={`h-8 rounded-md border flex items-end justify-center p-1 transition-all ${config.floatingNotesPosition === 'bottom-center' ? 'bg-purple-600 border-purple-500 text-white' : 'bg-zinc-800 border-white/5 text-zinc-500 hover:border-white/20'}`} title="Bottom Center"><div className="w-2 h-2 bg-current rounded-sm" /></button>
+                                        <button onClick={() => handleChange('floatingNotesPosition', 'bottom-right')} className={`h-8 rounded-md border flex items-end justify-end p-1 transition-all ${config.floatingNotesPosition === 'bottom-right' ? 'bg-purple-600 border-purple-500 text-white' : 'bg-zinc-800 border-white/5 text-zinc-500 hover:border-white/20'}`} title="Bottom Right"><div className="w-2 h-2 bg-current rounded-sm" /></button>
+                                    </div>
+                                </div>
+
+                                {/* Shape */}
+                                <div className="space-y-1.5">
+                                    <span className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Shape Style</span>
+                                    <select
+                                        id="floating-notes-shape"
+                                        name="floating-notes-shape"
+                                        value={config.floatingNotesShape || 'rounded'}
+                                        onChange={(e) => handleChange('floatingNotesShape', e.target.value)}
+                                        className="w-full bg-zinc-900 border border-white/10 rounded-md px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                                    >
+                                        <option value="none">None (Transparent)</option>
+                                        <option value="sharp">Sharp Corner</option>
+                                        <option value="rounded">Rounded Corner</option>
+                                    </select>
+                                </div>
+
+                                {config.floatingNotesShape !== 'none' && (
+                                    <>
+                                        {/* Colors */}
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div className="space-y-1.5">
+                                                <span className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Fill Color</span>
+                                                <div className="flex items-center gap-2 bg-zinc-900 border border-white/10 rounded-md p-1">
+                                                    <input
+                                                        type="color"
+                                                        value={config.floatingNotesFillColor || '#000000'}
+                                                        onChange={(e) => handleChange('floatingNotesFillColor', e.target.value)}
+                                                        className="w-6 h-6 rounded cursor-pointer bg-transparent border-none"
+                                                    />
+                                                    <span className="text-[10px] text-zinc-400 font-mono uppercase">{config.floatingNotesFillColor || '#000000'}</span>
+                                                </div>
+                                            </div>
+                                            <div className="space-y-1.5">
+                                                <span className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Outline Color</span>
+                                                <div className="flex items-center gap-2 bg-zinc-900 border border-white/10 rounded-md p-1">
+                                                    <input
+                                                        type="color"
+                                                        value={config.floatingNotesOutlineColor || '#ffffff'}
+                                                        onChange={(e) => handleChange('floatingNotesOutlineColor', e.target.value)}
+                                                        className="w-6 h-6 rounded cursor-pointer bg-transparent border-none"
+                                                    />
+                                                    <span className="text-[10px] text-zinc-400 font-mono uppercase">{config.floatingNotesOutlineColor || '#ffffff'}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Outline Size */}
+                                        <div className="space-y-1.5">
+                                            <div className="flex justify-between items-center">
+                                                <span className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Outline Size</span>
+                                                <span className="text-[10px] text-zinc-400 font-mono">{config.floatingNotesOutlineSize ?? 1}px</span>
+                                            </div>
+                                            <div className="flex items-center gap-2 bg-zinc-800 border border-white/10 rounded-lg px-2 py-1.5">
+                                                <span className="text-zinc-500"><Maximize size={12} /></span>
+                                                <input
+                                                    type="range"
+                                                    min="0"
+                                                    max="10"
+                                                    step="1"
+                                                    value={config.floatingNotesOutlineSize ?? 1}
+                                                    onChange={(e) => handleChange('floatingNotesOutlineSize', parseInt(e.target.value))}
+                                                    className="w-full h-1 bg-zinc-600 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full hover:[&::-webkit-slider-thumb]:bg-purple-400 transition-all"
+                                                />
+                                            </div>
+                                        </div>
+                                    </>
+                                )}
+
+                                {/* Opacity */}
+                                <div className="space-y-1.5">
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Opacity</span>
+                                        <span className="text-[10px] text-zinc-400 font-mono">{Math.round((config.floatingNotesOpacity ?? 0.8) * 100)}%</span>
+                                    </div>
+                                    <div className="flex items-center gap-2 bg-zinc-800 border border-white/10 rounded-lg px-2 py-1.5">
+                                        <span className="text-zinc-500"><Sliders size={12} /></span>
+                                        <input
+                                            type="range"
+                                            min="0.0"
+                                            max="1.0"
+                                            step="0.05"
+                                            value={config.floatingNotesOpacity ?? 0.8}
+                                            onChange={(e) => handleChange('floatingNotesOpacity', parseFloat(e.target.value))}
+                                            className="w-full h-1 bg-zinc-600 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full hover:[&::-webkit-slider-thumb]:bg-purple-400 transition-all"
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Margin Scale */}
+                                <div className="space-y-1.5">
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Edge Margin</span>
+                                        <span className="text-[10px] text-zinc-400 font-mono">{(config.floatingNotesMarginScale ?? 1.0).toFixed(1)}x</span>
+                                    </div>
+                                    <div className="flex items-center gap-2 bg-zinc-800 border border-white/10 rounded-lg px-2 py-1.5">
+                                        <span className="text-zinc-500"><Maximize size={12} /></span>
+                                        <input
+                                            type="range"
+                                            min="0.0"
+                                            max="5.0"
+                                            step="0.1"
+                                            value={config.floatingNotesMarginScale ?? 1.0}
+                                            onChange={(e) => handleChange('floatingNotesMarginScale', parseFloat(e.target.value))}
+                                            className="w-full h-1 bg-zinc-600 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full hover:[&::-webkit-slider-thumb]:bg-purple-400 transition-all"
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Width & Height */}
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="space-y-1.5">
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Width</span>
+                                            <span className="text-[10px] text-zinc-400 font-mono">{config.floatingNotesWidth ?? 300}px</span>
+                                        </div>
+                                        <div className="flex items-center gap-2 bg-zinc-800 border border-white/10 rounded-lg px-2 py-1.5">
+                                            <input
+                                                type="range"
+                                                min="100"
+                                                max="800"
+                                                step="10"
+                                                value={config.floatingNotesWidth ?? 300}
+                                                onChange={(e) => handleChange('floatingNotesWidth', parseInt(e.target.value))}
+                                                className="w-full h-1 bg-zinc-600 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full hover:[&::-webkit-slider-thumb]:bg-purple-400 transition-all"
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Height</span>
+                                            <span className="text-[10px] text-zinc-400 font-mono">{config.floatingNotesHeight ?? 150}px</span>
+                                        </div>
+                                        <div className="flex items-center gap-2 bg-zinc-800 border border-white/10 rounded-lg px-2 py-1.5">
+                                            <input
+                                                type="range"
+                                                min="50"
+                                                max="600"
+                                                step="10"
+                                                value={config.floatingNotesHeight ?? 150}
+                                                onChange={(e) => handleChange('floatingNotesHeight', parseInt(e.target.value))}
+                                                className="w-full h-1 bg-zinc-600 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full hover:[&::-webkit-slider-thumb]:bg-purple-400 transition-all"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Custom Font */}
+                                <div className="space-y-1.5">
+                                    <span className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Font Family</span>
+                                    <FontSelector
+                                        value={config.floatingNotesFontFamily || 'sans-serif'}
+                                        onChange={(val) => handleChange('floatingNotesFontFamily', val)}
+                                        customFontName={null}
+                                        groups={dynamicFontGroups}
+                                    />
+                                </div>
+
+                                {/* Text Align */}
+                                <div className="space-y-1.5">
+                                    <label htmlFor="floating-notes-text-align" className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Text Align</label>
+                                    <select
+                                        id="floating-notes-text-align"
+                                        name="floating-notes-text-align"
+                                        value={config.floatingNotesTextAlign || 'left'}
+                                        onChange={(e) => handleChange('floatingNotesTextAlign', e.target.value)}
+                                        className="w-full bg-zinc-900 border border-white/10 rounded-md px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                                    >
+                                        <option value="left">Left</option>
+                                        <option value="center">Center</option>
+                                        <option value="right">Right</option>
+                                    </select>
+                                </div>
+
+                                {/* Font Style */}
+                                <div className="space-y-1.5">
+                                    <span className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Font Style</span>
+                                    <div className="flex bg-zinc-800 rounded-lg p-1 gap-1">
+                                        <button
+                                            onClick={() => handleChange('floatingNotesFontWeight', config.floatingNotesFontWeight === 'bold' ? 'normal' : 'bold')}
+                                            className={`flex-1 py-1.5 rounded-md flex items-center justify-center transition-all ${config.floatingNotesFontWeight === 'bold' ? 'bg-zinc-600 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}
+                                            title="Bold"
+                                        >
+                                            <Bold size={14} />
+                                        </button>
+                                        <button
+                                            onClick={() => handleChange('floatingNotesFontStyle', config.floatingNotesFontStyle === 'italic' ? 'normal' : 'italic')}
+                                            className={`flex-1 py-1.5 rounded-md flex items-center justify-center transition-all ${config.floatingNotesFontStyle === 'italic' ? 'bg-zinc-600 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}
+                                            title="Italic"
+                                        >
+                                            <Italic size={14} />
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* Font Color */}
+                                <div className="space-y-1.5">
+                                    <span className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Text Color</span>
+                                    <div className="flex items-center gap-3 bg-zinc-800/30 p-2 rounded-lg border border-white/5">
+                                        <input
+                                            type="color"
+                                            value={config.floatingNotesFontColor || '#ffffff'}
+                                            onChange={(e) => handleChange('floatingNotesFontColor', e.target.value)}
+                                            className="w-6 h-6 rounded cursor-pointer bg-transparent border-none shrink-0"
+                                        />
+                                        <span className="text-[10px] text-zinc-400 font-mono uppercase">{config.floatingNotesFontColor || '#ffffff'}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </section>
+
+                {/* Song Info Design */}
+                <section className="space-y-3">
+                    <div className="flex items-center justify-between">
+                        <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-2">
+                            <Music size={14} /> Song Info Design
+                        </h3>
+                        <label className="flex items-center gap-1.5 text-[10px] text-zinc-400 hover:text-zinc-200 cursor-pointer select-none">
+                            <input
+                                type="checkbox"
+                                checked={config.randomizeSongInfoDesign !== false}
+                                onChange={(e) => handleChange('randomizeSongInfoDesign', e.target.checked)}
+                                className="w-3 h-3 rounded border-white/10 bg-zinc-800 text-purple-600 focus:ring-0 cursor-pointer"
+                            />
+                            <span>Random</span>
+                        </label>
+                    </div>
+
+                    <div className="space-y-3">
+                        <div className="space-y-1.5">
+                            <span className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Position</span>
+                            <div className="grid grid-cols-3 gap-2">
+                                {/* Top Row */}
+                                <button
+                                    onClick={() => handleChange('infoPosition', 'top-left')}
+                                    className={`h-8 rounded-md border flex items-start justify-start p-1 transition-all ${config.infoPosition === 'top-left' ? 'bg-purple-600 border-purple-500 text-white' : 'bg-zinc-800 border-white/5 text-zinc-500 hover:border-white/20'}`}
+                                >
+                                    <div className="w-2 h-2 bg-current rounded-sm" />
+                                </button>
+                                <button
+                                    onClick={() => handleChange('infoPosition', 'top-center')}
+                                    className={`h-8 rounded-md border flex items-start justify-center p-1 transition-all ${config.infoPosition === 'top-center' ? 'bg-purple-600 border-purple-500 text-white' : 'bg-zinc-800 border-white/5 text-zinc-500 hover:border-white/20'}`}
+                                >
+                                    <div className="w-2 h-2 bg-current rounded-sm" />
+                                </button>
+                                <button
+                                    onClick={() => handleChange('infoPosition', 'top-right')}
+                                    className={`h-8 rounded-md border flex items-start justify-end p-1 transition-all ${config.infoPosition === 'top-right' ? 'bg-purple-600 border-purple-500 text-white' : 'bg-zinc-800 border-white/5 text-zinc-500 hover:border-white/20'}`}
+                                >
+                                    <div className="w-2 h-2 bg-current rounded-sm" />
+                                </button>
+
+                                {/* Middle Row */}
+                                <button
+                                    onClick={() => handleChange('infoPosition', 'left-middle')}
+                                    className={`h-8 rounded-md border flex items-center justify-start p-1 transition-all ${config.infoPosition === 'left-middle' ? 'bg-purple-600 border-purple-500 text-white' : 'bg-zinc-800 border-white/5 text-zinc-500 hover:border-white/20'}`}
+                                    title="Left Middle"
+                                >
+                                    <div className="w-2 h-2 bg-current rounded-sm" />
+                                </button>
+                                <button
+                                    onClick={() => handleChange('infoPosition', 'center-middle')}
+                                    className={`h-8 rounded-md border flex items-center justify-center p-1 transition-all ${config.infoPosition === 'center-middle' ? 'bg-purple-600 border-purple-500 text-white' : 'bg-zinc-800 border-white/5 text-zinc-500 hover:border-white/20'}`}
+                                    title="Center Middle"
+                                >
+                                    <div className="w-2 h-2 bg-current rounded-sm" />
+                                </button>
+                                <button
+                                    onClick={() => handleChange('infoPosition', 'right-middle')}
+                                    className={`h-8 rounded-md border flex items-center justify-end p-1 transition-all ${config.infoPosition === 'right-middle' ? 'bg-purple-600 border-purple-500 text-white' : 'bg-zinc-800 border-white/5 text-zinc-500 hover:border-white/20'}`}
+                                    title="Right Middle"
+                                >
+                                    <div className="w-2 h-2 bg-current rounded-sm" />
+                                </button>
+
+                                {/* Bottom Row */}
+                                <button
+                                    onClick={() => handleChange('infoPosition', 'bottom-left')}
+                                    className={`h-8 rounded-md border flex items-end justify-start p-1 transition-all ${config.infoPosition === 'bottom-left' ? 'bg-purple-600 border-purple-500 text-white' : 'bg-zinc-800 border-white/5 text-zinc-500 hover:border-white/20'}`}
+                                >
+                                    <div className="w-2 h-2 bg-current rounded-sm" />
+                                </button>
+                                <button
+                                    onClick={() => handleChange('infoPosition', 'bottom-center')}
+                                    className={`h-8 rounded-md border flex items-end justify-center p-1 transition-all ${config.infoPosition === 'bottom-center' ? 'bg-purple-600 border-purple-500 text-white' : 'bg-zinc-800 border-white/5 text-zinc-500 hover:border-white/20'}`}
+                                >
+                                    <div className="w-2 h-2 bg-current rounded-sm" />
+                                </button>
+                                <button
+                                    onClick={() => handleChange('infoPosition', 'bottom-right')}
+                                    className={`h-8 rounded-md border flex items-end justify-end p-1 transition-all ${config.infoPosition === 'bottom-right' ? 'bg-purple-600 border-purple-500 text-white' : 'bg-zinc-800 border-white/5 text-zinc-500 hover:border-white/20'}`}
+                                >
+                                    <div className="w-2 h-2 bg-current rounded-sm" />
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="space-y-1.5">
+                            <span className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Style</span>
+                            <GroupedSelection
+                                value={config.infoStyle || 'classic'}
+                                onChange={(val) => handleChange('infoStyle', val)}
+                                groups={infoStyleGroups}
+                            />
+                        </div>
+
+                        <div className="space-y-1.5">
+                            <div className="flex justify-between items-center">
+                                <span className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Edge Margin</span>
+                                <span className="text-[10px] text-zinc-400 font-mono">{(config.infoMarginScale ?? 1).toFixed(1)}x</span>
+                            </div>
+                            <div className="flex items-center gap-2 bg-zinc-800 border border-white/10 rounded-lg px-2 py-1.5">
+                                <span className="text-zinc-500"><Maximize size={12} /></span>
+                                <input
+                                    type="range"
+                                    name="info-margin"
+                                    aria-label="Song Info Margin"
+                                    min="0.0"
+                                    max="5.0"
+                                    step="0.1"
+                                    value={config.infoMarginScale ?? 1.0}
+                                    onChange={(e) => handleChange('infoMarginScale', parseFloat(e.target.value))}
+                                    className="w-full h-1 bg-zinc-600 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full hover:[&::-webkit-slider-thumb]:bg-purple-400 transition-all"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="space-y-1.5">
+                            <div className="flex justify-between items-center">
+                                <span className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Info Size</span>
+                                <span className="text-[10px] text-zinc-400 font-mono">{(config.infoSizeScale ?? 1).toFixed(1)}x</span>
+                            </div>
+                            <div className="flex items-center gap-2 bg-zinc-800 border border-white/10 rounded-lg px-2 py-1.5">
+                                <span className="text-zinc-500"><Type size={12} /></span>
+                                <input
+                                    type="range"
+                                    name="info-size"
+                                    aria-label="Song Info Size"
+                                    min="0.5"
+                                    max="3.0"
+                                    step="0.1"
+                                    value={config.infoSizeScale ?? 1.0}
+                                    onChange={(e) => handleChange('infoSizeScale', parseFloat(e.target.value))}
+                                    className="w-full h-1 bg-zinc-600 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full hover:[&::-webkit-slider-thumb]:bg-purple-400 transition-all"
+                                />
+                            </div>
+                        </div>
+
+
+                        {/* Custom Font for Song Info */}
+                        <div className="space-y-1.5">
+                            <span className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Font Family</span>
+                            <FontSelector
+                                value={config.infoFontFamily || 'sans-serif'}
+                                onChange={(val) => handleChange('infoFontFamily', val)}
+                                customFontName={customInfoFontName || null}
+                                groups={dynamicFontGroups}
+                            />
+                            <GoogleFontLoader
+                                onApply={(name) => handleGoogleFontApply(name, 'infoFontFamily')}
+                                placeholder="Info Font (e.g. Roboto)"
+                            />
+                            <input
+                                aria-label="Upload Info Font"
+                                ref={infoFontInputRef}
+                                type="file"
+                                name="info-font-upload"
+                                id="info-font-upload"
+                                accept=".ttf,.otf,.woff,.woff2"
+                                onChange={onInfoFontUpload}
+                                className="hidden"
+                            />
+                            {customInfoFontName ? (
+                                <div className="flex items-center gap-2 bg-zinc-800/50 border border-purple-500/30 rounded-lg px-2 py-1.5 mt-1">
+                                    <span className="text-[10px] text-purple-300 font-medium truncate flex-1">{customInfoFontName}</span>
+                                    <button
+                                        onClick={() => handleChange('infoFontFamily', 'InfoFont')}
+                                        className={`text-[10px] px-2 py-0.5 rounded transition-colors ${config.infoFontFamily === 'InfoFont' ? 'bg-purple-600 text-white' : 'bg-zinc-700 text-zinc-300 hover:bg-zinc-600'}`}
+                                    >
+                                        Use
+                                    </button>
+                                    <button onClick={onClearInfoCustomFont} className="text-zinc-500 hover:text-red-400"><Trash2 size={12} /></button>
+                                </div>
+                            ) : (
+                                <button
+                                    onClick={() => infoFontInputRef.current?.click()}
+                                    className="w-full flex items-center justify-center gap-2 bg-zinc-800/30 border border-dashed border-white/10 hover:border-purple-500/50 rounded-lg px-2 py-1.5 text-zinc-500 hover:text-purple-300 transition-colors mt-1"
+                                >
+                                    <Upload size={10} />
+                                    <span className="text-[10px]">Upload Font</span>
+                                </button>
+                            )}
+                        </div>
+
+                        {/* Song Info Font Style (Bold/Italic) */}
+                        <div className="space-y-1.5">
+                            <span className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Font Style</span>
+                            <div className="flex bg-zinc-800 rounded-lg p-1 gap-1">
+                                <button
+                                    onClick={() => handleChange('infoFontWeight', config.infoFontWeight === 'bold' ? 'normal' : 'bold')}
+                                    className={`flex-1 py-1.5 rounded-md flex items-center justify-center transition-all ${config.infoFontWeight === 'bold' ? 'bg-zinc-600 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}
+                                    title="Bold"
+                                >
+                                    <Bold size={14} />
+                                </button>
+                                <button
+                                    onClick={() => handleChange('infoFontStyle', config.infoFontStyle === 'italic' ? 'normal' : 'italic')}
+                                    className={`flex-1 py-1.5 rounded-md flex items-center justify-center transition-all ${config.infoFontStyle === 'italic' ? 'bg-zinc-600 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}
+                                    title="Italic"
+                                >
+                                    <Italic size={14} />
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Song Info Color */}
+                        <div className="space-y-1.5">
+                            <span className="text-[10px] text-zinc-500 font-bold uppercase ml-1">Text Color</span>
+                            <div className="flex items-center gap-3 bg-zinc-800/30 p-2 rounded-lg border border-white/5">
+                                <input
+                                    id="info-font-color"
+                                    type="color"
+                                    name="info-font-color"
+                                    aria-label="Song Info Text Color"
+                                    value={config.infoFontColor || '#ffffff'}
+                                    onChange={(e) => handleChange('infoFontColor', e.target.value)}
+                                    className="w-6 h-6 rounded cursor-pointer bg-transparent border-none shrink-0"
+                                />
+                                <span className="text-[10px] text-zinc-400 font-mono uppercase">{config.infoFontColor || '#ffffff'}</span>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section className="space-y-3">
                     {/* Output Settings (New) */}
                     <div className="pt-2 border-t border-white/5 space-y-3">
-                        <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-2">
-                            <Video size={14} /> Output Settings
-                        </h3>
+                        <div className="flex items-center justify-between">
+                            <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-2">
+                                <Video size={14} /> Output Settings
+                            </h3>
+                            <label className="flex items-center gap-1.5 text-[10px] text-zinc-400 hover:text-zinc-200 cursor-pointer select-none">
+                                <input
+                                    type="checkbox"
+                                    checked={config.randomizeOutputSettings !== false}
+                                    onChange={(e) => handleChange('randomizeOutputSettings', e.target.checked)}
+                                    className="w-3 h-3 rounded border-white/10 bg-zinc-800 text-purple-600 focus:ring-0 cursor-pointer"
+                                />
+                                <span>Random</span>
+                            </label>
+                        </div>
 
                         <div className="grid grid-cols-2 gap-2">
                             <div className="space-y-1.5">

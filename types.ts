@@ -114,7 +114,7 @@ export interface RenderConfig {
   showCover: boolean;
   showIntro: boolean;
   showLyrics: boolean;
-  infoPosition?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'top-center' | 'bottom-center';
+  infoPosition?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'top-center' | 'bottom-center' | 'left-middle' | 'center-middle' | 'right-middle';
   infoStyle?: 'classic' | 'modern' | 'box' | 'minimal' | 'modern_art' | 'circle_art';
   infoMarginScale?: number;
   infoSizeScale?: number;
@@ -135,7 +135,7 @@ export interface RenderConfig {
   showChannelInfo?: boolean;
   channelInfoImage?: string; // DataURL or Object URL
   channelInfoText?: string;
-  channelInfoPosition?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'top-center' | 'bottom-center';
+  channelInfoPosition?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'top-center' | 'bottom-center' | 'left-middle' | 'center-middle' | 'right-middle';
   channelInfoStyle?: 'classic' | 'modern' | 'minimal' | 'logo' | 'box' | 'circle';
   channelInfoSizeScale?: number;
   channelInfoMarginScale?: number;
@@ -143,6 +143,27 @@ export interface RenderConfig {
   channelInfoFontColor?: string;
   channelInfoFontWeight?: 'normal' | 'bold';
   channelInfoFontStyle?: 'normal' | 'italic';
+
+  // Floating Notes / Media
+  showFloatingNotes?: boolean;
+  floatingNotesLayout?: 'text-only' | 'media-only' | 'media-left-text' | 'media-right-text' | 'media-top-text' | 'media-bottom-text';
+  floatingNotesMedia?: string;
+  floatingNotesMediaType?: 'image' | 'video';
+  floatingNotesText?: string;
+  floatingNotesPosition?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'top-center' | 'bottom-center' | 'left-middle' | 'center-middle' | 'right-middle';
+  floatingNotesShape?: 'none' | 'sharp' | 'rounded';
+  floatingNotesFillColor?: string;
+  floatingNotesOutlineColor?: string;
+  floatingNotesOutlineSize?: number;
+  floatingNotesOpacity?: number;
+  floatingNotesMarginScale?: number;
+  floatingNotesWidth?: number;
+  floatingNotesHeight?: number;
+  floatingNotesFontFamily?: string;
+  floatingNotesFontStyle?: 'normal' | 'italic';
+  floatingNotesFontWeight?: 'normal' | 'bold';
+  floatingNotesFontColor?: string;
+  floatingNotesTextAlign?: 'left' | 'center' | 'right';
 
   // Song Info specific overrides
   infoFontFamily?: string;
@@ -168,6 +189,27 @@ export interface RenderConfig {
   visualizationPosition?: 'bottom' | 'top' | 'full' | 'center';
   visualizationSensitivity?: number; // 0.5 to 3.0
   visualizationBarCount?: number; // 16 to 128
+
+  // Randomizer settings
+  randomizePreset?: boolean;
+  randomizeRenderScope?: boolean;
+  randomizeBackgroundSource?: boolean;
+  randomizeBackgroundEffects?: boolean;
+  randomizeAudioVisualizer?: boolean;
+  randomizeLyricDisplayMode?: boolean;
+  randomizeLyricVisibility?: boolean;
+  randomizeHighlightEffect?: boolean;
+  randomizeVisibleElements?: boolean;
+  randomizeIntroSettings?: boolean;
+  randomizeTypographyStyle?: boolean;
+  randomizeTextEffect?: boolean;
+  randomizeTextAnimation?: boolean;
+  randomizeTransitionEffect?: boolean;
+  randomizeVisualTransition?: boolean;
+  randomizeChannelInfo?: boolean;
+  randomizeFloatingNotes?: boolean;
+  randomizeSongInfoDesign?: boolean;
+  randomizeOutputSettings?: boolean;
 }
 
 // Render Engine: MediaRecorder (realtime) vs FFmpeg (frame-by-frame)
