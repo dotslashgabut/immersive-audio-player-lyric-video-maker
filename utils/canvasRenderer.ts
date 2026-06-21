@@ -1995,14 +1995,15 @@ export const drawCanvasFrame = (
                 const margin = 40 * scale * (renderConfig?.infoMarginScale ?? 1);
 
                 let align: 'left' | 'center' | 'right' = 'left';
-                let vertical: 'top' | 'bottom' = 'top';
+                let vertical: 'top' | 'bottom' | 'middle' = 'top';
 
                 if (pos.includes('left')) align = 'left';
                 else if (pos.includes('right')) align = 'right';
                 else align = 'center';
 
                 if (pos.includes('top')) vertical = 'top';
-                else vertical = 'bottom';
+                else if (pos.includes('bottom')) vertical = 'bottom';
+                else if (pos.includes('middle')) vertical = 'middle';
 
                 const infoScale = (renderConfig?.infoSizeScale ?? 1);
                 const coverSize = ((style === 'minimal' || style === 'modern') ? 0 : 100 * scale) * infoScale;
@@ -2077,7 +2078,8 @@ export const drawCanvasFrame = (
                 else anchorX = width / 2;
 
                 if (vertical === 'top') anchorY = margin;
-                else anchorY = height - margin;
+                else if (vertical === 'bottom') anchorY = height - margin;
+                else anchorY = height / 2;
 
                 // Determine Top-Left of Box for Drawing
                 let boxX = 0;
@@ -2088,7 +2090,8 @@ export const drawCanvasFrame = (
                 else boxX = anchorX - (blockW / 2);
 
                 if (vertical === 'top') boxY = anchorY;
-                else boxY = anchorY - blockH;
+                else if (vertical === 'bottom') boxY = anchorY - blockH;
+                else boxY = anchorY - (blockH / 2);
 
                 // DRAW BOX BACKGROUND
                 if (isBox) {
@@ -2117,7 +2120,7 @@ export const drawCanvasFrame = (
                     const centerX = contentStartX + (contentW / 2);
                     ctx.textAlign = 'center';
 
-                    if (vertical === 'top') {
+                    if (vertical !== 'bottom') {
                         // Image -> Title -> Artist
                         if (hasCover && coverImg) {
                             ctx.save();
@@ -2409,6 +2412,7 @@ export const drawCanvasFrame = (
 
             if (cPos.includes('top')) y = margin;
             else if (cPos.includes('bottom')) y = height - margin - h;
+            else if (cPos.includes('middle')) y = (height - h) / 2;
 
             // --- Drawing ---
 
@@ -2531,6 +2535,172 @@ export const drawCanvasFrame = (
                         }
                     }
                 }
+            }
+
+            ctx.restore();
+        }
+    }
+
+    // 7. Floating Notes / Media (Global Overlay)
+    if (renderConfig?.showFloatingNotes) {
+        const fPos = renderConfig.floatingNotesPosition || 'bottom-left';
+        const fLayout = renderConfig.floatingNotesLayout || 'text-only';
+        const fShape = renderConfig.floatingNotesShape || 'rounded';
+        const fOpacity = renderConfig.floatingNotesOpacity ?? 0.8;
+        const marginScale = (renderConfig.floatingNotesMarginScale ?? 1.0);
+        const fWidth = (renderConfig.floatingNotesWidth || 300) * scale;
+        const fHeight = (renderConfig.floatingNotesHeight || 150) * scale;
+
+        const fImg = images.get('__floating_notes_media__');
+        const fVid = videos.get('__floating_notes_media__');
+        const fText = renderConfig.floatingNotesText;
+
+        // Skip if nothing to draw
+        const hasMedia = !!fImg || !!fVid;
+        const hasText = !!fText && fLayout !== 'media-only';
+
+        if (hasMedia || hasText) {
+            ctx.save();
+            ctx.globalAlpha = fOpacity;
+
+            const margin = 40 * scale * marginScale;
+
+            // Position (Origin: Top-Left of Block)
+            let x = 0, y = 0;
+
+            if (fPos.includes('left')) x = margin;
+            else if (fPos.includes('right')) x = width - margin - fWidth;
+            else if (fPos.includes('center')) x = (width - fWidth) / 2;
+
+            if (fPos.includes('top')) y = margin;
+            else if (fPos.includes('bottom')) y = height - margin - fHeight;
+            else if (fPos.includes('middle')) y = (height - fHeight) / 2;
+
+            // 1. Draw Shape Background & Outline
+            if (fShape !== 'none') {
+                ctx.fillStyle = renderConfig.floatingNotesFillColor || '#000000';
+                ctx.strokeStyle = renderConfig.floatingNotesOutlineColor || '#ffffff';
+                ctx.lineWidth = (renderConfig.floatingNotesOutlineSize ?? 1) * scale;
+                ctx.beginPath();
+                if (fShape === 'rounded' && ctx.roundRect) {
+                    ctx.roundRect(x, y, fWidth, fHeight, 12 * scale);
+                } else {
+                    ctx.rect(x, y, fWidth, fHeight);
+                }
+                ctx.fill();
+                if (ctx.lineWidth > 0) {
+                    ctx.stroke();
+                }
+            }
+
+            // 2. Draw Content based on Layout
+            // Inner coordinates with padding
+            const pad = 16 * scale;
+            const innerX = x + pad;
+            const innerY = y + pad;
+            const innerW = fWidth - pad * 2;
+            const innerH = fHeight - pad * 2;
+
+            let mediaBox = { x: 0, y: 0, w: 0, h: 0 };
+            let textBox = { x: 0, y: 0, w: 0, h: 0 };
+
+            if (fLayout === 'text-only' || !hasMedia) {
+                textBox = { x: innerX, y: innerY, w: innerW, h: innerH };
+            } else if (fLayout === 'media-only' || !hasText) {
+                mediaBox = { x: innerX, y: innerY, w: innerW, h: innerH };
+            } else if (fLayout === 'media-left-text') {
+                const mw = innerW / 2 - 8 * scale;
+                mediaBox = { x: innerX, y: innerY, w: mw, h: innerH };
+                textBox = { x: innerX + mw + 16 * scale, y: innerY, w: innerW - mw - 16 * scale, h: innerH };
+            } else if (fLayout === 'media-right-text') {
+                const mw = innerW / 2 - 8 * scale;
+                textBox = { x: innerX, y: innerY, w: innerW - mw - 16 * scale, h: innerH };
+                mediaBox = { x: innerX + (innerW - mw), y: innerY, w: mw, h: innerH };
+            } else if (fLayout === 'media-top-text') {
+                const mh = innerH / 2 - 8 * scale;
+                mediaBox = { x: innerX, y: innerY, w: innerW, h: mh };
+                textBox = { x: innerX, y: innerY + mh + 16 * scale, w: innerW, h: innerH - mh - 16 * scale };
+            } else if (fLayout === 'media-bottom-text') {
+                const mh = innerH / 2 - 8 * scale;
+                textBox = { x: innerX, y: innerY, w: innerW, h: innerH - mh - 16 * scale };
+                mediaBox = { x: innerX, y: innerY + (innerH - mh), w: innerW, h: mh };
+            }
+
+            // Draw Media (Image or Video)
+            if (hasMedia && mediaBox.w > 0 && mediaBox.h > 0) {
+                const mediaElement = fImg || fVid;
+                if (mediaElement) {
+                    ctx.save();
+                    // Clip to mediaBox
+                    ctx.beginPath();
+                    ctx.rect(mediaBox.x, mediaBox.y, mediaBox.w, mediaBox.h);
+                    ctx.clip();
+
+                    // Maintain aspect ratio cover/contain
+                    let imgW = 0, imgH = 0;
+                    if (mediaElement instanceof HTMLVideoElement) {
+                        imgW = mediaElement.videoWidth || mediaBox.w;
+                        imgH = mediaElement.videoHeight || mediaBox.h;
+                    } else if (mediaElement instanceof ImageBitmap) {
+                        imgW = mediaElement.width;
+                        imgH = mediaElement.height;
+                    } else {
+                        imgW = mediaElement.naturalWidth || mediaBox.w;
+                        imgH = mediaElement.naturalHeight || mediaBox.h;
+                    }
+
+                    const aspect = imgW / imgH;
+                    const boxAspect = mediaBox.w / mediaBox.h;
+
+                    let drawW = mediaBox.w;
+                    let drawH = mediaBox.h;
+                    let drawX = mediaBox.x;
+                    let drawY = mediaBox.y;
+
+                    if (aspect > boxAspect) {
+                        // Fit to height
+                        drawW = mediaBox.h * aspect;
+                        drawX = mediaBox.x + (mediaBox.w - drawW) / 2;
+                    } else {
+                        // Fit to width
+                        drawH = mediaBox.w / aspect;
+                        drawY = mediaBox.y + (mediaBox.h - drawH) / 2;
+                    }
+
+                    ctx.drawImage(mediaElement, drawX, drawY, drawW, drawH);
+                    ctx.restore();
+                }
+            }
+
+            // Draw Text
+            if (hasText && textBox.w > 0 && textBox.h > 0) {
+                ctx.save();
+                const fFontFamily = renderConfig.floatingNotesFontFamily || 'sans-serif';
+                const fFontStyle = renderConfig.floatingNotesFontStyle || 'normal';
+                const fFontWeight = renderConfig.floatingNotesFontWeight || 'normal';
+                const fFontColor = renderConfig.floatingNotesFontColor || '#ffffff';
+                const fFontSize = 14 * scale;
+
+                ctx.font = `${fFontStyle} ${fFontWeight} ${fFontSize}px ${fFontFamily}`;
+                ctx.fillStyle = fFontColor;
+                const fAlign = renderConfig.floatingNotesTextAlign || 'left';
+                ctx.textAlign = fAlign;
+                ctx.textBaseline = 'top';
+
+                // Wrap text and draw it
+                const wrappedLines = getWrappedLines(ctx, fText!, textBox.w);
+                const lineHeight = fFontSize * 1.3;
+                let currentY = textBox.y;
+
+                for (const line of wrappedLines) {
+                    if (currentY + lineHeight > textBox.y + textBox.h) break; // Clip text if it exceeds box
+                    let textX = textBox.x;
+                    if (fAlign === 'center') textX = textBox.x + textBox.w / 2;
+                    else if (fAlign === 'right') textX = textBox.x + textBox.w;
+                    ctx.fillText(line, textX, currentY);
+                    currentY += lineHeight;
+                }
+                ctx.restore();
             }
 
             ctx.restore();
