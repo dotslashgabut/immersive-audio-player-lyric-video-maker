@@ -29,6 +29,16 @@
 - **Playlist Lyric Timeline — Horizontal Scroll Fix** *(Bug Fix)*:
   - **Native Wheel Listener**: Fixed the mini lyric-timeline blocks in the Playlist Editor so that **vertical mouse wheel** scrolling over an overflowing lyric strip now correctly scrolls that strip **horizontally** (using `deltaY → scrollLeft` mapping) instead of scrolling the page. Uses a non-passive `wheel` event listener with `preventDefault()` to avoid scroll propagation conflicts.
 
+- **`Q` Hotkey — Lyric Visibility Mode Toggle** *(Bug Fix)*:
+  - **Incorrect Behavior**: The `Q` key was previously wired to toggle `showLyrics` (the **Lyrics / Subtitles** toggle under **Visible Elements**), which simply hides or shows the lyrics layer entirely.
+  - **Correct Behavior**: `Q` now correctly toggles `lyricVisibilityMode` between **Default** and **Auto** — matching the **DEFAULT / AUTO** button in the player footer and the **Lyric Visibility** section in Render Settings. In Auto mode, lyrics are intelligently hidden during instrumental gaps, intros, and outros.
+  - **Overlay & Documentation**: Updated the in-app keyboard shortcut overlay and README to accurately describe the `Q` key as **"Lyric Visibility: Default / Auto"**.
+
+- **Channel Info Position Grid — 9-Point UI Fix** *(Bug Fix)*:
+  - **Missing Middle Row**: The Channel Info position picker in the Render Settings panel was only showing a **6-button** grid (Top row + Bottom row), missing the entire **Middle row** (`Left Middle`, `Center Middle`, `Right Middle`). These positions were already supported in the canvas renderer and App.tsx live preview but were inaccessible from the UI.
+  - **Full 3×3 Grid**: Restored the complete **9-point grid** in the Channel Info position section, consistent with the Song Info and Floating Notes position pickers.
+  - **Randomizer Updated**: Added `left-middle`, `center-middle`, and `right-middle` to the randomizer's position pool so all 9 positions can be randomly assigned to Channel Info.
+
 # 2.3.17
 
 ## What's New
