@@ -159,11 +159,18 @@ export interface RenderConfig {
   floatingNotesMarginScale?: number;
   floatingNotesWidth?: number;
   floatingNotesHeight?: number;
+  floatingNotesMediaSizeScale?: number;
+  floatingNotesFontSizeScale?: number;
   floatingNotesFontFamily?: string;
   floatingNotesFontStyle?: 'normal' | 'italic';
   floatingNotesFontWeight?: 'normal' | 'bold';
   floatingNotesFontColor?: string;
   floatingNotesTextAlign?: 'left' | 'center' | 'right';
+  floatingNotesVisibilityMode?: 'all' | 'follow-lyrics' | 'from-start' | 'from-end' | 'from-start-and-end' | 'specific';
+  floatingNotesFromStartDuration?: number;
+  floatingNotesFromEndDuration?: number;
+  floatingNotesSpecificStart?: string;
+  floatingNotesSpecificEnd?: string;
 
   // Song Info specific overrides
   infoFontFamily?: string;
@@ -191,13 +198,10 @@ export interface RenderConfig {
   visualizationBarCount?: number; // 16 to 128
 
   // Randomizer settings
-  randomizePreset?: boolean;
-  randomizeRenderScope?: boolean;
   randomizeBackgroundSource?: boolean;
   randomizeBackgroundEffects?: boolean;
   randomizeAudioVisualizer?: boolean;
   randomizeLyricDisplayMode?: boolean;
-  randomizeLyricVisibility?: boolean;
   randomizeHighlightEffect?: boolean;
   randomizeVisibleElements?: boolean;
   randomizeIntroSettings?: boolean;
@@ -209,7 +213,6 @@ export interface RenderConfig {
   randomizeChannelInfo?: boolean;
   randomizeFloatingNotes?: boolean;
   randomizeSongInfoDesign?: boolean;
-  randomizeOutputSettings?: boolean;
 }
 
 // Render Engine: MediaRecorder (realtime) vs FFmpeg (frame-by-frame)
