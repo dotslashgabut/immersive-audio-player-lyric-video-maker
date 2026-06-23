@@ -2,6 +2,14 @@ import { LyricLine, VideoPreset, VisualSlide, AudioMetadata, RenderConfig, Lyric
 import { drawVisualization, getVizParams } from './visualizationRenderer';
 import { renderThreeFrame } from './threeRenderer';
 import { findActiveLyricIndex, resolveAutoLyricVisibility, getContentIndexAtOffset, isEmptyLyricLine } from './lyricVisibility';
+import { isFloatingNotesVisible } from './floatingNotesVisibility';
+import {
+    alignFloatingNotesMediaDrawRect,
+    computeFloatingNotesContentBoxes,
+    getFloatingNotesFontSizeScale,
+    getFloatingNotesMediaSizeScale,
+    getFloatingNotesOutlineSize,
+} from './floatingNotesLayout';
 
 export const drawCanvasFrame = (
     ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D,
@@ -2542,7 +2550,7 @@ export const drawCanvasFrame = (
     }
 
     // 7. Floating Notes / Media (Global Overlay)
-    if (renderConfig?.showFloatingNotes) {
+    if (isFloatingNotesVisible(time, duration, renderConfig, lyrics, { isFirstSongInPlaylist: isFirstSongInPlaylist })) {
         const fPos = renderConfig.floatingNotesPosition || 'bottom-left';
         const fLayout = renderConfig.floatingNotesLayout || 'text-only';
         const fShape = renderConfig.floatingNotesShape || 'rounded';
@@ -2579,8 +2587,6 @@ export const drawCanvasFrame = (
             // 1. Draw Shape Background & Outline
             if (fShape !== 'none') {
                 ctx.fillStyle = renderConfig.floatingNotesFillColor || '#000000';
-                ctx.strokeStyle = renderConfig.floatingNotesOutlineColor || '#ffffff';
-                ctx.lineWidth = (renderConfig.floatingNotesOutlineSize ?? 1) * scale;
                 ctx.beginPath();
                 if (fShape === 'rounded' && ctx.roundRect) {
                     ctx.roundRect(x, y, fWidth, fHeight, 12 * scale);
@@ -2588,7 +2594,11 @@ export const drawCanvasFrame = (
                     ctx.rect(x, y, fWidth, fHeight);
                 }
                 ctx.fill();
-                if (ctx.lineWidth > 0) {
+
+                const outlineSize = getFloatingNotesOutlineSize(renderConfig) * scale;
+                if (outlineSize > 0) {
+                    ctx.strokeStyle = renderConfig.floatingNotesOutlineColor || '#ffffff';
+                    ctx.lineWidth = outlineSize;
                     ctx.stroke();
                 }
             }
@@ -2601,30 +2611,18 @@ export const drawCanvasFrame = (
             const innerW = fWidth - pad * 2;
             const innerH = fHeight - pad * 2;
 
-            let mediaBox = { x: 0, y: 0, w: 0, h: 0 };
-            let textBox = { x: 0, y: 0, w: 0, h: 0 };
-
-            if (fLayout === 'text-only' || !hasMedia) {
-                textBox = { x: innerX, y: innerY, w: innerW, h: innerH };
-            } else if (fLayout === 'media-only' || !hasText) {
-                mediaBox = { x: innerX, y: innerY, w: innerW, h: innerH };
-            } else if (fLayout === 'media-left-text') {
-                const mw = innerW / 2 - 8 * scale;
-                mediaBox = { x: innerX, y: innerY, w: mw, h: innerH };
-                textBox = { x: innerX + mw + 16 * scale, y: innerY, w: innerW - mw - 16 * scale, h: innerH };
-            } else if (fLayout === 'media-right-text') {
-                const mw = innerW / 2 - 8 * scale;
-                textBox = { x: innerX, y: innerY, w: innerW - mw - 16 * scale, h: innerH };
-                mediaBox = { x: innerX + (innerW - mw), y: innerY, w: mw, h: innerH };
-            } else if (fLayout === 'media-top-text') {
-                const mh = innerH / 2 - 8 * scale;
-                mediaBox = { x: innerX, y: innerY, w: innerW, h: mh };
-                textBox = { x: innerX, y: innerY + mh + 16 * scale, w: innerW, h: innerH - mh - 16 * scale };
-            } else if (fLayout === 'media-bottom-text') {
-                const mh = innerH / 2 - 8 * scale;
-                textBox = { x: innerX, y: innerY, w: innerW, h: innerH - mh - 16 * scale };
-                mediaBox = { x: innerX, y: innerY + (innerH - mh), w: innerW, h: mh };
-            }
+            const mediaSizeScale = getFloatingNotesMediaSizeScale(renderConfig);
+            const { mediaBox, textBox } = computeFloatingNotesContentBoxes(
+                fLayout,
+                innerX,
+                innerY,
+                innerW,
+                innerH,
+                scale,
+                hasMedia,
+                hasText,
+                mediaSizeScale,
+            );
 
             // Draw Media (Image or Video)
             if (hasMedia && mediaBox.w > 0 && mediaBox.h > 0) {
@@ -2660,12 +2658,14 @@ export const drawCanvasFrame = (
                     if (aspect > boxAspect) {
                         // Fit to height
                         drawW = mediaBox.h * aspect;
-                        drawX = mediaBox.x + (mediaBox.w - drawW) / 2;
                     } else {
                         // Fit to width
                         drawH = mediaBox.w / aspect;
-                        drawY = mediaBox.y + (mediaBox.h - drawH) / 2;
                     }
+
+                    const aligned = alignFloatingNotesMediaDrawRect(fLayout, mediaBox, drawW, drawH);
+                    drawX = aligned.drawX;
+                    drawY = aligned.drawY;
 
                     ctx.drawImage(mediaElement, drawX, drawY, drawW, drawH);
                     ctx.restore();
@@ -2679,7 +2679,7 @@ export const drawCanvasFrame = (
                 const fFontStyle = renderConfig.floatingNotesFontStyle || 'normal';
                 const fFontWeight = renderConfig.floatingNotesFontWeight || 'normal';
                 const fFontColor = renderConfig.floatingNotesFontColor || '#ffffff';
-                const fFontSize = 14 * scale;
+                const fFontSize = 14 * scale * getFloatingNotesFontSizeScale(renderConfig);
 
                 ctx.font = `${fFontStyle} ${fFontWeight} ${fFontSize}px ${fFontFamily}`;
                 ctx.fillStyle = fFontColor;

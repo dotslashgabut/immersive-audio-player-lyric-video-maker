@@ -10,6 +10,7 @@ import { fetchFile, toBlobURL } from '@ffmpeg/util';
 import { LyricLine, VisualSlide, AudioMetadata, RenderConfig, VideoPreset } from '../types';
 import { drawCanvasFrame } from './canvasRenderer';
 import { decodeAudioForVisualization, computeFrequencyDataAtTime } from './visualizationRenderer';
+import { decodeTimelineAudioSlides, mixTimelineAudioIntoBuffer, audioBufferToWav } from './timelineAudioMixer';
 
 export interface FFmpegRenderOptions {
   canvas: HTMLCanvasElement;
@@ -363,10 +364,24 @@ export async function renderWithFFmpeg(options: FFmpegRenderOptions): Promise<FF
 
   onProgress(5, 'Preparing audio...');
 
-  // Get audio duration
-  const audioUrl = URL.createObjectURL(audioFile);
-  const audioDuration = await getAudioDuration(audioUrl);
-  URL.revokeObjectURL(audioUrl);
+  const audioData = await audioFile.arrayBuffer();
+  const tempCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+  let audioBuffer = await tempCtx.decodeAudioData(audioData.slice(0));
+
+  const decodedTimelineAudio = await decodeTimelineAudioSlides(visualSlides, audioBuffer.sampleRate, onLog);
+  if (decodedTimelineAudio.length > 0) {
+    onLog?.('[FFmpeg] Mixing timeline audio tracks...');
+    audioBuffer = await mixTimelineAudioIntoBuffer(
+      audioBuffer,
+      decodedTimelineAudio,
+      renderConfig,
+      startTimeOffset,
+      onLog
+    );
+  }
+
+  const audioDuration = audioBuffer.duration;
+  tempCtx.close();
 
   const totalFrames = Math.ceil(audioDuration * fps);
   const ctx = canvas.getContext('2d');
@@ -377,26 +392,15 @@ export async function renderWithFFmpeg(options: FFmpegRenderOptions): Promise<FF
 
   onProgress(10, 'Rendering frames...');
 
-  // Write audio to FFmpeg filesystem
-  const audioData = await audioFile.arrayBuffer();
-  // Standardize audio filename to avoid extension issues
-  await ffmpeg.writeFile('audio_src', new Uint8Array(audioData));
+  // Write mixed audio to FFmpeg filesystem as WAV
+  await ffmpeg.writeFile('audio_src', new Uint8Array(audioBufferToWav(audioBuffer)));
 
   // Decode audio for visualization (offline frequency analysis)
   let pcmData: Float32Array | null = null;
-  let audioSampleRate = 44100;
+  let audioSampleRate = audioBuffer.sampleRate;
   if (renderConfig.showVisualization) {
-    try {
-      onLog?.('[FFmpeg] Decoding audio for visualization analysis...');
-      const tempCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-      const audioBuffer = await tempCtx.decodeAudioData(audioData.slice(0));
-      pcmData = audioBuffer.getChannelData(0);
-      audioSampleRate = audioBuffer.sampleRate;
-      tempCtx.close();
-      onLog?.(`[FFmpeg] Audio decoded: ${audioBuffer.duration.toFixed(1)}s @ ${audioSampleRate}Hz`);
-    } catch (e) {
-      onLog?.(`[FFmpeg] Warning: Could not decode audio for visualization: ${(e as Error).message}`);
-    }
+    pcmData = audioBuffer.getChannelData(0);
+    onLog?.(`[FFmpeg] Audio decoded: ${audioDuration.toFixed(1)}s @ ${audioSampleRate}Hz`);
   }
 
   // Render frames
@@ -697,6 +701,11 @@ async function syncVideoElements(
       const duration = vid.duration || 1;
       if (duration > 0) {
         targetTime = globalTime % duration;
+      }
+    } else if (id === '__floating_notes_media__') {
+      const duration = vid.duration || 1;
+      if (duration > 0) {
+        targetTime = time % duration;
       }
     } else if (id === 'background') {
       const duration = vid.duration || 1;

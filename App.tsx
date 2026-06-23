@@ -14,6 +14,15 @@ import AudioVisualizer, { disconnectVisualizerAudio } from './components/AudioVi
 import { getSharedAudioContext, getOrCreateMediaElementSource } from './utils/audioContext';
 import ThreeBackground from './components/ThreeBackground';
 import { drawCanvasFrame } from './utils/canvasRenderer';
+import { isFloatingNotesVisible } from './utils/floatingNotesVisibility';
+import {
+    getFloatingNotesFontSizeScale,
+    getFloatingNotesMediaFlexStyle,
+    getFloatingNotesMediaContainerClass,
+    getFloatingNotesMediaObjectPosition,
+    getFloatingNotesMediaSizeScale,
+    getFloatingNotesOutlineSize,
+} from './utils/floatingNotesLayout';
 import { resolveAutoLyricVisibility, getContentIndexAtOffset, isEmptyLyricLine } from './utils/lyricVisibility';
 import { loadGoogleFonts } from './utils/fonts';
 import { PRESET_CYCLE_LIST, PRESET_DEFINITIONS, videoPresetGroups } from './utils/presets';
@@ -21,6 +30,7 @@ import { useUI } from './contexts/UIContext';
 import { renderWithFFmpeg, renderPlaylistWithFFmpeg, isFFmpegAvailable, getFFmpegCodecs } from './utils/ffmpegRenderer';
 import { renderWithWebCodecs, renderPlaylistWithWebCodecs, isWebCodecsSupported } from './utils/webCodecsRenderer';
 import { extractEmbeddedLyrics } from './utils/embeddedLyrics';
+import { generateRandomRenderConfig } from './utils/randomConfig';
 
 
 
@@ -147,18 +157,22 @@ function App() {
     floatingNotesMarginScale: 1.0,
     floatingNotesWidth: 300,
     floatingNotesHeight: 150,
+    floatingNotesMediaSizeScale: 0.4,
+    floatingNotesFontSizeScale: 1.0,
     floatingNotesFontFamily: 'ui-sans-serif, system-ui, sans-serif',
     floatingNotesFontStyle: 'normal',
     floatingNotesFontWeight: 'normal',
     floatingNotesFontColor: '#ffffff',
     floatingNotesTextAlign: 'left',
-    randomizePreset: true,
-    randomizeRenderScope: true,
+    floatingNotesVisibilityMode: 'all',
+    floatingNotesFromStartDuration: 10,
+    floatingNotesFromEndDuration: 10,
+    floatingNotesSpecificStart: '0:00',
+    floatingNotesSpecificEnd: '0:30',
     randomizeBackgroundSource: true,
     randomizeBackgroundEffects: true,
     randomizeAudioVisualizer: true,
     randomizeLyricDisplayMode: true,
-    randomizeLyricVisibility: true,
     randomizeHighlightEffect: true,
     randomizeVisibleElements: true,
     randomizeIntroSettings: true,
@@ -170,7 +184,6 @@ function App() {
     randomizeChannelInfo: true,
     randomizeFloatingNotes: true,
     randomizeSongInfoDesign: true,
-    randomizeOutputSettings: true,
   });
 
   // Ref to access latest config in event handlers without triggering re-renders
@@ -315,6 +328,17 @@ function App() {
     : (autoLyricVisibility?.displayIdx ?? currentLyricIndex);
   const virtualLyricIndex = autoLyricVisibility?.virtualActiveIdx
     ?? (currentLyricIndex >= 0 ? currentLyricIndex : 0);
+
+  const showFloatingNotesPreview = useMemo(() => {
+    return isFloatingNotesVisible(currentTime, duration, renderConfig, adjustedLyrics, {
+      isFirstSongInPlaylist: currentTrackIndex <= 0,
+    });
+  }, [currentTime, duration, renderConfig, adjustedLyrics, currentTrackIndex]);
+
+  const floatingNotesLayout = renderConfig.floatingNotesLayout || 'text-only';
+  const floatingNotesMediaSizeScale = getFloatingNotesMediaSizeScale(renderConfig);
+  const floatingNotesFontSizeScale = getFloatingNotesFontSizeScale(renderConfig);
+  const floatingNotesOutlineSize = getFloatingNotesOutlineSize(renderConfig);
 
   const isLyricLineVisible = useCallback((idx: number) => {
     if (isEmptyLyricLine(adjustedLyrics[idx])) return false;
@@ -1310,11 +1334,17 @@ function App() {
       src.disconnect();
       src.connect(mixerDest);
     });
-    audioMap.forEach((audElement) => {
-      audElement.muted = true;
+    const audioGainMap = new Map<string, GainNode>();
+    audioMap.forEach((audElement, id) => {
+      // Keep unmuted — Web Audio graph controls audibility via gain (muted attr blocks source output)
+      audElement.muted = false;
       const src = getOrCreateMediaElementSource(audElement, audioContext);
       src.disconnect();
-      src.connect(mixerDest);
+      const gain = audioContext.createGain();
+      gain.gain.value = 0;
+      src.connect(gain);
+      gain.connect(mixerDest);
+      audioGainMap.set(id, gain);
     });
 
     if (mixerDest.stream.getAudioTracks().length > 0) {
@@ -1422,7 +1452,7 @@ function App() {
 
       // Sync Backgrounds/Videos
       videoMap.forEach((v, id) => {
-        if (id === 'background' || id === '__custom_bg_video__') {
+        if (id === 'background' || id === '__custom_bg_video__' || id === '__floating_notes_media__') {
           const vidDuration = v.duration || 1;
           const targetTime = t % vidDuration;
           // Handle Loop Wrap-around and Drift
@@ -1463,23 +1493,24 @@ function App() {
       // Sync Audio Slides
       audioMap.forEach((a, id) => {
         const s = visualSlides.find(sl => sl.id === id);
-        if (s) {
+        const gain = audioGainMap.get(id);
+        if (s && gain) {
           const layer = s.layer || 0;
           const isLayerVisible = renderConfig.layerVisibility?.audio?.[layer] !== false;
 
-          if (isLayerVisible && t >= s.startTime && t < s.endTime) {
+          if (isLayerVisible && t >= s.startTime && t < s.endTime && s.isMuted !== true) {
             const speed = s.playbackRate || 1;
             const rel = ((t - s.startTime) * speed) + (s.mediaStartOffset || 0);
 
             if (Math.abs(a.playbackRate - speed) > 0.01) a.playbackRate = speed;
 
             if (Math.abs(a.currentTime - rel) > 0.5) a.currentTime = rel;
-            const shouldMute = s.isMuted === true;
-            if (a.muted !== shouldMute) a.muted = shouldMute;
+            const targetVol = s.volume !== undefined ? s.volume : 1;
+            if (Math.abs(gain.gain.value - targetVol) > 0.01) gain.gain.value = targetVol;
             if (a.paused) a.play().catch(() => { });
           } else {
             if (!a.paused) a.pause();
-            if (!a.muted) a.muted = true;
+            if (gain.gain.value !== 0) gain.gain.value = 0;
           }
         }
       });
@@ -2298,7 +2329,7 @@ function App() {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Check if the key shoud trigger UI wake-up
       const key = e.key.toLowerCase();
-      const ignoredKeysForIdle = [' ', 'k', 's', 'v', 'n', 'b', 't', 'l', 'r', 'f', 'h', 'g', 'm', 'j', 'd', 'e', 'c', 'x', 'z', 'arrowleft', 'arrowright', 'arrowup', 'arrowdown', 'meta', 'control', 'shift', 'alt', 'printscreen', 'fn', '+', '-', '=', '8', '9', '0'];
+      const ignoredKeysForIdle = [' ', 's', 'v', 'n', 'b', 't', 'p', 'l', 'r', 'f', 'h', 'g', 'm', 'j', 'd', 'e', 'c', 'x', 'z', 'arrowleft', 'arrowright', 'arrowup', 'arrowdown', 'meta', 'control', 'shift', 'alt', 'printscreen', 'fn', '+', '-', '=', '8', '9', '0'];
 
       if (!ignoredKeysForIdle.includes(key)) {
         resetIdleTimer();
@@ -2326,7 +2357,6 @@ function App() {
 
       switch (e.key.toLowerCase()) {
         case ' ':
-        case 'k':
           e.preventDefault();
           togglePlay();
           toast.success(isPlaying ? "Paused" : "Playing", { id: 'play-pause' });
@@ -2364,7 +2394,7 @@ function App() {
           const repLabels: Record<string, string> = { off: 'Repeat Off', one: 'Loop One', all: 'Play All (Stop)', all_repeat: 'Loop Playlist' };
           toast.success(`Repeat: ${repLabels[nextRepMode]}`, { id: 'repeat' });
           break;
-        case 'l': // List (Playlist)
+        case 'p': // List (Playlist)
           e.preventDefault();
           const newMode = !isPlaylistMode;
           setIsPlaylistMode(newMode);
@@ -2376,7 +2406,7 @@ function App() {
           setBypassAutoHide(nextBypass);
           toast.success(nextBypass ? "HUD: Always Visible" : "HUD: Auto-Hide", { id: 'hud-mode' });
           break;
-        case 'y':
+        case 'k': // Keyboard Shortcuts
           e.preventDefault();
           setShowShortcutInfo(prev => !prev);
           break;
@@ -2410,8 +2440,17 @@ function App() {
         case 'i': // Toggle Info (Top)
           setShowInfo(prev => !prev);
           break;
-        case 'p': // Toggle Player (Bottom)
+        case 'y': // Toggle Player (Bottom)
           setShowPlayer(prev => !prev);
+          break;
+        case 'l': // Random Settings
+          e.preventDefault();
+          {
+            const newRandomConfig = generateRandomRenderConfig(renderConfigRef.current);
+            setRenderConfig(newRandomConfig);
+            setPreset('custom');
+            toast.success('🎲 Random settings generated!', { id: 'random-settings' });
+          }
           break;
         case 'd': // Toggle Render Settings
           e.preventDefault();
@@ -3184,13 +3223,13 @@ function App() {
         )}
 
         {/* Floating Notes Overlay */}
-        {renderConfig.showFloatingNotes && isMinimalMode && (
+        {renderConfig.showFloatingNotes && showFloatingNotesPreview && isMinimalMode && (
           <div
             className={`absolute z-[55] flex p-4 pointer-events-none transition-all duration-500 overflow-hidden
-              ${renderConfig.floatingNotesLayout === 'media-left-text' ? 'flex-row items-center gap-4' :
-                renderConfig.floatingNotesLayout === 'media-right-text' ? 'flex-row-reverse items-center gap-4' :
-                  renderConfig.floatingNotesLayout === 'media-top-text' ? 'flex-col items-center gap-4' :
-                    renderConfig.floatingNotesLayout === 'media-bottom-text' ? 'flex-col-reverse items-center gap-4' :
+              ${floatingNotesLayout === 'media-left-text' ? 'flex-row items-stretch gap-3' :
+                floatingNotesLayout === 'media-right-text' ? 'flex-row-reverse items-stretch gap-3' :
+                  floatingNotesLayout === 'media-top-text' ? 'flex-col items-stretch gap-3' :
+                    floatingNotesLayout === 'media-bottom-text' ? 'flex-col-reverse items-stretch gap-3' :
                       `flex-col justify-center ${
                         renderConfig.floatingNotesTextAlign === 'center' ? 'items-center' :
                         renderConfig.floatingNotesTextAlign === 'right' ? 'items-end' : 'items-start'
@@ -3210,7 +3249,9 @@ function App() {
               height: `${renderConfig.floatingNotesHeight || 150}px`,
               backgroundColor: renderConfig.floatingNotesShape !== 'none' ? (renderConfig.floatingNotesFillColor || '#000000') : 'transparent',
               opacity: renderConfig.floatingNotesOpacity ?? 0.8,
-              border: renderConfig.floatingNotesShape !== 'none' ? `${renderConfig.floatingNotesOutlineSize ?? 1}px solid ${renderConfig.floatingNotesOutlineColor || '#ffffff'}` : 'none',
+              border: renderConfig.floatingNotesShape !== 'none' && floatingNotesOutlineSize > 0
+                ? `${floatingNotesOutlineSize}px solid ${renderConfig.floatingNotesOutlineColor || '#ffffff'}`
+                : 'none',
               borderRadius: renderConfig.floatingNotesShape === 'rounded' ? '12px' : '0px',
               transform: `${renderConfig.floatingNotesPosition?.includes('center') ? 'translateX(-50%)' : ''} ${renderConfig.floatingNotesPosition?.includes('middle') ? 'translateY(-50%)' : ''}`,
               transformOrigin: renderConfig.floatingNotesPosition?.includes('top')
@@ -3226,12 +3267,17 @@ function App() {
             }}
           >
             {/* Media rendering */}
-            {renderConfig.floatingNotesLayout !== 'text-only' && renderConfig.floatingNotesMedia && (
-              <div className="w-1/2 h-full flex items-center justify-center overflow-hidden shrink-0">
+            {floatingNotesLayout !== 'text-only' && renderConfig.floatingNotesMedia && (
+              <div
+                className={getFloatingNotesMediaContainerClass(floatingNotesLayout)}
+                style={getFloatingNotesMediaFlexStyle(floatingNotesLayout, floatingNotesMediaSizeScale)}
+              >
                 {renderConfig.floatingNotesMediaType === 'video' ? (
                   <video
+                    key={renderConfig.floatingNotesMedia}
                     src={renderConfig.floatingNotesMedia}
-                    className="w-full h-full object-contain"
+                    className="max-w-full max-h-full object-contain"
+                    style={{ objectPosition: getFloatingNotesMediaObjectPosition(floatingNotesLayout) }}
                     muted
                     loop
                     autoPlay
@@ -3239,23 +3285,26 @@ function App() {
                   />
                 ) : (
                   <img
+                    key={renderConfig.floatingNotesMedia}
                     src={renderConfig.floatingNotesMedia}
                     alt="Notes media"
-                    className="w-full h-full object-contain"
+                    className="max-w-full max-h-full object-contain"
+                    style={{ objectPosition: getFloatingNotesMediaObjectPosition(floatingNotesLayout) }}
                   />
                 )}
               </div>
             )}
             {/* Text rendering */}
-            {renderConfig.floatingNotesLayout !== 'media-only' && renderConfig.floatingNotesText && (
+            {floatingNotesLayout !== 'media-only' && renderConfig.floatingNotesText && (
               <div
-                className="flex-1 overflow-y-auto text-xs whitespace-pre-wrap w-full"
+                className="flex-1 min-w-0 min-h-0 overflow-y-auto whitespace-pre-wrap"
                 style={{
                   fontFamily: renderConfig.floatingNotesFontFamily,
                   color: renderConfig.floatingNotesFontColor || 'white',
                   fontWeight: renderConfig.floatingNotesFontWeight || 'normal',
                   fontStyle: renderConfig.floatingNotesFontStyle || 'normal',
-                  textAlign: renderConfig.floatingNotesTextAlign || 'left'
+                  textAlign: renderConfig.floatingNotesTextAlign || 'left',
+                  fontSize: `${12 * floatingNotesFontSizeScale}px`,
                 }}
               >
                 {renderConfig.floatingNotesText}
@@ -4960,7 +5009,7 @@ function App() {
             onClick={() => setShowShortcutInfo(false)}
           >
             <div
-              className="no-minimal-mode-toggle bg-zinc-900 border border-white/10 rounded-2xl p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto shadow-2xl relative"
+              className="no-minimal-mode-toggle bg-zinc-900 border border-white/10 rounded-2xl p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto custom-scrollbar shadow-2xl relative"
               onClick={e => e.stopPropagation()}
             >
               <button
@@ -5001,8 +5050,8 @@ function App() {
                     <div className="flex justify-between text-sm"><span className="text-zinc-300">Minimal Mode</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">O</span></div>
                     <div className="flex justify-between text-sm"><span className="text-zinc-300">Hold UI (No Auto-Hide)</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">H</span></div>
                     <div className="flex justify-between text-sm"><span className="text-zinc-300">Toggle Header Info</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">I</span></div>
-                    <div className="flex justify-between text-sm"><span className="text-zinc-300">Toggle Shortcut Info</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">Y</span></div>
-                    <div className="flex justify-between text-sm"><span className="text-zinc-300">Toggle Player</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">P</span></div>
+                    <div className="flex justify-between text-sm"><span className="text-zinc-300">Toggle Shortcut Info</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">K</span></div>
+                    <div className="flex justify-between text-sm"><span className="text-zinc-300">Toggle Player</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">Y</span></div>
                     <div className="flex justify-between text-sm"><span className="text-zinc-300">UI Scale (Zoom / Reset)</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">8 / 9 / 0</span></div>
                   </div>
                 </div>
@@ -5011,8 +5060,9 @@ function App() {
                   <h3 className="text-sm font-bold text-zinc-500 uppercase tracking-wider">Editor & Styles</h3>
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm"><span className="text-zinc-300">Toggle Timeline</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">T</span></div>
-                    <div className="flex justify-between text-sm"><span className="text-zinc-300">Toggle Playlist</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">L</span></div>
+                    <div className="flex justify-between text-sm"><span className="text-zinc-300">Toggle Playlist</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">P</span></div>
                     <div className="flex justify-between text-sm"><span className="text-zinc-300">Render Settings</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">D</span></div>
+                    <div className="flex justify-between text-sm"><span className="text-zinc-300">Random Settings</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">L</span></div>
                     <div className="flex justify-between text-sm"><span className="text-zinc-300">Export Video</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">Ctrl+Shift+E</span></div>
                     <div className="flex justify-between text-sm"><span className="text-zinc-300">Font Size</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">+ / -</span></div>
                     <div className="flex justify-between text-sm"><span className="text-zinc-300">Cycle Visual Preset</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">J</span></div>
