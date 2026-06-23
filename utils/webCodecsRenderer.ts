@@ -2,6 +2,7 @@ import { Muxer, ArrayBufferTarget } from 'mp4-muxer';
 import { LyricLine, VisualSlide, AudioMetadata, RenderConfig, VideoPreset } from '../types';
 import { drawCanvasFrame } from './canvasRenderer';
 import { computeFrequencyDataAtTime } from './visualizationRenderer';
+import { decodeTimelineAudioSlides, mixTimelineAudioIntoBuffer } from './timelineAudioMixer';
 
 export interface WebCodecsRenderOptions {
     canvas: HTMLCanvasElement;
@@ -136,6 +137,11 @@ async function syncVideoElements(
             if (duration > 0) {
                 // Use globalTime if available for continuous playlist looping, else fall back to track time
                 targetTime = (globalTime !== undefined ? globalTime : time) % duration;
+            }
+        } else if (id === '__floating_notes_media__') {
+            const duration = vid.duration || 1;
+            if (duration > 0) {
+                targetTime = time % duration;
             }
         } else if (id === 'background') {
             const duration = vid.duration || 1;
@@ -277,6 +283,18 @@ export async function renderWithWebCodecs(options: WebCodecsRenderOptions): Prom
     // 1. Prepare Audio
     onLog?.('Decoding audio...');
     let audioBuffer = await decodeAudio(audioFile);
+
+    const decodedTimelineAudio = await decodeTimelineAudioSlides(visualSlides, audioBuffer.sampleRate, onLog);
+    if (decodedTimelineAudio.length > 0) {
+      onLog?.('Mixing timeline audio tracks...');
+      audioBuffer = await mixTimelineAudioIntoBuffer(
+        audioBuffer,
+        decodedTimelineAudio,
+        renderConfig,
+        startTimeOffset,
+        onLog
+      );
+    }
 
     // Determine the best audio codec and resample if necessary (e.g., Firefox doesn't support AAC)
     let audioConfig = await getAudioConfig(audioBuffer.sampleRate, audioBuffer.numberOfChannels);
@@ -509,6 +527,8 @@ export async function renderPlaylistWithWebCodecs(
 
     onProgress(0, 'Decoding first track...');
 
+    const decodedTimelineAudio = await decodeTimelineAudioSlides(visualSlides, 44100, onLog);
+
     // 1. Decode first track's audio to get consistent sample rate and channels
     let firstAudioBuffer = await decodeAudio(tracks[0].audioFile);
 
@@ -587,6 +607,7 @@ export async function renderPlaylistWithWebCodecs(
 
     let currentTimeMicro = 0;
     let totalPlaylistDuration = 0;
+    let globalTrackStartTime = 0;
 
     // 4. Process each track
     for (let i = 0; i < tracks.length; i++) {
@@ -617,6 +638,16 @@ export async function renderPlaylistWithWebCodecs(
         if (trackAudioBuffer.sampleRate !== sampleRate) {
             onLog?.(`Resampling track ${i + 1} audio to match initial sample rate (${sampleRate}Hz)...`);
             trackAudioBuffer = await resampleAudioBuffer(trackAudioBuffer, sampleRate);
+        }
+
+        if (decodedTimelineAudio.length > 0) {
+            trackAudioBuffer = await mixTimelineAudioIntoBuffer(
+                trackAudioBuffer,
+                decodedTimelineAudio,
+                renderConfig,
+                globalTrackStartTime,
+                onLog
+            );
         }
 
         const duration = trackAudioBuffer.duration;
@@ -734,6 +765,7 @@ export async function renderPlaylistWithWebCodecs(
         }
 
         currentTimeMicro += Math.round(duration * 1_000_000);
+        globalTrackStartTime += duration;
     }
 
     onProgress(99, 'Flushing encoders...');

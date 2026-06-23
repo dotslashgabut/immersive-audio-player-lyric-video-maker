@@ -172,6 +172,24 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
         }
     }, [handleKeyDown]);
 
+    // Horizontal wheel scroll for lyric timeline blocks
+    // Uses native listener with { passive: false } to allow preventDefault()
+    useEffect(() => {
+        const container = containerRef.current;
+        if (!container) return;
+
+        const handleWheel = (e: WheelEvent) => {
+            const timeline = (e.target as HTMLElement).closest('.lyric-timeline-scroll') as HTMLElement | null;
+            if (timeline && timeline.scrollWidth > timeline.clientWidth && Math.abs(e.deltaY) > 0) {
+                e.preventDefault();
+                timeline.scrollLeft += e.deltaY;
+            }
+        };
+
+        container.addEventListener('wheel', handleWheel, { passive: false });
+        return () => container.removeEventListener('wheel', handleWheel);
+    }, []);
+
     // Reset selection if playlist shrinks
     useEffect(() => {
         if (selectedIndex !== null && selectedIndex >= playlist.length) {
@@ -1543,7 +1561,9 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
                                 </div>
 
                                 {/* Right Column: Lyric Timeline */}
-                                <div className="flex-1 min-w-0 h-12 bg-zinc-950/50 rounded border border-zinc-800/50 overflow-x-auto overflow-y-hidden custom-scrollbar">
+                                <div
+                                    className="lyric-timeline-scroll flex-1 min-w-0 h-12 bg-zinc-950/50 rounded border border-zinc-800/50 overflow-x-auto overflow-y-hidden custom-scrollbar"
+                                >
                                     {lyrics.length > 0 ? (
                                         <div className="relative h-full min-w-max flex items-center px-1">
                                             {lyrics.map((line, lIdx) => {
