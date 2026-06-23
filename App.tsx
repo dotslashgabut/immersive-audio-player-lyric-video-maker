@@ -2329,7 +2329,7 @@ function App() {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Check if the key shoud trigger UI wake-up
       const key = e.key.toLowerCase();
-      const ignoredKeysForIdle = [' ', 's', 'v', 'n', 'b', 't', 'p', 'l', 'r', 'f', 'h', 'g', 'm', 'j', 'd', 'e', 'c', 'x', 'z', 'arrowleft', 'arrowright', 'arrowup', 'arrowdown', 'meta', 'control', 'shift', 'alt', 'printscreen', 'fn', '+', '-', '=', '8', '9', '0'];
+      const ignoredKeysForIdle = [' ', 's', 'v', 'n', 'b', 't', 'p', 'l', 'r', 'f', 'h', 'g', 'm', 'j', 'd', 'e', 'c', 'x', 'z', 'q', 'arrowleft', 'arrowright', 'arrowup', 'arrowdown', 'meta', 'control', 'shift', 'alt', 'printscreen', 'fn', '+', '-', '=', '8', '9', '0'];
 
       if (!ignoredKeysForIdle.includes(key)) {
         resetIdleTimer();
@@ -2660,6 +2660,15 @@ function App() {
           setUiScale(1.0);
           toast.success("UI Scale: 100%", { id: 'ui-scale' });
           break;
+        case 'q': // Toggle Lyrics Visibility
+          e.preventDefault();
+          setRenderConfig(prev => {
+            const next = !prev.showLyrics;
+            toast.success(`Lyrics: ${next ? 'Visible' : 'Hidden'}`, { id: 'lyrics-visibility' });
+            return { ...prev, showLyrics: next };
+          });
+          break;
+
       }
     };
 
@@ -3143,6 +3152,9 @@ function App() {
 
       {/* --- Main Content Area --- */}
       <div className="relative z-10 flex-1 flex flex-col transition-all duration-500 min-w-0">
+
+        {/* Preview Zone Wrapper: constrains absolute overlays (Channel Info, Floating Notes, Song Info) to the preview area only */}
+        <div className="relative flex-1 min-h-0 overflow-hidden flex flex-col">
 
         {/* Channel Info Overlay */}
         {renderConfig.showChannelInfo && isMinimalMode && (
@@ -4836,6 +4848,8 @@ function App() {
             </div>
           </div>
         </div>
+        </div>{/* end Preview Zone Wrapper */}
+
         {/* --- Bottom Timeline Editor or Playlist --- */}
         {isPlaylistMode ? (
           <div className="no-minimal-mode-toggle animate-slide-up border-t border-white/10 z-30 shrink-0 w-full max-w-full overflow-hidden">
@@ -5052,6 +5066,7 @@ function App() {
                     <div className="flex justify-between text-sm"><span className="text-zinc-300">Toggle Header Info</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">I</span></div>
                     <div className="flex justify-between text-sm"><span className="text-zinc-300">Toggle Shortcut Info</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">K</span></div>
                     <div className="flex justify-between text-sm"><span className="text-zinc-300">Toggle Player</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">Y</span></div>
+                    <div className="flex justify-between text-sm"><span className="text-zinc-300">Toggle Lyrics Visibility</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">Q</span></div>
                     <div className="flex justify-between text-sm"><span className="text-zinc-300">UI Scale (Zoom / Reset)</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">8 / 9 / 0</span></div>
                   </div>
                 </div>
@@ -5071,6 +5086,7 @@ function App() {
                     <div className="flex justify-between text-sm"><span className="text-zinc-300">Cycle Text Case</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">C</span></div>
                     <div className="flex justify-between text-sm"><span className="text-zinc-300">Cycle Lyric Mode</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">G</span></div>
                   </div>
+
 
                   <h3 className="text-sm font-bold text-zinc-500 uppercase tracking-wider mt-6">Mouse & Touch</h3>
                   <div className="space-y-2">
