@@ -200,7 +200,8 @@ Check out our other AI-powered tools for music and visuals:
 | **H** | Toggle UI Auto-Hide Inhibit |
 | **G** | Cycle Lyric Display Mode |
 | **C** | Cycle Text Case |
-| **L** | Toggle Playlist View |
+| **L** | Random Settings (Generate Random Style) |
+| **Q** | Toggle Lyric Visibility Mode: Default / Auto |
 | **T** | Open/Close Timeline Editor |
 | **D** | Toggle Render Settings Panel |
 | **I** | Toggle Header Info |
@@ -209,7 +210,7 @@ Check out our other AI-powered tools for music and visuals:
 | **P** | Toggle Player Controls |
 | **X** | Toggle Highlight Effect On/Off |
 | **Z** | Cycle Next Highlight Effect |
-| **F** | Toggle Fullscreen |
+| **F** | Toggle Fullscreen *(Note: may be blocked if a browser dialog is open — use **F11** or **Fn+F** for native browser fullscreen instead)* |
 | **1** | Load Audio / Video File |
 | **2** | Load Lyrics / Subtitle File |
 | **3** | Load Font File |
