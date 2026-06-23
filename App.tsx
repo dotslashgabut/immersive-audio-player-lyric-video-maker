@@ -2660,12 +2660,12 @@ function App() {
           setUiScale(1.0);
           toast.success("UI Scale: 100%", { id: 'ui-scale' });
           break;
-        case 'q': // Toggle Lyrics Visibility
+        case 'q': // Toggle Lyric Visibility Mode (Default / Auto)
           e.preventDefault();
           setRenderConfig(prev => {
-            const next = !prev.showLyrics;
-            toast.success(`Lyrics: ${next ? 'Visible' : 'Hidden'}`, { id: 'lyrics-visibility' });
-            return { ...prev, showLyrics: next };
+            const next = (prev.lyricVisibilityMode ?? 'default') === 'auto' ? 'default' : 'auto';
+            toast.success(`Lyric Visibility: ${next === 'auto' ? 'Auto' : 'Default'}`, { id: 'lyric-visibility-mode' });
+            return { ...prev, lyricVisibilityMode: next };
           });
           break;
 
@@ -5066,7 +5066,7 @@ function App() {
                     <div className="flex justify-between text-sm"><span className="text-zinc-300">Toggle Header Info</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">I</span></div>
                     <div className="flex justify-between text-sm"><span className="text-zinc-300">Toggle Shortcut Info</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">K</span></div>
                     <div className="flex justify-between text-sm"><span className="text-zinc-300">Toggle Player</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">Y</span></div>
-                    <div className="flex justify-between text-sm"><span className="text-zinc-300">Toggle Lyrics Visibility</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">Q</span></div>
+                    <div className="flex justify-between text-sm"><span className="text-zinc-300">Lyric Visibility: Default / Auto</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">Q</span></div>
                     <div className="flex justify-between text-sm"><span className="text-zinc-300">UI Scale (Zoom / Reset)</span> <span className="font-mono text-purple-400 bg-white/5 px-2 py-0.5 rounded">8 / 9 / 0</span></div>
                   </div>
                 </div>
