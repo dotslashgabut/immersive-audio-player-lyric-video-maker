@@ -1,5 +1,34 @@
 # Release Notes
 
+# 2.3.18
+
+## What's New
+- **Floating Notes Overlay** *(New Feature)*:
+  - **Custom Overlay Widget**: Added a fully configurable **Floating Notes** overlay that appears on top of the video canvas. Useful for channel watermarks, custom subtitles, sponsor callouts, or any persistent annotation.
+  - **Layout Modes**: Choose from **Text Only**, **Media Only**, **Media Left + Text**, **Media Right + Text**, **Media Top + Text**, and **Media Bottom + Text** for flexible compositions.
+  - **Media Support**: Load an image or video clip as the media component of the floating note. Video clips loop automatically and are composited into all export engines (FFmpeg, WebCodecs, Canvas).
+  - **9-Point Positioning**: Place the overlay anywhere on the canvas — **Top Left/Center/Right**, **Left/Center/Right Middle**, and **Bottom Left/Center/Right**.
+  - **Shape & Style**: Choose between **None** (transparent), **Sharp**, or **Rounded** container backgrounds. Control fill color, outline color, outline thickness, opacity, margin, width, and height.
+  - **Typography Control**: Dedicated font family, size scale, weight, style, color, and text alignment for the text component.
+  - **Visibility Modes**: Show the overlay **Always**, **Follow Lyrics** (mirrors Auto Lyric Visibility logic), **From Start** (first N seconds), **From End** (last N seconds), **From Start & End**, or **Specific** (custom time range).
+  - **Full Export Support**: Floating Notes render correctly in the live Web View, **WebCodecs** encoder, and **FFmpeg** frame-by-frame renderer.
+
+- **Extended 9-Point Grid Positions for Song Info & Channel Info** *(Enhancement)*:
+  - **Left/Center/Right Middle**: Added three new **Middle** row position options (`Left Middle`, `Center Middle`, `Right Middle`) to the positioning dropdowns for both **Song Info** and **Channel Info** overlays, completing the full 9-point grid (3×3) from Top to Bottom.
+
+- **Timeline Audio Mixing — FFmpeg Export** *(New Feature)*:
+  - **Mix Audio Tracks into Export**: The FFmpeg renderer now decodes and mixes all **timeline audio slides** (sound effects, secondary audio clips) directly into the exported video's audio track using a new `timelineAudioMixer` utility.
+  - **Sample-Accurate Mixing**: Audio clips are decoded, resampled to match the main track's sample rate, and blended with per-clip volume and mute settings before being written as a WAV intermediate file for FFmpeg processing.
+  - **WAV Intermediate Pipeline**: Introduced `audioBufferToWav` helper to serialize mixed `AudioBuffer` data to raw WAV bytes, enabling clean handoff to the FFmpeg WASM encoder.
+
+- **Granular Randomizer Controls** *(Enhancement)*:
+  - **Per-Category Toggles**: The Random Settings generator now exposes individual enable/disable toggles for each randomization category: **Background Source**, **Background Effects**, **Audio Visualizer**, **Lyric Display Mode**, **Highlight Effect**, **Visible Elements**, **Intro Settings**, **Typography Style**, **Text Effect**, **Text Animation**, **Transition Effect**, **Visual Transition**, **Channel Info**, **Floating Notes**, and **Song Info Design**.
+  - **Group Controls**: Quickly enable/disable all Typography & Style or all Style & Effect subcategories with grouped header toggles.
+  - **Keyboard Shortcut**: Press **`L`** to instantly trigger a Random Settings generation from anywhere in the player.
+
+- **Playlist Lyric Timeline — Horizontal Scroll Fix** *(Bug Fix)*:
+  - **Native Wheel Listener**: Fixed the mini lyric-timeline blocks in the Playlist Editor so that **vertical mouse wheel** scrolling over an overflowing lyric strip now correctly scrolls that strip **horizontally** (using `deltaY → scrollLeft` mapping) instead of scrolling the page. Uses a non-passive `wheel` event listener with `preventDefault()` to avoid scroll propagation conflicts.
+
 # 2.3.17
 
 ## What's New
