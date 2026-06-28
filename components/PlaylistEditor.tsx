@@ -160,9 +160,15 @@ const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, setPlaylist, 
             e.stopPropagation();
             onPlayTrack(selectedIndex);
         } else if (e.key === 'Escape') {
-            setSelectedIndex(null);
+            if (selectedIndex !== null) {
+                // First Esc: clear selection, stay open. Stop propagation so App-level Esc doesn't also close.
+                e.preventDefault();
+                e.stopPropagation();
+                setSelectedIndex(null);
+            }
+            // If no selection: let propagation reach App's window listener to close the panel.
         }
-    }, [selectedIndex, playlist.length, setPlaylist, onPlayTrack]);
+    }, [selectedIndex, playlist.length, setPlaylist, onPlayTrack, onClose]);
 
     useEffect(() => {
         const container = containerRef.current;
