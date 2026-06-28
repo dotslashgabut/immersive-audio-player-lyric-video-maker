@@ -2329,7 +2329,7 @@ function App() {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Check if the key shoud trigger UI wake-up
       const key = e.key.toLowerCase();
-      const ignoredKeysForIdle = [' ', 's', 'v', 'n', 'b', 't', 'p', 'l', 'r', 'f', 'h', 'g', 'm', 'j', 'd', 'e', 'c', 'x', 'z', 'q', 'arrowleft', 'arrowright', 'arrowup', 'arrowdown', 'meta', 'control', 'shift', 'alt', 'printscreen', 'fn', '+', '-', '=', '8', '9', '0'];
+      const ignoredKeysForIdle = [' ', 's', 'v', 'n', 'b', 't', 'p', 'l', 'r', 'f', 'h', 'g', 'm', 'j', 'd', 'e', 'c', 'x', 'z', 'q', 'escape', 'arrowleft', 'arrowright', 'arrowup', 'arrowdown', 'meta', 'control', 'shift', 'alt', 'printscreen', 'fn', '+', '-', '=', '8', '9', '0'];
 
       if (!ignoredKeysForIdle.includes(key)) {
         resetIdleTimer();
@@ -2351,6 +2351,21 @@ function App() {
           handleAbortRender();
         }
         return; // Block other shortcuts during render
+      }
+
+      // Escape: close open panels in priority order (highest priority first)
+      if (key === 'escape') {
+        e.preventDefault();
+        if (showShortcutInfo) {
+          setShowShortcutInfo(false);
+        } else if (showRenderSettings) {
+          setShowRenderSettings(false);
+        } else if (isPlaylistMode) {
+          setIsPlaylistMode(false);
+        } else if (activeTab === TabView.EDITOR) {
+          setActiveTab(TabView.PLAYER);
+        }
+        return;
       }
 
       const setPresetCustom = () => setPreset('custom');
@@ -2674,7 +2689,7 @@ function App() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isPlaying, repeatMode, activeTab, isRendering, resetIdleTimer, handleAbortRender, isPlaylistMode, playNextSong, playPreviousSong, toast, isMinimalMode, preset, bypassAutoHide, isMuted]);
+  }, [isPlaying, repeatMode, activeTab, isRendering, resetIdleTimer, handleAbortRender, isPlaylistMode, playNextSong, playPreviousSong, toast, isMinimalMode, preset, bypassAutoHide, isMuted, showRenderSettings, showShortcutInfo]);
 
   // Smooth Playback Animation Loop (Throttled to ~30fps)
   useEffect(() => {
