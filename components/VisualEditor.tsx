@@ -780,6 +780,20 @@ const VisualEditor: React.FC<VisualEditorProps> = ({ slides, setSlides, currentT
       return;
     }
 
+    // Escape: deselect slides (first Esc), or let App close the editor (second Esc / no selection)
+    if (e.key === 'Escape') {
+      if (selectedSlideIds.length > 0) {
+        e.preventDefault();
+        e.stopPropagation();
+        // Also stop native window listener from firing (React stopPropagation only stops React handlers)
+        e.nativeEvent.stopImmediatePropagation();
+        setSelectedSlideIds([]);
+        setLastSelectedId(null);
+      }
+      // If no selection: propagation continues, App's window listener closes the editor
+      return;
+    }
+
     // 1. Delete
     if ((e.key === 'Delete' || e.key === 'Backspace') && selectedSlideIds.length > 0) {
       e.preventDefault();
