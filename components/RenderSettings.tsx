@@ -1943,7 +1943,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
                                     className="px-2 py-1 rounded-md bg-zinc-800 hover:bg-zinc-700 border border-white/10 text-[10px] text-zinc-300 hover:text-white transition-colors"
                                     title="Background, visualizer, highlight, visible elements, text & transition effects"
                                 >
-                                    Style & FX
+                                    Style | FX
                                 </button>
                                 <button
                                     onClick={handleRandomizeInvertSelection}
